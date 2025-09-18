@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfólio Digital - ResolvTask</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+
+    <style>
+        /* Color Variables */
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+        }
+
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            overflow-x: hidden;
+        }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        .loading-screen .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        /* Header */
+        .portfolio-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--info-color) 100%);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+        }
+        .portfolio-header h1 {
+            font-size: 3rem;
+            font-weight: 300;
+            margin-bottom: 20px;
+        }
+        .portfolio-header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Statistics Cards */
+        .stat-card {
+            text-align: center;
+            padding: 30px 20px;
+        }
+        .stat-card .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        .stat-card .stat-label {
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-card .stat-improvement {
+            font-size: 0.8rem;
+            margin-top: 5px;
+            font-weight: 600;
+        }
+        .improvement-positive {
+            color: var(--success-color);
+        }
+        .improvement-neutral {
+            color: var(--info-color);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 30px;
+            height: 100%;
+            width: 2px;
+            background: var(--primary-color);
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            padding-left: 70px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 24px;
+            top: 0;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary-color);
+        }
+        .timeline-date {
+            font-size: 0.85rem;
+            color: var(--secondary-color);
+            margin-bottom: 5px;
+        }
+        .timeline-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .timeline-description {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+        }
+
+        /* Radar Chart Container */
+        .radar-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        /* Event Cards */
+        .event-card {
+            border-left: 4px solid var(--primary-color);
+            margin-bottom: 15px;
+        }
+        .event-card .card-body {
+            padding: 20px;
+        }
+        .event-placement {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .placement-1 { background-color: #ffd700; color: #333; }
+        .placement-2 { background-color: #c0c0c0; color: #333; }
+        .placement-3 { background-color: #cd7f32; color: white; }
+        .placement-4 { background-color: var(--info-color); color: white; }
+        .placement-participant { background-color: var(--secondary-color); color: white; }
+
+        /* Checkpoint Progress */
+        .checkpoint-progress {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .checkpoint-score {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-right: 15px;
+            min-width: 40px;
+        }
+        .checkpoint-details {
+            flex: 1;
+        }
+        .checkpoint-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .checkpoint-feedback {
+            font-size: 0.9rem;
+            color: var(--secondary-color);
+        }
+
+        /* Mentorship Cards */
+        .mentorship-card {
+            border-left: 4px solid var(--success-color);
+            margin-bottom: 15px;
+        }
+        .mentorship-rating {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .star-filled {
+            color: #ffd700;
+        }
+        .star-empty {
+            color: #ddd;
+        }
+
+        /* Content Sections */
+        .content-section {
+            padding: 60px 0;
+        }
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 300;
+            margin-bottom: 40px;
+            text-align: center;
+            color: var(--dark-color);
+        }
+
+        /* Error States */
+        .error-message {
+            text-align: center;
+            padding: 40px;
+            color: var(--danger-color);
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--secondary-color);
+        }
+
+        /* Animations */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .portfolio-header h1 {
+                font-size: 2rem;
+            }
+            .section-title {
+                font-size: 2rem;
+            }
+            .stat-card .stat-number {
+                font-size: 2rem;
+            }
+        }
+
+        /* Hidden by default */
+        .main-content {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div class="spinner"></div>
+        <h4>Carregando Portfólio Digital</h4>
+        <p>Conectando com Supabase...</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Header -->
+        <header class="portfolio-header">
+            <div class="container">
+                <h1 id="userFullName">Portfólio Digital</h1>
+                <p class="subtitle" id="userRole">Desenvolvedor</p>
+            </div>
+        </header>
+
+        <!-- Journey Summary -->
+        <section class="content-section">
+            <div class="container">
+                <h2 class="section-title">Resumo da Jornada</h2>
+                <div class="row">
+                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="totalHackatons">0</div>
+                            <div class="stat-label">Hackatons</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="bestPlacement">-</div>
+                            <div class="stat-label">Melhor Colocação</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="overallEvolution">0</div>
+                            <div class="stat-label">Evolução Geral</div>
+                            <div class="stat-improvement improvement-positive" id="evolutionImprovement">+0%</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="stagePresence">0/0</div>
+                            <div class="stat-label">Presença em Etapas</div>
+                            <div class="stat-improvement improvement-neutral" id="presencePercentage">0%</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="totalMentorships">0</div>
+                            <div class="stat-label">Mentorias</div>
+                            <div class="stat-improvement improvement-positive" id="mentorshipDetails">0h total</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
+                        <div class="card stat-card">
+                            <div class="stat-number" id="mentorshipApproval">0%</div>
+                            <div class="stat-label">Aproveitamento</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Personal Evolution -->
+        <section class="content-section" style="background-color: white;">
+            <div class="container">
+                <h2 class="section-title">Evolução Pessoal</h2>
+                <div class="row">
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Radar de Competências 21D</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="radar-container">
+                                    <canvas id="competencyRadar"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Principais Competências</h5>
+                            </div>
+                            <div class="card-body" id="topCompetencies">
+                                <!-- Top competencies will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Event History -->
+        <section class="content-section">
+            <div class="container">
+                <h2 class="section-title">Histórico de Eventos</h2>
+                <div id="eventHistory">
+                    <!-- Event history will be loaded here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- Checkpoint Evolution -->
+        <section class="content-section" style="background-color: white;">
+            <div class="container">
+                <h2 class="section-title">Evolução por Checkpoint</h2>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Avaliações Durante Hackatons</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="checkpointEvolutionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Feedbacks de Mentores</h5>
+                            </div>
+                            <div class="card-body" id="mentorFeedbacks">
+                                <!-- Mentor feedbacks will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Presented Solutions -->
+        <section class="content-section">
+            <div class="container">
+                <h2 class="section-title">Soluções Apresentadas</h2>
+                <div id="presentedSolutions">
+                    <!-- Solutions will be loaded here -->
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Supabase client (will be initialized after loading config)
+        let supabase = null;
+
+        // Load Supabase configuration from server
+        async function loadSupabaseConfig() {
+            try {
+                const response = await fetch('/api/supabase-config');
+                const config = await response.json();
+                
+                if (!config.url || !config.key) {
+                    throw new Error('Credenciais do Supabase não configuradas');
+                }
+                
+                // Initialize Supabase client
+                supabase = window.supabase.createClient(config.url, config.key);
+                console.log('✅ Cliente Supabase inicializado');
+                return supabase;
+            } catch (error) {
+                console.error('❌ Erro ao carregar configuração do Supabase:', error);
+                throw error;
+            }
+        }
+
+        // Global variables
+        let currentUser = null;
+        let userData = {};
+
+        // Utility functions
+        function hideLoading() {
+            document.getElementById('loadingScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+        }
+
+        function showError(message) {
+            console.error('Error:', message);
+            document.querySelector('.loading-screen p').textContent = `Erro: ${message}`;
+        }
+
+        // Data loading functions
+        async function loadUserData(userId = null) {
+            try {
+                console.log('🔄 Carregando dados do usuário...');
+                
+                // Create a demo user for now since users will be added later
+                currentUser = {
+                    id: '00000000-0000-0000-0000-000000000000',
+                    full_name: 'Usuário Demo',
+                    role: 'Desenvolvedor', 
+                    member_id: null,
+                    email: 'demo@exemplo.com'
+                };
+
+                // Update header with demo user info
+                document.getElementById('userFullName').textContent = currentUser.full_name;
+                document.getElementById('userRole').textContent = currentUser.role;
+
+                console.log('✅ Dados do usuário demo carregados:', currentUser);
+                return currentUser;
+            } catch (error) {
+                console.error('❌ Erro ao carregar dados do usuário:', error);
+                throw error;
+            }
+        }
+
+        async function loadJourneySummary() {
+            try {
+                console.log('🔄 Carregando resumo da jornada...');
+                
+                // Load hackatons count
+                const { data: events, error: eventsError } = await supabase
+                    .from('assessment_submissions')
+                    .select('event_id')
+                    .eq('user_id', currentUser.id);
+                
+                if (eventsError) throw eventsError;
+                
+                const uniqueEvents = [...new Set(events.map(e => e.event_id))];
+                document.getElementById('totalHackatons').textContent = uniqueEvents.length;
+                
+                // Calculate best placement (simplified - use team data if available)
+                let bestPlacement = '-';
+                try {
+                    const { data: teamData, error: teamError } = await supabase
+                        .from('team_members')
+                        .select(`
+                            teams (
+                                name,
+                                event_id,
+                                events (
+                                    name
+                                )
+                            )
+                        `)
+                        .eq('user_id', currentUser.id);
+                    
+                    if (!teamError && teamData && teamData.length > 0) {
+                        // For demo purposes, show "1º" for first team or "Participante" for others
+                        bestPlacement = teamData.length > 0 ? '1º' : 'Participante';
+                    }
+                } catch (err) {
+                    console.warn('Error calculating best placement:', err);
+                }
+                
+                document.getElementById('bestPlacement').textContent = bestPlacement;
+
+                // Load mentorships (handle null member_id gracefully)
+                let mentorships = [];
+                if (currentUser.member_id) {
+                    const { data: mentorshipData, error: mentorshipsError } = await supabase
+                        .from('mentorings')
+                        .select('*')
+                        .or(`request_member_id.eq.${currentUser.member_id},mentor_id.eq.${currentUser.id}`);
+                    
+                    if (!mentorshipsError && mentorshipData) {
+                        mentorships = mentorshipData;
+                    }
+                }
+                
+                // Update mentorship statistics
+                document.getElementById('totalMentorships').textContent = mentorships.length;
+                
+                if (mentorships.length > 0) {
+                    // Calculate total duration and approval rate
+                    const totalDuration = mentorships.reduce((sum, m) => sum + (m.duration || 0), 0);
+                    const approvedMentorships = mentorships.filter(m => (m.assessment || 0) >= 4).length;
+                    const approvalRate = Math.round((approvedMentorships / mentorships.length) * 100);
+                    
+                    document.getElementById('mentorshipDetails').textContent = `${Math.round(totalDuration / 3600)}h total`;
+                    document.getElementById('mentorshipApproval').textContent = `${approvalRate}%`;
+                } else {
+                    document.getElementById('mentorshipDetails').textContent = '0h total';
+                    document.getElementById('mentorshipApproval').textContent = '0%';
+                }
+
+                // Load assessment evolution and stage presence
+                const { data: assessments, error: assessError } = await supabase
+                    .from('assessment_answers')
+                    .select('answer, moment, created_at')
+                    .eq('user_id', currentUser.id)
+                    .order('created_at');
+                
+                if (!assessError && assessments && assessments.length > 0) {
+                    const initialAssessments = assessments.filter(a => a.moment === 'INITIAL');
+                    const finalAssessments = assessments.filter(a => a.moment === 'FINAL');
+                    
+                    if (initialAssessments.length > 0 && finalAssessments.length > 0) {
+                        const initialAvg = initialAssessments.reduce((sum, a) => sum + a.answer, 0) / initialAssessments.length;
+                        const finalAvg = finalAssessments.reduce((sum, a) => sum + a.answer, 0) / finalAssessments.length;
+                        const evolution = finalAvg - initialAvg;
+                        const evolutionPercent = initialAvg > 0 ? Math.round((evolution / initialAvg) * 100) : 0;
+                        
+                        document.getElementById('overallEvolution').textContent = evolution >= 0 ? `+${evolution.toFixed(1)}` : evolution.toFixed(1);
+                        document.getElementById('evolutionImprovement').textContent = `${evolutionPercent >= 0 ? '+' : ''}${evolutionPercent}% de melhora`;
+                    }
+                }
+                
+                // Calculate stage presence - fix Supabase count usage
+                let stagePresence = '0/0';
+                let presencePercent = 0;
+                
+                try {
+                    const { data: checkpointSubmissions, error: checkpointError } = await supabase
+                        .from('f_submissions')
+                        .select('checkpoint_id')
+                        .eq('target_user_id', currentUser.id);
+                    
+                    const { count: totalCount, error: totalCheckpointsError } = await supabase
+                        .from('checkpoints')
+                        .select('id', { count: 'exact', head: true });
+                    
+                    if (!checkpointError && checkpointSubmissions) {
+                        const uniqueCheckpoints = [...new Set(checkpointSubmissions.map(s => s.checkpoint_id))].length;
+                        const total = totalCount || 0;
+                        presencePercent = total > 0 ? Math.round((uniqueCheckpoints / total) * 100) : 0;
+                        stagePresence = `${uniqueCheckpoints}/${total}`;
+                    }
+                } catch (err) {
+                    console.warn('Error calculating stage presence:', err);
+                }
+                
+                document.getElementById('stagePresence').textContent = stagePresence;
+                document.getElementById('presencePercentage').textContent = `${presencePercent}% de Participação`;
+
+                console.log('✅ Resumo da jornada carregado');
+            } catch (error) {
+                console.error('❌ Erro ao carregar resumo da jornada:', error);
+            }
+        }
+
+        async function loadCompetencyRadar() {
+            try {
+                console.log('🔄 Carregando radar de competências...');
+                
+                // Try to load assessments with defensive schema handling
+                let assessments = null;
+                try {
+                    const { data, error } = await supabase
+                        .from('assessment_answers')
+                        .select(`
+                            answer,
+                            moment,
+                            assessment_questions (
+                                category,
+                                text
+                            )
+                        `)
+                        .eq('user_id', currentUser.id)
+                        .eq('moment', 'FINAL');
+                    
+                    if (error) {
+                        console.warn('Schema mismatch or missing relation assessment_questions:', error);
+                        // Fallback: try simpler query
+                        const { data: simpleData, error: simpleError } = await supabase
+                            .from('assessment_answers')
+                            .select('answer, moment')
+                            .eq('user_id', currentUser.id)
+                            .eq('moment', 'FINAL');
+                        
+                        if (!simpleError) {
+                            assessments = simpleData;
+                        }
+                    } else {
+                        assessments = data;
+                    }
+                } catch (err) {
+                    console.error('Error loading assessments:', err);
+                }
+                
+                // Error handling moved to try-catch block above
+                
+                if (!assessments || assessments.length === 0) {
+                    document.getElementById('competencyRadar').parentElement.innerHTML = '<p class="no-data">Nenhum dado de competências encontrado</p>';
+                    return;
+                }
+
+                // Group by category
+                const competencyData = {};
+                assessments.forEach(assessment => {
+                    const category = assessment.assessment_questions?.category || 'Outros';
+                    if (!competencyData[category]) {
+                        competencyData[category] = [];
+                    }
+                    competencyData[category].push(assessment.answer);
+                });
+
+                // Calculate averages
+                const categories = [];
+                const scores = [];
+                Object.keys(competencyData).forEach(category => {
+                    categories.push(category);
+                    const avg = competencyData[category].reduce((sum, score) => sum + score, 0) / competencyData[category].length;
+                    scores.push(avg);
+                });
+
+                // Create radar chart
+                const ctx = document.getElementById('competencyRadar').getContext('2d');
+                new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: categories,
+                        datasets: [{
+                            label: 'Competências',
+                            data: scores,
+                            borderColor: 'rgb(13, 110, 253)',
+                            backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                            pointBackgroundColor: 'rgb(13, 110, 253)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(13, 110, 253)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            r: {
+                                beginAtZero: true,
+                                max: 5
+                            }
+                        }
+                    }
+                });
+
+                // Update top competencies
+                const sortedCompetencies = categories.map((cat, index) => ({
+                    category: cat,
+                    score: scores[index]
+                })).sort((a, b) => b.score - a.score);
+
+                const topCompetenciesHtml = sortedCompetencies.slice(0, 5).map(comp => `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>${comp.category}</span>
+                        <span class="badge bg-primary">${comp.score.toFixed(1)}</span>
+                    </div>
+                `).join('');
+
+                document.getElementById('topCompetencies').innerHTML = topCompetenciesHtml;
+
+                console.log('✅ Radar de competências carregado');
+            } catch (error) {
+                console.error('❌ Erro ao carregar radar de competências:', error);
+                document.getElementById('competencyRadar').parentElement.innerHTML = `<p class="error-message">Erro ao carregar competências: ${error.message}</p>`;
+            }
+        }
+
+        async function loadEventHistory() {
+            try {
+                console.log('🔄 Carregando histórico de eventos...');
+                
+                const { data: events, error } = await supabase
+                    .from('assessment_submissions')
+                    .select(`
+                        event_id,
+                        created_at,
+                        events (
+                            name,
+                            description,
+                            created_at
+                        )
+                    `)
+                    .eq('user_id', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                // Error handling moved to try-catch block above
+                
+                if (!events || events.length === 0) {
+                    document.getElementById('eventHistory').innerHTML = '<p class="no-data">Nenhum evento encontrado</p>';
+                    return;
+                }
+
+                const uniqueEvents = [];
+                const seenEventIds = new Set();
+                
+                events.forEach(event => {
+                    if (!seenEventIds.has(event.event_id)) {
+                        seenEventIds.add(event.event_id);
+                        uniqueEvents.push(event);
+                    }
+                });
+
+                const eventHistoryHtml = uniqueEvents.map((event, index) => `
+                    <div class="card event-card fade-in" style="animation-delay: ${index * 0.1}s">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h5 class="card-title">${event.events?.name || 'Evento'}</h5>
+                                    <p class="card-text text-muted">${event.events?.description || 'Descrição não disponível'}</p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        ${new Date(event.events?.created_at || event.created_at).toLocaleDateString('pt-BR')}
+                                    </small>
+                                </div>
+                                <span class="event-placement placement-participant">Participante</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+                document.getElementById('eventHistory').innerHTML = eventHistoryHtml;
+
+                console.log('✅ Histórico de eventos carregado');
+            } catch (error) {
+                console.error('❌ Erro ao carregar histórico de eventos:', error);
+                document.getElementById('eventHistory').innerHTML = `<p class="error-message">Erro ao carregar eventos: ${error.message}</p>`;
+            }
+        }
+
+        async function loadMentorFeedbacks() {
+            try {
+                console.log('🔄 Carregando feedbacks de mentores...');
+                
+                const { data: mentorings, error } = await supabase
+                    .from('mentorings')
+                    .select('*')
+                    .or(`request_member_id.eq.${currentUser.member_id},mentor_id.eq.${currentUser.id}`)
+                    .not('feedback', 'is', null)
+                    .order('finalized_at', { ascending: false });
+                
+                // Error handling moved to try-catch block above
+                
+                if (!mentorings || mentorings.length === 0) {
+                    document.getElementById('mentorFeedbacks').innerHTML = '<p class="no-data">Nenhum feedback encontrado</p>';
+                    return;
+                }
+
+                const feedbacksHtml = mentorings.map((mentoring, index) => {
+                    const stars = Array.from({length: 5}, (_, i) => 
+                        `<i class="fas fa-star ${i < mentoring.assessment ? 'star-filled' : 'star-empty'}"></i>`
+                    ).join('');
+                    
+                    return `
+                        <div class="card mentorship-card fade-in" style="animation-delay: ${index * 0.1}s">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="mentorship-rating">
+                                        ${stars}
+                                        <span class="ms-2 text-muted">(${mentoring.assessment}/5)</span>
+                                    </div>
+                                    <small class="text-muted">
+                                        ${mentoring.finalized_at ? new Date(mentoring.finalized_at * 1000).toLocaleDateString('pt-BR') : 'Em andamento'}
+                                    </small>
+                                </div>
+                                <p class="card-text">${mentoring.feedback}</p>
+                                ${mentoring.duration ? `<small class="text-muted">Duração: ${Math.round(mentoring.duration / 3600)}h</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                document.getElementById('mentorFeedbacks').innerHTML = feedbacksHtml;
+
+                console.log('✅ Feedbacks de mentores carregados');
+            } catch (error) {
+                console.error('❌ Erro ao carregar feedbacks:', error);
+                document.getElementById('mentorFeedbacks').innerHTML = `<p class="error-message">Erro ao carregar feedbacks: ${error.message}</p>`;
+            }
+        }
+
+        async function loadCheckpointEvolution() {
+            try {
+                console.log('🔄 Carregando evolução por checkpoint...');
+                
+                const { data: checkpoints, error } = await supabase
+                    .from('f_submissions')
+                    .select(`
+                        checkpoint_id,
+                        created_at,
+                        f_answers (
+                            answer_numeric,
+                            f_questions (
+                                text,
+                                type
+                            )
+                        ),
+                        checkpoints (
+                            number,
+                            created_at
+                        )
+                    `)
+                    .eq('target_user_id', currentUser.id)
+                    .order('created_at');
+                
+                // Error handling moved to try-catch block above
+                
+                if (!checkpoints || checkpoints.length === 0) {
+                    document.getElementById('checkpointEvolutionChart').parentElement.innerHTML = '<p class="no-data">Nenhum dado de checkpoint encontrado</p>';
+                    return;
+                }
+
+                // Process data for chart
+                const checkpointData = {};
+                checkpoints.forEach(checkpoint => {
+                    const checkpointNum = checkpoint.checkpoints?.number || 1;
+                    if (!checkpointData[checkpointNum]) {
+                        checkpointData[checkpointNum] = [];
+                    }
+                    
+                    checkpoint.f_answers?.forEach(answer => {
+                        if (answer.answer_numeric !== null) {
+                            checkpointData[checkpointNum].push(answer.answer_numeric);
+                        }
+                    });
+                });
+
+                // Calculate averages
+                const labels = Object.keys(checkpointData).sort((a, b) => a - b);
+                const data = labels.map(label => {
+                    const values = checkpointData[label];
+                    return values.length > 0 ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
+                });
+
+                // Create checkpoint evolution chart
+                const ctx = document.getElementById('checkpointEvolutionChart').getContext('2d');
+                
+                if (labels.length > 0 && data.length > 0) {
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels.map(l => `Checkpoint ${l}`),
+                            datasets: [{
+                                label: 'Pontuação Média',
+                                data: data,
+                                borderColor: 'rgb(13, 110, 253)',
+                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    display: true
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: 5,
+                                    title: {
+                                        display: true,
+                                        text: 'Pontuação'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Checkpoints'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                } else {
+                    // Show message when no data available
+                    ctx.font = '16px Arial';
+                    ctx.fillStyle = '#6c757d';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Nenhum dado de checkpoint disponível', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                }
+
+                console.log('✅ Evolução por checkpoint carregada');
+            } catch (error) {
+                console.error('❌ Erro ao carregar evolução por checkpoint:', error);
+                document.getElementById('checkpointEvolutionChart').parentElement.innerHTML = `<p class="error-message">Erro ao carregar evolução: ${error.message}</p>`;
+            }
+        }
+
+        async function loadPresentedSolutions() {
+            try {
+                console.log('🔄 Carregando soluções apresentadas...');
+                
+                // For now, we'll show a placeholder since GitHub repos aren't in the schema
+                const solutionsHtml = `
+                    <div class="card fade-in">
+                        <div class="card-body">
+                            <h5 class="card-title">Soluções Desenvolvidas</h5>
+                            <p class="card-text">As informações sobre repositórios GitHub e descrições detalhadas das soluções não estão disponíveis no esquema atual da base de dados.</p>
+                            <p class="text-muted">Para visualizar as soluções apresentadas, seria necessário adicionar campos como:</p>
+                            <ul class="text-muted">
+                                <li>github_repo_url na tabela teams ou assessment_submissions</li>
+                                <li>solution_description para descrições detalhadas</li>
+                                <li>Integração com APIs do GitHub para dados do repositório</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('presentedSolutions').innerHTML = solutionsHtml;
+
+                console.log('✅ Soluções apresentadas carregadas (placeholder)');
+            } catch (error) {
+                console.error('❌ Erro ao carregar soluções:', error);
+                document.getElementById('presentedSolutions').innerHTML = `<p class="error-message">Erro ao carregar soluções: ${error.message}</p>`;
+            }
+        }
+
+        // Main initialization function
+        async function initializePortfolio() {
+            try {
+                console.log('🚀 Iniciando Portfólio Digital...');
+                
+                // Load Supabase configuration and initialize client
+                await loadSupabaseConfig();
+                
+                // Test Supabase connection
+                const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
+                if (error) throw new Error(`Erro de conexão com Supabase: ${error.message}`);
+                
+                console.log('✅ Conexão com Supabase estabelecida');
+                
+                // Load user data
+                await loadUserData();
+                
+                // Load all sections in parallel with error handling
+                const loadingPromises = [
+                    loadJourneySummary().catch(err => console.error('Journey summary failed:', err)),
+                    loadCompetencyRadar().catch(err => console.error('Competency radar failed:', err)),
+                    loadEventHistory().catch(err => console.error('Event history failed:', err)),
+                    loadMentorFeedbacks().catch(err => console.error('Mentor feedbacks failed:', err)),
+                    loadCheckpointEvolution().catch(err => console.error('Checkpoint evolution failed:', err)),
+                    loadPresentedSolutions().catch(err => console.error('Presented solutions failed:', err))
+                ];
+                
+                await Promise.allSettled(loadingPromises);
+                
+                // Hide loading screen and show content
+                hideLoading();
+                
+                console.log('✅ Portfólio Digital inicializado com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro ao inicializar portfólio:', error);
+                showError(error.message);
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializePortfolio);
+    </script>
+</body>
+</html>
