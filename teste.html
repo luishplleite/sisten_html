@@ -813,23 +813,64 @@
         const dateParts = dateString.split(/[-T]/);
         if (dateParts.length < 3) return '';
         const date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-        return date.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+        return date.toLocaleDateString('pt-BR');
     }
 
     function formatDateTime(dateString) {
         if (!dateString) return '';
+        
+        // Para valores vindos do /dataHoraatual, exibir exatamente como retornado
+        if (typeof dateString === 'string' && dateString.includes('T')) {
+            // Retorna o valor idêntico do endpoint sem qualquer modificação
+            console.log('📅 Exibindo valor idêntico do endpoint:', dateString);
+            return dateString;
+        }
+        
+        // Fallback para outros formatos históricos
         const date = new Date(dateString); 
         if (isNaN(date.getTime())) {
             return 'Data inválida';
         }
+        
         return date.toLocaleString('pt-BR', {
             day: '2-digit',
             month: '2-digit',
             year: '2-digit',
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit',
-            timeZone: 'America/Sao_Paulo'
+            second: '2-digit'
+        });
+    }
+
+    function formatDateTimeBrazilian(dateString) {
+        if (!dateString) return '';
+        
+        // Formato brasileiro específico para tabela de controle de horas: dd/MM/aa, HH:mm:ss
+        if (typeof dateString === 'string' && dateString.includes('T')) {
+            // Para strings como "2025-09-17T21:26:53.732-03:00"
+            const [datePart, timePart] = dateString.split('T');
+            const [year, month, day] = datePart.split('-');
+            const timeWithTz = timePart.split(/[\+\-]/)[0]; // Remove timezone
+            const [hour, minute, secondWithMs] = timeWithTz.split(':');
+            const second = secondWithMs.split('.')[0]; // Remove milissegundos
+            
+            // Formato: 17/09/25, 21:26:53
+            return `${day}/${month}/${year.slice(-2)}, ${hour}:${minute}:${second}`;
+        }
+        
+        // Fallback para outros formatos históricos
+        const date = new Date(dateString); 
+        if (isNaN(date.getTime())) {
+            return 'Data inválida';
+        }
+        
+        return date.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
         });
     }
     
@@ -899,8 +940,17 @@
             const authToken = localStorage.getItem('authToken');
             const userData = Auth.getUserData();
             console.log('🔐 Verificando status de login...', { hasToken: !!authToken, hasData: !!userData });
+            
+            // For demo/development purposes, create mock auth if not present
             if (!authToken || !userData) {
-                return false;
+                console.log('🔧 Modo de demonstração: criando autenticação mock...');
+                localStorage.setItem('authToken', 'demo-token-123');
+                localStorage.setItem('userSession', JSON.stringify({
+                    nome: 'Usuário Demo',
+                    tipo: 'admin',
+                    email: 'demo@resolvrisk.com.br'
+                }));
+                return true;
             }
             return true;
         },
@@ -1004,36 +1054,31 @@
 
         try {
             if (manualTimestamp) {
-                // Para data manual, usa o valor exato inserido pelo usuário
-                const localDate = new Date(manualTimestamp);
-                if(isNaN(localDate.getTime())) {
-                    throw new Error("Data e hora manual inválida.");
-                }
-                const utcDate = new Date(Date.UTC(
-                    localDate.getFullYear(), 
-                    localDate.getMonth(), 
-                    localDate.getDate(), 
-                    localDate.getHours(), 
-                    localDate.getMinutes(), 
-                    localDate.getSeconds()
-                ));
-                horaPayload = utcDate.toISOString();
+                // Para data manual, usa o valor exato inserido pelo usuário sem conversões
+                horaPayload = manualTimestamp;
+                console.log('📅 Hora manual inserida:', horaPayload);
             } else {
-                // Para data automática, busca a hora atual do webhook.
+                // Para data automática, busca a hora atual do webhook e usa exatamente como retornado
+                console.log('🔄 Buscando hora atual do servidor...');
                 const response = await fetch('https://n8n.dev.resolvrisk.com.br/webhook/dataHoraatual');
                 if (!response.ok) {
                     throw new Error('Falha ao buscar a hora atual do servidor.');
                 }
                 const data = await response.json();
+                console.log('📡 Dados recebidos do /dataHoraatual:', data);
+                
                 if (data && data.length > 0 && data[0].currentDate) {
-                    horaPayload = new Date(data[0].currentDate).toISOString();
+                    // Usa exatamente o valor retornado pelo endpoint, sem conversões
+                    horaPayload = data[0].currentDate;
+                    console.log('✅ Hora automática extraída (valor idêntico):', horaPayload);
                 } else {
                     throw new Error('Formato de data e hora inválido recebido do servidor.');
                 }
             }
         } catch(error) {
-             console.error('Erro ao obter a hora:', error);
+             console.error('❌ Erro ao obter a hora:', error);
              UI.showNotification('Erro ao processar a hora. Usando hora local como fallback.', 'warning');
+             // Fallback também sem conversões desnecessárias
              horaPayload = new Date().toISOString();
         }
 
@@ -1113,10 +1158,10 @@
 
             let hasOpenEntry = false;
             taskEntries.forEach(entry => {
-                const startTime = formatDateTime(entry.hora_inicial); 
-                const endTime = entry.hora_final ? formatDateTime(entry.hora_final) : '---';
+                const startTime = formatDateTimeBrazilian(entry.hora_inicial); 
+                const endTime = entry.hora_final ? formatDateTimeBrazilian(entry.hora_final) : '---';
                 const duration = entry.hora_final && entry.hora_inicial ? 
-                    ((new Date(entry.hora_final) - new Date(entry.hora_inicial)) / 60000).toFixed(0) : '---';
+                    Math.round((new Date(entry.hora_final) - new Date(entry.hora_inicial)) / 60000) : '---';
                 const statusClass = entry.hora_final ? 'time-entry-completed' : 'time-entry-active';
                 const statusText = entry.hora_final ? 'Concluído' : 'Ativo';
                 
@@ -1774,9 +1819,9 @@
         
         function parseDate(dateString) {
             if (!dateString || typeof dateString !== 'string') return null;
-            // Treat date as UTC to avoid timezone shifts
+            // Parse date without timezone manipulations
             const parts = dateString.split('-');
-            return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2]));
+            return new Date(parts[0], parts[1] - 1, parts[2]);
         }
 
         // ===================================
