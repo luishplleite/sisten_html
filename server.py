@@ -2,6 +2,7 @@
 import http.server
 import socketserver
 import os
+import json
 from urllib.parse import urlparse
 
 class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
@@ -12,13 +13,50 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Expires', '0')
         # Allow iframe embedding for Replit preview
         self.send_header('X-Frame-Options', 'ALLOWALL')
+        # Add CORS headers for API endpoints
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         super().end_headers()
     
     def do_GET(self):
-        # Serve the main HTML file for root path
-        if self.path == '/' or self.path == '/index.html':
+        # Handle API endpoints
+        if self.path == '/api/supabase-url':
+            self.send_json_response(os.getenv('SUPABASE_URL', ''))
+            return
+        elif self.path == '/api/supabase-key':
+            self.send_json_response(os.getenv('SUPABASE_ANON_KEY', ''))
+            return
+        elif self.path == '/api/supabase-config':
+            config = {
+                'url': os.getenv('SUPABASE_URL', ''),
+                'key': os.getenv('SUPABASE_ANON_KEY', '')
+            }
+            self.send_json_response(config)
+            return
+        
+        # Handle file routing
+        if self.path == '/':
+            # Default to task manager dashboard
             self.path = '/teste.html'
+        elif self.path == '/portfolio':
+            # Portfolio page
+            self.path = '/index.html'
+        
         return super().do_GET()
+    
+    def do_OPTIONS(self):
+        # Handle preflight requests for CORS
+        self.send_response(200)
+        self.end_headers()
+    
+    def send_json_response(self, data):
+        """Send a JSON response"""
+        response = json.dumps(data)
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.end_headers()
+        self.wfile.write(response.encode('utf-8'))
 
 def run_server():
     PORT = 5000
