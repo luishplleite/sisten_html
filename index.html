@@ -300,6 +300,13 @@
         <!-- Header -->
         <header class="portfolio-header">
             <div class="container">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div></div>
+                    <div class="text-end">
+                        <small class="text-light">Maratona mais recente</small><br>
+                        <strong>Portohack 2025</strong> - <span class="badge bg-warning text-dark">1º Lugar</span>
+                    </div>
+                </div>
                 <h1 id="userFullName">Portfólio Digital</h1>
                 <p class="subtitle" id="userRole">Desenvolvedor</p>
             </div>
@@ -479,13 +486,13 @@
             try {
                 console.log('🔄 Carregando dados do usuário...');
                 
-                // Create a demo user for now since users will be added later
+                // Gustavo Silva Nusch data from PDF
                 currentUser = {
                     id: '00000000-0000-0000-0000-000000000000',
-                    full_name: 'Usuário Demo',
-                    role: 'Desenvolvedor', 
+                    full_name: 'Gustavo Silva Nusch',
+                    role: 'Desenvolvedor • SmartSyntax', 
                     member_id: null,
-                    email: 'demo@exemplo.com'
+                    email: 'gustavo@smartsyntax.com'
                 };
 
                 // Update header with demo user info
@@ -504,120 +511,16 @@
             try {
                 console.log('🔄 Carregando resumo da jornada...');
                 
-                // Load hackatons count
-                const { data: events, error: eventsError } = await supabase
-                    .from('assessment_submissions')
-                    .select('event_id')
-                    .eq('user_id', currentUser.id);
-                
-                if (eventsError) throw eventsError;
-                
-                const uniqueEvents = [...new Set(events.map(e => e.event_id))];
-                document.getElementById('totalHackatons').textContent = uniqueEvents.length;
-                
-                // Calculate best placement (simplified - use team data if available)
-                let bestPlacement = '-';
-                try {
-                    const { data: teamData, error: teamError } = await supabase
-                        .from('team_members')
-                        .select(`
-                            teams (
-                                name,
-                                event_id,
-                                events (
-                                    name
-                                )
-                            )
-                        `)
-                        .eq('user_id', currentUser.id);
-                    
-                    if (!teamError && teamData && teamData.length > 0) {
-                        // For demo purposes, show "1º" for first team or "Participante" for others
-                        bestPlacement = teamData.length > 0 ? '1º' : 'Participante';
-                    }
-                } catch (err) {
-                    console.warn('Error calculating best placement:', err);
-                }
-                
-                document.getElementById('bestPlacement').textContent = bestPlacement;
-
-                // Load mentorships (handle null member_id gracefully)
-                let mentorships = [];
-                if (currentUser.member_id) {
-                    const { data: mentorshipData, error: mentorshipsError } = await supabase
-                        .from('mentorings')
-                        .select('*')
-                        .or(`request_member_id.eq.${currentUser.member_id},mentor_id.eq.${currentUser.id}`);
-                    
-                    if (!mentorshipsError && mentorshipData) {
-                        mentorships = mentorshipData;
-                    }
-                }
-                
-                // Update mentorship statistics
-                document.getElementById('totalMentorships').textContent = mentorships.length;
-                
-                if (mentorships.length > 0) {
-                    // Calculate total duration and approval rate
-                    const totalDuration = mentorships.reduce((sum, m) => sum + (m.duration || 0), 0);
-                    const approvedMentorships = mentorships.filter(m => (m.assessment || 0) >= 4).length;
-                    const approvalRate = Math.round((approvedMentorships / mentorships.length) * 100);
-                    
-                    document.getElementById('mentorshipDetails').textContent = `${Math.round(totalDuration / 3600)}h total`;
-                    document.getElementById('mentorshipApproval').textContent = `${approvalRate}%`;
-                } else {
-                    document.getElementById('mentorshipDetails').textContent = '0h total';
-                    document.getElementById('mentorshipApproval').textContent = '0%';
-                }
-
-                // Load assessment evolution and stage presence
-                const { data: assessments, error: assessError } = await supabase
-                    .from('assessment_answers')
-                    .select('answer, moment, created_at')
-                    .eq('user_id', currentUser.id)
-                    .order('created_at');
-                
-                if (!assessError && assessments && assessments.length > 0) {
-                    const initialAssessments = assessments.filter(a => a.moment === 'INITIAL');
-                    const finalAssessments = assessments.filter(a => a.moment === 'FINAL');
-                    
-                    if (initialAssessments.length > 0 && finalAssessments.length > 0) {
-                        const initialAvg = initialAssessments.reduce((sum, a) => sum + a.answer, 0) / initialAssessments.length;
-                        const finalAvg = finalAssessments.reduce((sum, a) => sum + a.answer, 0) / finalAssessments.length;
-                        const evolution = finalAvg - initialAvg;
-                        const evolutionPercent = initialAvg > 0 ? Math.round((evolution / initialAvg) * 100) : 0;
-                        
-                        document.getElementById('overallEvolution').textContent = evolution >= 0 ? `+${evolution.toFixed(1)}` : evolution.toFixed(1);
-                        document.getElementById('evolutionImprovement').textContent = `${evolutionPercent >= 0 ? '+' : ''}${evolutionPercent}% de melhora`;
-                    }
-                }
-                
-                // Calculate stage presence - fix Supabase count usage
-                let stagePresence = '0/0';
-                let presencePercent = 0;
-                
-                try {
-                    const { data: checkpointSubmissions, error: checkpointError } = await supabase
-                        .from('f_submissions')
-                        .select('checkpoint_id')
-                        .eq('target_user_id', currentUser.id);
-                    
-                    const { count: totalCount, error: totalCheckpointsError } = await supabase
-                        .from('checkpoints')
-                        .select('id', { count: 'exact', head: true });
-                    
-                    if (!checkpointError && checkpointSubmissions) {
-                        const uniqueCheckpoints = [...new Set(checkpointSubmissions.map(s => s.checkpoint_id))].length;
-                        const total = totalCount || 0;
-                        presencePercent = total > 0 ? Math.round((uniqueCheckpoints / total) * 100) : 0;
-                        stagePresence = `${uniqueCheckpoints}/${total}`;
-                    }
-                } catch (err) {
-                    console.warn('Error calculating stage presence:', err);
-                }
-                
-                document.getElementById('stagePresence').textContent = stagePresence;
-                document.getElementById('presencePercentage').textContent = `${presencePercent}% de Participação`;
+                // Gustavo Silva Nusch data from PDF
+                document.getElementById('totalHackatons').textContent = '5';
+                document.getElementById('bestPlacement').textContent = '1º';
+                document.getElementById('overallEvolution').textContent = '+0.8';
+                document.getElementById('evolutionImprovement').textContent = '+47% de melhora';
+                document.getElementById('stagePresence').textContent = '5/6';
+                document.getElementById('presencePercentage').textContent = '83,4% de Participação';
+                document.getElementById('totalMentorships').textContent = '4/5';
+                document.getElementById('mentorshipDetails').textContent = 'Tempo: 12h';
+                document.getElementById('mentorshipApproval').textContent = '85%';
 
                 console.log('✅ Resumo da jornada carregado');
             } catch (error) {
@@ -629,66 +532,18 @@
             try {
                 console.log('🔄 Carregando radar de competências...');
                 
-                // Try to load assessments with defensive schema handling
-                let assessments = null;
-                try {
-                    const { data, error } = await supabase
-                        .from('assessment_answers')
-                        .select(`
-                            answer,
-                            moment,
-                            assessment_questions (
-                                category,
-                                text
-                            )
-                        `)
-                        .eq('user_id', currentUser.id)
-                        .eq('moment', 'FINAL');
-                    
-                    if (error) {
-                        console.warn('Schema mismatch or missing relation assessment_questions:', error);
-                        // Fallback: try simpler query
-                        const { data: simpleData, error: simpleError } = await supabase
-                            .from('assessment_answers')
-                            .select('answer, moment')
-                            .eq('user_id', currentUser.id)
-                            .eq('moment', 'FINAL');
-                        
-                        if (!simpleError) {
-                            assessments = simpleData;
-                        }
-                    } else {
-                        assessments = data;
-                    }
-                } catch (err) {
-                    console.error('Error loading assessments:', err);
-                }
-                
-                // Error handling moved to try-catch block above
-                
-                if (!assessments || assessments.length === 0) {
-                    document.getElementById('competencyRadar').parentElement.innerHTML = '<p class="no-data">Nenhum dado de competências encontrado</p>';
-                    return;
-                }
-
-                // Group by category
-                const competencyData = {};
-                assessments.forEach(assessment => {
-                    const category = assessment.assessment_questions?.category || 'Outros';
-                    if (!competencyData[category]) {
-                        competencyData[category] = [];
-                    }
-                    competencyData[category].push(assessment.answer);
-                });
-
-                // Calculate averages
-                const categories = [];
-                const scores = [];
-                Object.keys(competencyData).forEach(category => {
-                    categories.push(category);
-                    const avg = competencyData[category].reduce((sum, score) => sum + score, 0) / competencyData[category].length;
-                    scores.push(avg);
-                });
+                // Gustavo Silva Nusch radar data from PDF (21D competencies)
+                const categories = [
+                    'Pitch', 'Impacto', 'Entrega', 'Testes', 'Segurança', 'IA', 
+                    'APIs', 'Dados', 'UX', 'Ética', 'Resiliência', 'Foco',
+                    'Planejamento', 'Autonomia', 'Liderança', 'Colaboração',
+                    'Comunicação', 'Escrita', 'Lógica', 'Análise', 'Curiosidade'
+                ];
+                const scores = [
+                    5, 4, 3, 2, 1, 0,
+                    1, 2, 3, 4, 5, 4,
+                    3, 2, 1, 0, 1, 2, 3, 4, 5
+                ];
 
                 // Create radar chart
                 const ctx = document.getElementById('competencyRadar').getContext('2d');
@@ -697,7 +552,7 @@
                     data: {
                         labels: categories,
                         datasets: [{
-                            label: 'Competências',
+                            label: 'Competências 21D',
                             data: scores,
                             borderColor: 'rgb(13, 110, 253)',
                             backgroundColor: 'rgba(13, 110, 253, 0.2)',
@@ -719,16 +574,27 @@
                     }
                 });
 
-                // Update top competencies
-                const sortedCompetencies = categories.map((cat, index) => ({
-                    category: cat,
-                    score: scores[index]
-                })).sort((a, b) => b.score - a.score);
+                // Top competencies from PDF with evolution
+                const topCompetenciesData = [
+                    { name: 'Lógica', score: 5, evolution: '+3' },
+                    { name: 'Impacto', score: 5, evolution: '+3' },
+                    { name: 'APIs', score: 5, evolution: '+1' },
+                    { name: 'IA', score: 5, evolution: '+0' },
+                    { name: 'Curiosidade', score: 4, evolution: '+1' },
+                    { name: 'Colaboração', score: 4, evolution: '+2' },
+                    { name: 'Autonomia', score: 4, evolution: '+1' },
+                    { name: 'Foco', score: 4, evolution: '+1' },
+                    { name: 'Planejamento', score: 4, evolution: '+0' },
+                    { name: 'UX', score: 4, evolution: '+2' }
+                ];
 
-                const topCompetenciesHtml = sortedCompetencies.slice(0, 5).map(comp => `
+                const topCompetenciesHtml = topCompetenciesData.map(comp => `
                     <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>${comp.category}</span>
-                        <span class="badge bg-primary">${comp.score.toFixed(1)}</span>
+                        <span>${comp.name}</span>
+                        <span class="d-flex align-items-center">
+                            <span class="badge bg-primary me-2">${comp.score}</span>
+                            <small class="text-success">(${comp.evolution})</small>
+                        </span>
                     </div>
                 `).join('');
 
@@ -745,50 +611,51 @@
             try {
                 console.log('🔄 Carregando histórico de eventos...');
                 
-                const { data: events, error } = await supabase
-                    .from('assessment_submissions')
-                    .select(`
-                        event_id,
-                        created_at,
-                        events (
-                            name,
-                            description,
-                            created_at
-                        )
-                    `)
-                    .eq('user_id', currentUser.id)
-                    .order('created_at', { ascending: false });
-                
-                // Error handling moved to try-catch block above
-                
-                if (!events || events.length === 0) {
-                    document.getElementById('eventHistory').innerHTML = '<p class="no-data">Nenhum evento encontrado</p>';
-                    return;
-                }
-
-                const uniqueEvents = [];
-                const seenEventIds = new Set();
-                
-                events.forEach(event => {
-                    if (!seenEventIds.has(event.event_id)) {
-                        seenEventIds.add(event.event_id);
-                        uniqueEvents.push(event);
+                // Gustavo Silva Nusch event history from PDF
+                const events = [
+                    {
+                        name: 'PortoHack 2024',
+                        placement: '4º Lugar',
+                        evolution: '+4',
+                        date: '14/09/2024',
+                        placementClass: 'placement-4'
+                    },
+                    {
+                        name: 'Expologhack 2024',
+                        placement: 'Participante',
+                        evolution: '-1',
+                        date: '21/10/2024',
+                        placementClass: 'placement-participant'
+                    },
+                    {
+                        name: 'Expologhack 2025',
+                        placement: 'Participante',
+                        evolution: '-1',
+                        date: '30/10/2025',
+                        placementClass: 'placement-participant'
+                    },
+                    {
+                        name: 'PortoHack 2025',
+                        placement: '1º Lugar',
+                        evolution: '+3',
+                        date: '08/11/2025',
+                        placementClass: 'placement-1'
                     }
-                });
+                ];
 
-                const eventHistoryHtml = uniqueEvents.map((event, index) => `
+                const eventHistoryHtml = events.map((event, index) => `
                     <div class="card event-card fade-in" style="animation-delay: ${index * 0.1}s">
                         <div class="card-body">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
-                                    <h5 class="card-title">${event.events?.name || 'Evento'}</h5>
-                                    <p class="card-text text-muted">${event.events?.description || 'Descrição não disponível'}</p>
+                                    <h5 class="card-title">${event.name}</h5>
+                                    <p class="card-text text-muted">Evolução: ${event.evolution}</p>
                                     <small class="text-muted">
                                         <i class="fas fa-calendar me-1"></i>
-                                        ${new Date(event.events?.created_at || event.created_at).toLocaleDateString('pt-BR')}
+                                        ${event.date}
                                     </small>
                                 </div>
-                                <span class="event-placement placement-participant">Participante</span>
+                                <span class="event-placement ${event.placementClass}">${event.placement}</span>
                             </div>
                         </div>
                     </div>
@@ -807,39 +674,43 @@
             try {
                 console.log('🔄 Carregando feedbacks de mentores...');
                 
-                const { data: mentorings, error } = await supabase
-                    .from('mentorings')
-                    .select('*')
-                    .or(`request_member_id.eq.${currentUser.member_id},mentor_id.eq.${currentUser.id}`)
-                    .not('feedback', 'is', null)
-                    .order('finalized_at', { ascending: false });
-                
-                // Error handling moved to try-catch block above
-                
-                if (!mentorings || mentorings.length === 0) {
-                    document.getElementById('mentorFeedbacks').innerHTML = '<p class="no-data">Nenhum feedback encontrado</p>';
-                    return;
-                }
+                // Gustavo Silva Nusch mentor feedbacks from PDF
+                const mentorings = [
+                    {
+                        type: 'Desafio',
+                        date: '20/09/2025 09:40',
+                        mentor: 'Marina (PCS)',
+                        rating: 5,
+                        feedback: 'Escopo refinado, métrica de dor definida.'
+                    },
+                    {
+                        type: 'Ideação',
+                        date: '20/09/2025 10:22',
+                        mentor: 'Rita (Inovação)',
+                        rating: 3,
+                        feedback: 'Selecionar hipótese A e definir critério de aceitação.'
+                    },
+                    {
+                        type: 'Agente',
+                        date: '20/09/2025 16:30',
+                        mentor: 'Silva (Tech)',
+                        rating: 4,
+                        feedback: 'Retry + logs no consumo de API do simulador.'
+                    }
+                ];
 
                 const feedbacksHtml = mentorings.map((mentoring, index) => {
                     const stars = Array.from({length: 5}, (_, i) => 
-                        `<i class="fas fa-star ${i < mentoring.assessment ? 'star-filled' : 'star-empty'}"></i>`
+                        `<i class="fas fa-star ${i < mentoring.rating ? 'star-filled' : 'star-empty'}"></i>`
                     ).join('');
                     
                     return `
-                        <div class="card mentorship-card fade-in" style="animation-delay: ${index * 0.1}s">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <div class="mentorship-rating">
-                                        ${stars}
-                                        <span class="ms-2 text-muted">(${mentoring.assessment}/5)</span>
-                                    </div>
-                                    <small class="text-muted">
-                                        ${mentoring.finalized_at ? new Date(mentoring.finalized_at * 1000).toLocaleDateString('pt-BR') : 'Em andamento'}
-                                    </small>
-                                </div>
-                                <p class="card-text">${mentoring.feedback}</p>
-                                ${mentoring.duration ? `<small class="text-muted">Duração: ${Math.round(mentoring.duration / 3600)}h</small>` : ''}
+                        <div class="checkpoint-progress fade-in" style="animation-delay: ${index * 0.1}s">
+                            <div class="checkpoint-score">${mentoring.rating}</div>
+                            <div class="checkpoint-details">
+                                <div class="checkpoint-title">${mentoring.type} ${mentoring.date}</div>
+                                <div class="text-muted small mb-1">${mentoring.mentor}</div>
+                                <div class="checkpoint-feedback">${mentoring.feedback}</div>
                             </div>
                         </div>
                     `;
@@ -969,25 +840,26 @@
             try {
                 console.log('🔄 Carregando soluções apresentadas...');
                 
-                // For now, we'll show a placeholder since GitHub repos aren't in the schema
+                // Gustavo Silva Nusch solution from PDF
                 const solutionsHtml = `
                     <div class="card fade-in">
                         <div class="card-body">
-                            <h5 class="card-title">Soluções Desenvolvidas</h5>
-                            <p class="card-text">As informações sobre repositórios GitHub e descrições detalhadas das soluções não estão disponíveis no esquema atual da base de dados.</p>
-                            <p class="text-muted">Para visualizar as soluções apresentadas, seria necessário adicionar campos como:</p>
-                            <ul class="text-muted">
-                                <li>github_repo_url na tabela teams ou assessment_submissions</li>
-                                <li>solution_description para descrições detalhadas</li>
-                                <li>Integração com APIs do GitHub para dados do repositório</li>
-                            </ul>
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <h5 class="card-title mb-0">Solução Apresentada</h5>
+                                <a href="#" class="btn btn-outline-primary btn-sm">
+                                    <i class="fab fa-github me-1"></i>Acessar Repositório no Github
+                                </a>
+                            </div>
+                            <p class="card-text">
+                                A solução permite que o tempo de execução do método utilizado atualmente seja reduzido em 80%.
+                            </p>
                         </div>
                     </div>
                 `;
 
                 document.getElementById('presentedSolutions').innerHTML = solutionsHtml;
 
-                console.log('✅ Soluções apresentadas carregadas (placeholder)');
+                console.log('✅ Soluções apresentadas carregadas');
             } catch (error) {
                 console.error('❌ Erro ao carregar soluções:', error);
                 document.getElementById('presentedSolutions').innerHTML = `<p class="error-message">Erro ao carregar soluções: ${error.message}</p>`;
