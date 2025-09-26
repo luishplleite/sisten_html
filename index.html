@@ -132,7 +132,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            transition: background-color: 0.3s ease;
+            transition: background-color 0.3s ease;
         }
 
         #validate-btn { background-color: var(--button-bg); }
@@ -459,6 +459,10 @@
                     <h3 id="mentorEvaluationTitle">Avaliação Mentores</h3>
                     <canvas id="mentorEvaluationChart"></canvas>
                 </div>
+                <div class="chart-wrapper">
+                    <h3 id="categoryRadarTitle">Radar por Categoria</h3>
+                    <canvas id="categoryRadarChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -499,7 +503,7 @@
         const DATA_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker';
         let segregatedData = {};
         let originalSegregatedData = {};
-        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance;
+        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance, categoryRadarChartInstance;
         const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
@@ -527,6 +531,7 @@
                 renderEvaluation360Chart(segregatedData);
                 renderEvaluation360ThirdPersonChart(segregatedData, null);
                 renderMentorEvaluationChart(segregatedData, {});
+                renderCategoryRadarChart(segregatedData, {});
                 renderAllTables(segregatedData, currentTableOrder);
                 setupEventListeners();
             } catch (error) {
@@ -1304,6 +1309,173 @@
             });
         }
 
+        function renderCategoryRadarChart(data, selection = {}) {
+            if (categoryRadarChartInstance) {
+                categoryRadarChartInstance.destroy();
+            }
+
+            const { userId, teamId } = selection;
+            const ctx = document.getElementById('categoryRadarChart').getContext('2d');
+            const titleEl = document.getElementById('categoryRadarTitle');
+
+            const renderEmptyChart = (message) => {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.textAlign = "center";
+                ctx.font = "14px sans-serif";
+                ctx.fillText(message, ctx.canvas.width / 2, 50);
+                titleEl.textContent = "Radar por Categoria";
+            };
+            
+            // Definir as categorias baseadas nos dados reais do webhook
+            const realCategories = [
+                'HABILIDADES_BASICAS',
+                'HABILIDADES_TECNICAS', 
+                'COMPETENCIAS_SOCIAIS',
+                'COMPETENCIAS_COGNITIVAS',
+                'IMPACTO_E_AUTOPERCEPCAO'
+            ];
+            
+            const categoryLabels = [
+                'Habilidades Básicas',
+                'Habilidades Técnicas', 
+                'Competências Sociais',
+                'Competências Cognitivas',
+                'Impacto e Autopercepção'
+            ];
+            
+            let filteredAnswers = [];
+            let title = "Radar por Categoria";
+
+            if (teamId) {
+                // Filtrar por time
+                const team = data.teams.find(t => String(t.id) === String(teamId));
+                if (!team) {
+                    renderEmptyChart("Time não encontrado.");
+                    return;
+                }
+                
+                title = `Radar por Categoria - Time: ${team.name}`;
+                const teamMemberIds = new Set(
+                    data.assessment_answers
+                        .filter(a => String(a.team_id) === String(teamId) && a.user_id)
+                        .map(a => a.user_id)
+                );
+                
+                if (teamMemberIds.size === 0) {
+                    renderEmptyChart("Nenhum membro do time encontrado com respostas.");
+                    return;
+                }
+                
+                filteredAnswers = data.assessment_answers.filter(a => teamMemberIds.has(a.user_id));
+                
+            } else if (userId) {
+                // Filtrar por usuário
+                const user = data.users.find(u => String(u.id) === String(userId));
+                if (!user) {
+                    renderEmptyChart("Usuário não encontrado.");
+                    return;
+                }
+                
+                title = `Radar por Categoria - ${user.full_name.split(' ')[0]}`;
+                filteredAnswers = data.assessment_answers.filter(a => String(a.user_id) === String(userId));
+                
+            } else {
+                // Mostrar dados gerais
+                filteredAnswers = data.assessment_answers;
+            }
+
+            titleEl.textContent = title;
+
+            if (filteredAnswers.length === 0) {
+                renderEmptyChart("Nenhuma resposta encontrada para calcular as categorias.");
+                return;
+            }
+
+            // Mapear questions para suas categorias usando dados reais
+            const questionCategoryMap = {};
+            data.assessment_questions.forEach(q => {
+                if (q.category && realCategories.includes(q.category)) {
+                    questionCategoryMap[q.id] = q.category;
+                }
+            });
+
+            // Calcular médias por categoria
+            const categoryScores = {};
+            realCategories.forEach(cat => {
+                categoryScores[cat] = [];
+            });
+
+            filteredAnswers.forEach(answer => {
+                const questionCategory = questionCategoryMap[answer.question_id];
+                if (questionCategory && categoryScores[questionCategory]) {
+                    const score = parseFloat(answer.answer);
+                    if (!isNaN(score)) {
+                        categoryScores[questionCategory].push(score);
+                    }
+                }
+            });
+
+            // Calcular médias finais
+            const chartData = realCategories.map(category => {
+                const scores = categoryScores[category];
+                if (scores.length === 0) return 0;
+                return scores.reduce((sum, score) => sum + score, 0) / scores.length;
+            });
+
+            // Verificar se há dados válidos
+            if (chartData.every(score => score === 0)) {
+                renderEmptyChart("Nenhum dado válido encontrado para as categorias.");
+                return;
+            }
+
+            // Log para debug
+            console.log('Radar por Categoria - Dados:', {
+                title,
+                realCategories,
+                categoryScores,
+                chartData,
+                filteredAnswersCount: filteredAnswers.length,
+                questionCategoryMapKeys: Object.keys(questionCategoryMap).length
+            });
+
+            categoryRadarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        label: 'Média por Categoria',
+                        data: chartData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgba(255, 99, 132, 1)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: {
+                                display: true
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 5,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         function renderControls(order) {
             const selectBox = document.getElementById('primary-table-select');
@@ -1721,6 +1893,7 @@
                     renderCharts(filteredDataForCharts);
                     renderEvaluation360Chart(originalSegregatedData, { teamId: teamId, isTeamAverage: true });
                     renderMentorEvaluationChart(originalSegregatedData, { teamId: teamId });
+                    renderCategoryRadarChart(originalSegregatedData, { teamId: teamId });
                     renderEvaluation360FirstPersonChart(originalSegregatedData, null); 
                     renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
                 } else {
@@ -1740,6 +1913,7 @@
                 renderEvaluation360FirstPersonChart(originalSegregatedData, userId);
                 renderEvaluation360ThirdPersonChart(originalSegregatedData, userId);
                 renderMentorEvaluationChart(originalSegregatedData, { userId: userId });
+                renderCategoryRadarChart(originalSegregatedData, { userId: userId });
             } else {
                 summaryContainer.style.display = 'none';
                 summaryContainerDoubled.style.display = 'none';
@@ -1817,9 +1991,9 @@
             renderAllTables(segregatedData, currentTableOrder);
             renderCharts(originalSegregatedData);
             renderEvaluation360Chart(originalSegregatedData);
-            
             renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
             renderMentorEvaluationChart(originalSegregatedData, {});
+            renderCategoryRadarChart(originalSegregatedData, {});
 
             document.getElementById('validate-btn').style.display = 'inline-block';
             document.getElementById('clear-filter-btn').style.display = 'none';
