@@ -132,7 +132,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            transition: background-color: 0.3s ease;
+            transition: background-color 0.3s ease;
         }
 
         #validate-btn { background-color: var(--button-bg); }
@@ -197,6 +197,38 @@
             font-size: 1.5em;
             font-weight: bold;
             color: var(--button-bg);
+        }
+
+        /* Avatar styles */
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .team-avatar {
+            width: 60px;
+            height: 60px;
+            font-size: 1.2em;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .team-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
         }
 
 
@@ -478,6 +510,47 @@
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
 
+        // Avatar utilities
+        function getInitials(name) {
+            if (!name) return '??';
+            return name.split(' ')
+                .map(word => word.charAt(0).toUpperCase())
+                .slice(0, 2)
+                .join('');
+        }
+
+        function getAvatarColor(name) {
+            const colors = [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+                '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+                '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#A9DFBF'
+            ];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function createAvatar(name, extraClasses = '') {
+            const initials = getInitials(name);
+            const color = getAvatarColor(name || 'default');
+            return `<div class="avatar ${extraClasses}" style="background-color: ${color}" title="${name || 'Sem nome'}">${initials}</div>`;
+        }
+
+        // Função para obter questões de checkpoint 360° reais dos dados
+        function getCheckpointQuestions(data) {
+            const surveyQuestions = data.assessment_questions_survey || [];
+            if (surveyQuestions.length >= 4) {
+                return {
+                    ids: surveyQuestions.slice(0, 4).map(q => q.id),
+                    labels: ["Confiança e Clareza", "Escuta e Colaboração", "Orientação e Ideias", "Apoio e Evolução"],
+                    mapping: {}
+                };
+            }
+            return { ids: [], labels: [], mapping: {} };
+        }
+
         const tableConfig = {
             users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id'] },
             assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
@@ -509,39 +582,11 @@
             }
         };
 
-        function mockFAnswers(submissions) {
-            // Gera um valor pseudo-aleatório consistente com base em uma string de entrada (seed)
-            const deterministicHash = (str) => {
-                let hash = 0;
-                for (let i = 0; i < str.length; i++) {
-                    const char = str.charCodeAt(i);
-                    hash = (hash << 5) - hash + char;
-                    hash |= 0; // Converte para um inteiro de 32 bits
-                }
-                return Math.abs(hash);
-            };
-
-            const mockAnswers = [];
-            const questionIds = ["16", "17", "18", "19"];
-            submissions.forEach(sub => {
-                questionIds.forEach(qId => {
-                    // Usa o ID da submissão e da questão como seed para gerar um número consistente
-                    const seed = `${sub.id}-${qId}`;
-                    const deterministicValue = 3 + (deterministicHash(seed) % 201) / 100; // Gera valor entre 3.00 e 5.00
-                    mockAnswers.push({
-                        submission_id: sub.id,
-                        question_id: qId,
-                        answer_numeric: deterministicValue.toFixed(2)
-                    });
-                });
-            });
-            return mockAnswers;
-        }
 
         function segregateData(data) {
             const result = {
                 teams: [], users: [], mentorins: [], assessment_answers: [],
-                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
+                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: []
             };
             data.forEach(item => {
                 if (item.code && item.name && item.status) result.teams.push(item);
@@ -556,7 +601,6 @@
                 else if (item.name && item.invite) result.guilds.push({ ...item, id: item.invite });
             });
             
-            result.f_answers = mockFAnswers(result.mentorins);
             return result;
         }
 
@@ -607,8 +651,8 @@
             // ===================================================================================
             const checkpointCtx = document.getElementById('checkpointChart').getContext('2d');
             const labelsCheckpoint = ['Confiança', 'Colaboração', 'Aplicação', 'Evolução', 'Confiança do Time'];
-            const checkpointQuestions = { "16": 0, "17": 1, "18": 2, "19": 3 };
-            const questionIds360 = Object.keys(checkpointQuestions);
+            const checkpointQuestionsData = getCheckpointQuestions(data);
+            const questionIds360 = checkpointQuestionsData.ids;
             
             const submissionsByCheckpoint = data.mentorins.reduce((acc, sub) => {
                 if(sub.checkpoint_id) {
@@ -618,7 +662,7 @@
                 return acc;
             }, {});
 
-            const allAnswers = [...data.assessment_answers, ...data.f_answers];
+            const allAnswers = data.assessment_answers;
             const checkpointDatasets = [];
             const colors = ['rgba(255, 69, 58, 0.6)', 'rgba(10, 132, 255, 0.6)', 'rgba(48, 209, 88, 0.6)', 'rgba(255, 159, 10, 0.6)'];
             const etapaNomes = ['Desafio', 'Ideação', 'Prototipagem', 'Apresentação'];
@@ -629,7 +673,8 @@
                 const submissionIds = submissionsByCheckpoint[checkpointId];
                 const answersForCheckpoint = allAnswers.filter(a => submissionIds.includes(a.submission_id) && questionIds360.includes(a.question_id));
                 
-                const scoresByQuestion = { "16": [], "17": [], "18": [], "19": [] };
+                const scoresByQuestion = {};
+                questionIds360.forEach(qId => { scoresByQuestion[qId] = []; });
                 answersForCheckpoint.forEach(a => {
                     const value = parseFloat(a.answer || a.answer_numeric);
                     if (!isNaN(value)) scoresByQuestion[a.question_id].push(value);
@@ -643,7 +688,8 @@
                     const scores = scoresByQuestion[qId];
                     if(scores.length > 0) {
                         const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
-                        dataPoints[checkpointQuestions[qId]] = avg;
+                        const qIndex = questionIds360.indexOf(qId);
+                        if (qIndex >= 0) dataPoints[qIndex] = avg;
                         totalSum += avg;
                         totalCount++;
                     }
@@ -678,12 +724,9 @@
             const evaluation360Ctx = document.getElementById('evaluation360Chart').getContext('2d');
             const evaluation360Title = document.getElementById('evaluation360Title');
 
-            const LEADER_EVALUATION_QUESTIONS = {
-                "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
-                "18": "Orientação e Ideias", "19": "Apoio e Evolução",
-            };
-            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
-            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
+            const checkpointQuestionsData = getCheckpointQuestions(data);
+            const questionIds = checkpointQuestionsData.ids;
+            const questionLabels = checkpointQuestionsData.labels;
 
             const renderEmptyChart = (message) => {
                 evaluation360Ctx.clearRect(0, 0, evaluation360Ctx.canvas.width, evaluation360Ctx.canvas.height);
@@ -723,7 +766,7 @@
                 
                 let allAnswers = data.assessment_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
                 if (allAnswers.length === 0) {
-                    allAnswers = data.f_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
+                    allAnswers = data.assessment_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
                 }
                 
                 if (allAnswers.length === 0) {
@@ -838,7 +881,7 @@
             
             const targetSubmissionIds = new Set(targetSubmissions.map(s => s.id));
             const relevantAnswers = data.assessment_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
-            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.f_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
+            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.assessment_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
             if (sourceOfAnswers.length === 0) { renderEmptyChart("Não há dados de respostas para estas avaliações."); return; }
             
             const scoresBySubmission = {};
@@ -967,9 +1010,9 @@
             const teamName = team ? `(${team.name})` : '';
             evaluation360Title.textContent = `Avaliações Feitas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
-            const LEADER_EVALUATION_QUESTIONS = { "16": "Confiança e Clareza", "17": "Escuta e Colaboração", "18": "Orientação e Ideias", "19": "Apoio e Evolução" };
-            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
-            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
+            const checkpointQuestionsData = getCheckpointQuestions(data);
+            const questionIds = checkpointQuestionsData.ids;
+            const questionLabels = checkpointQuestionsData.labels;
             
             const userEvaluations = data.mentorins.filter(sub => sub.evaluator_id === selectedUserId);
             
@@ -981,7 +1024,7 @@
             const getScoresForSubmission = (submissionId) => {
                 let answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 if (answersForSubmission.length === 0) {
-                    answersForSubmission = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                    answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 }
                 const scores = {};
                 answersForSubmission.forEach(answer => {
@@ -1080,9 +1123,9 @@
             const teamName = team ? `(${team.name})` : '';
             evaluation360ThirdPersonTitle.textContent = `Avaliações Recebidas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
-            const LEADER_EVALUATION_QUESTIONS = { "16": "Confiança e Clareza", "17": "Escuta e Colaboração", "18": "Orientação e Ideias", "19": "Apoio e Evolução" };
-            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
-            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
+            const checkpointQuestionsData = getCheckpointQuestions(data);
+            const questionIds = checkpointQuestionsData.ids;
+            const questionLabels = checkpointQuestionsData.labels;
 
             const evaluationsReceived = data.mentorins.filter(sub => sub.target_user_id === selectedUserId && sub.evaluator_id !== selectedUserId);
 
@@ -1094,7 +1137,7 @@
             const getScoresForSubmission = (submissionId) => {
                 let answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 if (answersForSubmission.length === 0) {
-                    answersForSubmission = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                    answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 }
                 const scores = {};
                 answersForSubmission.forEach(answer => {
@@ -1183,9 +1226,9 @@
                 return;
             }
             
-            const questionConfig = { "16": { label: "Confiança e Clareza", index: 0 }, "17": { label: "Escuta e Colaboração", index: 1 }, "18": { label: "Orientação e Ideias", index: 2 }, "19": { label: "Apoio e Evolução", index: 3 } };
-            const questionIds = Object.keys(questionConfig);
-            const labels = Object.values(questionConfig).sort((a,b) => a.index - b.index).map(q => q.label);
+            const checkpointQuestionsData = getCheckpointQuestions(data);
+            const questionIds = checkpointQuestionsData.ids;
+            const labels = checkpointQuestionsData.labels;
             
             const datasets = [];
             const colors = [ { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' }, { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' }, { borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)' }, { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }, { borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)' } ];
@@ -1228,7 +1271,7 @@
                     
                     let answers = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                     if (answers.length === 0) {
-                        answers = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                        answers = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                     }
                     
                     const scores = [0, 0, 0, 0];
@@ -1612,7 +1655,7 @@
             if (sourceTableKey === 'teams') {
                 const teamId = itemId;
                 summaryContainer.style.display = 'block';
-                summaryTitle.textContent = `Resumo das Médias da Equipe: ${sourceItem.name}`;
+                summaryTitle.innerHTML = `<div class="team-info">${createAvatar(sourceItem.name, 'team-avatar')}Resumo das Médias da Equipe: ${sourceItem.name}</div>`;
 
                 const teamMemberIds = new Set(
                     originalSegregatedData.assessment_answers
@@ -1624,23 +1667,42 @@
                     const filteredDataForCharts = JSON.parse(JSON.stringify(originalSegregatedData));
                     filteredDataForCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => teamMemberIds.has(a.user_id));
                     
-                    const questionIds360 = ["16", "17", "18", "19"];
+                    // Buscar questões de survey_id específico para checkpoints 360°
+                    const checkpointQuestionsData = getCheckpointQuestions(originalSegregatedData);
+                    const questionIds360 = checkpointQuestionsData.ids;
                     const evaluationsReceived = originalSegregatedData.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id));
                     const submissionIds = new Set(evaluationsReceived.map(s => s.id));
                     
-                    let allAnswers = [...originalSegregatedData.assessment_answers, ...originalSegregatedData.f_answers]
+                    // Debug logs para entender por que as médias estão N/A
+                    console.log("=== DEBUG MÉDIAS DA EQUIPE ===");
+                    console.log("Team ID:", teamId);
+                    console.log("Team members found:", teamMemberIds.size, Array.from(teamMemberIds));
+                    console.log("Evaluations received:", evaluationsReceived.length);
+                    console.log("Submission IDs:", Array.from(submissionIds));
+                    console.log("Total assessment_answers:", originalSegregatedData.assessment_answers.length);
+                    console.log("Question IDs 360:", questionIds360);
+                    
+                    let allAnswers = originalSegregatedData.assessment_answers
                         .filter(a => submissionIds.has(a.submission_id) && questionIds360.includes(a.question_id));
+                    
+                    console.log("Filtered answers for 360 questions:", allAnswers.length);
+                    console.log("Sample answers:", allAnswers.slice(0, 3));
 
                     const peerScores = [];
                     const mentorScores = [];
 
                     evaluationsReceived.forEach(sub => {
                         const evaluator = originalSegregatedData.users.find(u => u.id === sub.evaluator_id);
-                        if (!evaluator) return;
+                        if (!evaluator) {
+                            console.log("Evaluator not found for submission:", sub.id, "evaluator_id:", sub.evaluator_id);
+                            return;
+                        }
 
                         const scores = allAnswers
                             .filter(a => a.submission_id === sub.id)
                             .map(a => parseFloat(a.answer || a.answer_numeric));
+
+                        console.log("Processing submission:", sub.id, "evaluator:", evaluator.full_name, "role:", evaluator.role, "scores found:", scores.length);
 
                         if (evaluator.role === 'mentor') {
                             mentorScores.push(...scores);
@@ -1648,6 +1710,9 @@
                             peerScores.push(...scores);
                         }
                     });
+                    
+                    console.log("Final peer scores:", peerScores);
+                    console.log("Final mentor scores:", mentorScores);
 
                     const calcAvg = (scores) => scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : 'N/A';
                     
