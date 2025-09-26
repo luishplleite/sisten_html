@@ -402,6 +402,10 @@
                     <h3 id="evaluation360ThirdPersonTitle">Avaliação 360° 3ª pessoa</h3>
                     <canvas id="evaluation360ThirdPersonChart"></canvas>
                 </div>
+                <div class="chart-wrapper">
+                    <h3 id="mentorEvaluationTitle">Avaliação Mentores</h3>
+                    <canvas id="mentorEvaluationChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -423,7 +427,7 @@
         const DATA_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker';
         let segregatedData = {};
         let originalSegregatedData = {};
-        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance;
+        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance;
         const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
@@ -432,7 +436,7 @@
             users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id'] },
             assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
             teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
-            mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id'] },
+            mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] },
             assessment_questions: { title: 'Assessment Questions (Habilidades)', headers: ['selecionar', 'id', 'text', 'category', 'order'] },
             assessment_questions_survey: { title: 'Assessment Questions (Survey)', headers: ['selecionar', 'id', 'text', 'type', 'survey_id'] },
             f_submissions: { title: 'F Submissions', headers: ['selecionar', 'submission_id', 'user_id', 'question_id', 'answer', 'moment'] },
@@ -448,9 +452,9 @@
                 segregatedData = segregateData(allData);
                 originalSegregatedData = JSON.parse(JSON.stringify(segregatedData));
                 renderCharts(segregatedData);
-                renderEvaluation360Chart(segregatedData); 
-                // Inicializa o gráfico 3ª pessoa com título padrão
-                document.getElementById('evaluation360ThirdPersonTitle').textContent = 'Avaliação 360° 3ª pessoa';
+                renderEvaluation360Chart(segregatedData);
+                renderEvaluation360ThirdPersonChart(segregatedData, null);
+                renderMentorEvaluationChart(segregatedData, null);
                 renderAllTables(segregatedData, currentTableOrder);
                 setupEventListeners();
             } catch (error) {
@@ -596,13 +600,13 @@
                 targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
             } else {
                  if (data.teams.length > 0) {
-                      targetTeamId = data.teams[0].id; // Padrão
-                      const teamSubmissions = data.mentorins.filter(s => s.target_team_id === targetTeamId);
-                      const leaderTargetCounts = teamSubmissions.reduce((acc, s) => { if (s.target_user_id) acc[s.target_user_id] = (acc[s.target_user_id] || 0) + 1; return acc; }, {});
-                      targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
+                       targetTeamId = data.teams[0].id; // Padrão
+                       const teamSubmissions = data.mentorins.filter(s => s.target_team_id === targetTeamId);
+                       const leaderTargetCounts = teamSubmissions.reduce((acc, s) => { if (s.target_user_id) acc[s.target_user_id] = (acc[s.target_user_id] || 0) + 1; return acc; }, {});
+                       targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
                  } else {
-                    renderEmptyChart("Selecione um time ou usuário.");
-                    return;
+                     renderEmptyChart("Selecione um time ou usuário.");
+                     return;
                  }
             }
             
@@ -647,13 +651,13 @@
                 const submissionScores = getScoresForSubmission(sub.id);
 
                 if (evaluator.id === targetUserId) {
-                     datasets.push({
-                        label: `Autoavaliação - ${targetUserName}`,
-                        data: submissionScores,
-                        borderColor: 'rgba(59, 130, 246, 1)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                        borderWidth: 2.5,
-                    });
+                        datasets.push({
+                            label: `Autoavaliação - ${targetUserName}`,
+                            data: submissionScores,
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderWidth: 2.5,
+                       });
                 } else if (evaluator.role === 'member') {
                     questionIds.forEach((qId, index) => { if(submissionScores[index] > 0) memberScoresByQuestion[qId].push(submissionScores[index]); });
                 } else if (evaluator.role === 'mentor') {
@@ -704,7 +708,7 @@
         }
         
         // ===================================================================================
-        // LÓGICA FINAL CORRIGIDA: GRÁFICO AVALIAÇÃO 360° (VISÃO EM 1ª PESSOA)
+        // GRÁFICO AVALIAÇÃO 360° (VISÃO EM 1ª PESSOA) - AVALIAÇÕES FEITAS
         // ===================================================================================
         function renderEvaluation360FirstPersonChart(data, selectedUserId) {
             if (evaluation360ChartInstance) {
@@ -718,7 +722,7 @@
                 evaluation360Ctx.clearRect(0, 0, evaluation360Ctx.canvas.width, evaluation360Ctx.canvas.height);
                 evaluation360Ctx.textAlign = "center";
                 evaluation360Ctx.fillText(message, evaluation360Ctx.canvas.width / 2, 50);
-                evaluation360Title.textContent = "Avaliação 360°";
+                evaluation360Title.textContent = "Avaliação 360° (Visão Própria)";
             };
 
             const selectedUser = data.users.find(u => u.id === selectedUserId);
@@ -726,11 +730,7 @@
                 renderEmptyChart("Usuário selecionado não encontrado.");
                 return;
             }
-            
-            // --- INÍCIO DA LÓGICA CORRIGIDA CONFORME DIAGRAMA ---
 
-            // 1. Encontra o ID do time principal do usuário a partir da tabela 'assessment_answers'.
-            //    Isso define o contexto do time.
             const teamIdOccurrences = data.assessment_answers
                 .filter(a => a.user_id === selectedUserId && a.team_id)
                 .reduce((acc, a) => {
@@ -743,12 +743,10 @@
                 : null;
 
             if (!teamId) {
-                console.error(`Não foi possível encontrar um time para o usuário ${selectedUser.full_name} na tabela 'assessment_answers'.`);
                 renderEmptyChart(`Time do usuário ${selectedUser.full_name.split(' ')[0]} não encontrado.`);
                 return;
             }
-
-            // 2. Com o ID do time, busca todos os usuários que pertencem a ele, usando 'assessment_answers' como fonte da verdade.
+            
             const teamMemberIds = new Set(
                 data.assessment_answers
                     .filter(a => a.team_id === teamId && a.user_id)
@@ -757,9 +755,7 @@
             
             const team = data.teams.find(t => t.id === teamId);
             const teamName = team ? `(${team.name})` : '';
-            evaluation360Title.textContent = `Avaliação 360° 1ª pessoa - ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
-            
-            // --- FIM DA LÓGICA CORRIGIDA ---
+            evaluation360Title.textContent = `Avaliações Feitas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
             const LEADER_EVALUATION_QUESTIONS = {
                 "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
@@ -768,12 +764,7 @@
             const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
             const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
             
-            // 3. CORRIGIDO: Busca avaliações FEITAS pelo usuário selecionado (incluindo autoavaliação)
-            // O usuário selecionado avaliando todos os outros integrantes do time e ele mesmo
-            const userEvaluations = data.mentorins.filter(sub => 
-                sub.evaluator_id === selectedUserId &&
-                teamMemberIds.has(sub.target_user_id)
-            );
+            const userEvaluations = data.mentorins.filter(sub => sub.evaluator_id === selectedUserId);
             
             if (userEvaluations.length === 0) {
                 renderEmptyChart(`Nenhuma avaliação feita por ${selectedUser.full_name.split(' ')[0]} foi encontrada.`);
@@ -797,9 +788,7 @@
             const colors = ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'];
             let colorIndex = 0;
 
-            // CORRIGIDO: Agrupa avaliações por target_user_id (quem foi avaliado) para evitar duplicações
             const evaluationsByTarget = {};
-            
             userEvaluations.forEach(evaluation => {
                 const targetId = evaluation.target_user_id;
                 if (!evaluationsByTarget[targetId]) {
@@ -808,47 +797,37 @@
                 evaluationsByTarget[targetId].push(evaluation);
             });
 
-            // Para cada pessoa avaliada pelo usuário selecionado, usa a avaliação mais recente
             Object.keys(evaluationsByTarget).forEach(targetUserId => {
                 const targetUser = data.users.find(u => u.id === targetUserId);
                 if (!targetUser) return;
 
-                const targetEvaluations = evaluationsByTarget[targetUserId];
-                
-                // Usa a avaliação mais recente
-                const latestEvaluation = targetEvaluations[targetEvaluations.length - 1];
+                const latestEvaluation = evaluationsByTarget[targetUserId].slice(-1)[0];
                 const scores = getScoresForSubmission(latestEvaluation.id);
 
                 if (scores.some(s => s > 0)) {
-                    const borderColor = colors[colorIndex % colors.length];
-                    
-                    // Verifica se é autoavaliação para destacar
                     const isAutoEvaluation = targetUserId === selectedUserId;
-                    // Verifica se é mentor (fora do time ou com role mentor)
-                    const isMentor = !isAutoEvaluation && (!teamMemberIds.has(targetUserId) || targetUser.role === 'mentor');
+                    const isMentor = targetUser.role === 'mentor';
                     
                     const dataset = {
-                        label: isAutoEvaluation ? 
-                            `Autoavaliação` : 
-                            `${isMentor ? 'Mentor ' : ''}${targetUser.full_name.split(' ')[0]}`,
+                        label: isAutoEvaluation ? `Autoavaliação` : `Para: ${targetUser.full_name.split(' ')[0]} ${isMentor ? '(Mentor)' : ''}`,
                         data: scores,
-                        borderColor: isAutoEvaluation ? 'rgba(59, 130, 246, 1)' : 
-                                   isMentor ? 'rgba(153, 102, 255, 1)' : borderColor,
-                        backgroundColor: isAutoEvaluation ? 'rgba(59, 130, 246, 0.2)' : 
-                                       isMentor ? 'rgba(153, 102, 255, 0.2)' : borderColor.replace('1)', '0.2)'),
-                        borderWidth: isAutoEvaluation ? 3 : isMentor ? 3 : 2,
+                        borderColor: isAutoEvaluation ? 'rgba(59, 130, 246, 1)' : (isMentor ? 'rgba(153, 102, 255, 1)' : colors[colorIndex % colors.length]),
+                        backgroundColor: isAutoEvaluation ? 'rgba(59, 130, 246, 0.2)' : (isMentor ? 'rgba(153, 102, 255, 0.2)' : colors[colorIndex % colors.length].replace('1)', '0.2)')),
+                        borderWidth: isAutoEvaluation ? 3 : 2,
                         borderDash: isMentor ? [5, 5] : [],
-                        order: isAutoEvaluation ? -1 : 0
+                        order: isAutoEvaluation ? -1 : (isMentor ? 1 : 0)
                     };
                     datasets.push(dataset);
-                    colorIndex++;
+                    if (!isMentor && !isAutoEvaluation) {
+                        colorIndex++;
+                    }
                 }
             });
             
             if (datasets.length > 0) {
                 evaluation360ChartInstance = new Chart(evaluation360Ctx, {
                     type: 'radar',
-                    data: { labels: questionLabels, datasets: datasets },
+                    data: { labels: questionLabels, datasets: datasets.sort((a,b) => a.order - b.order) },
                     options: {
                         responsive: true,
                         plugins: { legend: { position: 'bottom' } },
@@ -856,47 +835,35 @@
                     }
                 });
             } else {
-                renderEmptyChart("Nenhuma avaliação sobre os membros deste time foi encontrada.");
+                renderEmptyChart("Nenhuma avaliação válida feita por este usuário foi encontrada.");
             }
         }
 
         // ===================================================================================
-        // GRÁFICO AVALIAÇÃO 360° (VISÃO EM 3ª PESSOA) - AVALIAÇÕES RECEBIDAS
+        // GRÁFICO AVALIAÇÃO 360° (VISÃO EM 3ª PESSOA) - AVALIAÇÕES RECEBIDAS (COLEGAS E MENTORES)
         // ===================================================================================
         function renderEvaluation360ThirdPersonChart(data, selectedUserId) {
             if (evaluation360ThirdPersonChartInstance) {
                 evaluation360ThirdPersonChartInstance.destroy();
             }
 
-            // Identificar mentores: avaliadores que não pertencem ao mesmo time
-            const teamMentorIds = new Set();
-            data.mentorins.forEach(evaluation => {
-                if (evaluation.target_user_id === selectedUserId && evaluation.evaluator_id !== selectedUserId) {
-                    const evaluatorUser = data.users.find(u => u.id === evaluation.evaluator_id);
-                    // Considerar como mentor se não está no mesmo time ou se tem role 'mentor'
-                    if (evaluatorUser && (!teamMemberIds.has(evaluation.evaluator_id) || evaluatorUser.role === 'mentor')) {
-                        teamMentorIds.add(evaluation.evaluator_id);
-                    }
-                }
-            });
-            
             const evaluation360ThirdPersonCtx = document.getElementById('evaluation360ThirdPersonChart').getContext('2d');
             const evaluation360ThirdPersonTitle = document.getElementById('evaluation360ThirdPersonTitle');
 
             const renderEmptyChart = (message) => {
                 evaluation360ThirdPersonCtx.clearRect(0, 0, evaluation360ThirdPersonCtx.canvas.width, evaluation360ThirdPersonCtx.canvas.height);
                 evaluation360ThirdPersonCtx.textAlign = "center";
+                evaluation360ThirdPersonCtx.font = "14px sans-serif";
                 evaluation360ThirdPersonCtx.fillText(message, evaluation360ThirdPersonCtx.canvas.width / 2, 50);
                 evaluation360ThirdPersonTitle.textContent = "Avaliação 360° 3ª pessoa";
             };
 
             const selectedUser = data.users.find(u => u.id === selectedUserId);
             if (!selectedUser) {
-                renderEmptyChart("Usuário selecionado não encontrado.");
+                renderEmptyChart("Selecione um usuário para ver as avaliações recebidas.");
                 return;
             }
-            
-            // 1. Encontra o ID do time principal do usuário
+
             const teamIdOccurrences = data.assessment_answers
                 .filter(a => a.user_id === selectedUserId && a.team_id)
                 .reduce((acc, a) => {
@@ -907,23 +874,10 @@
             const teamId = Object.keys(teamIdOccurrences).length > 0
                 ? Object.keys(teamIdOccurrences).sort((a, b) => teamIdOccurrences[b] - teamIdOccurrences[a])[0]
                 : null;
-
-            if (!teamId) {
-                console.error(`Não foi possível encontrar um time para o usuário ${selectedUser.full_name} na tabela 'assessment_answers'.`);
-                renderEmptyChart(`Time do usuário ${selectedUser.full_name.split(' ')[0]} não encontrado.`);
-                return;
-            }
-
-            // 2. Busca todos os usuários que pertencem ao mesmo time
-            const teamMemberIds = new Set(
-                data.assessment_answers
-                    .filter(a => a.team_id === teamId && a.user_id)
-                    .map(a => a.user_id)
-            );
             
             const team = data.teams.find(t => t.id === teamId);
             const teamName = team ? `(${team.name})` : '';
-            evaluation360ThirdPersonTitle.textContent = `Avaliação 360° 3ª pessoa - ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
+            evaluation360ThirdPersonTitle.textContent = `Avaliações Recebidas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
             const LEADER_EVALUATION_QUESTIONS = {
                 "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
@@ -931,17 +885,11 @@
             };
             const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
             const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
-            
-            // 3. Busca avaliações RECEBIDAS pelo usuário selecionado, feitas por colegas do time
-            // Exclui auto-avaliações (o usuário não pode avaliar a si mesmo na visão 3ª pessoa)
-            const userEvaluations = data.mentorins.filter(sub => 
-                sub.target_user_id === selectedUserId &&
-                sub.evaluator_id !== selectedUserId &&
-                teamMemberIds.has(sub.evaluator_id)
-            );
-            
-            if (userEvaluations.length === 0) {
-                renderEmptyChart(`Nenhuma avaliação de colegas sobre ${selectedUser.full_name.split(' ')[0]} foi encontrada.`);
+
+            const evaluationsReceived = data.mentorins.filter(sub => sub.target_user_id === selectedUserId && sub.evaluator_id !== selectedUserId);
+
+            if (evaluationsReceived.length === 0) {
+                renderEmptyChart(`Nenhuma avaliação de terceiros encontrada para ${selectedUser.full_name.split(' ')[0]}.`);
                 return;
             }
 
@@ -960,12 +908,11 @@
 
             const datasets = [];
             const colors = ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'];
-            let colorIndex = 0;
+            const mentorColor = 'rgba(255, 159, 10, 1)';
+            let memberColorIndex = 0;
 
-            // Agrupa avaliações por evaluator_id (quem fez a avaliação) para evitar duplicações
             const evaluationsByEvaluator = {};
-            
-            userEvaluations.forEach(evaluation => {
+            evaluationsReceived.forEach(evaluation => {
                 const evaluatorId = evaluation.evaluator_id;
                 if (!evaluationsByEvaluator[evaluatorId]) {
                     evaluationsByEvaluator[evaluatorId] = [];
@@ -973,48 +920,166 @@
                 evaluationsByEvaluator[evaluatorId].push(evaluation);
             });
 
-            // Para cada avaliador único, usa a avaliação mais recente
             Object.keys(evaluationsByEvaluator).forEach(evaluatorId => {
                 const evaluatorUser = data.users.find(u => u.id === evaluatorId);
                 if (!evaluatorUser) return;
 
                 const evaluatorEvaluations = evaluationsByEvaluator[evaluatorId];
-                
-                // Usa a avaliação mais recente
-                const latestEvaluation = evaluatorEvaluations[evaluatorEvaluations.length - 1];
+                const latestEvaluation = evaluatorEvaluations.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 const scores = getScoresForSubmission(latestEvaluation.id);
 
                 if (scores.some(s => s > 0)) {
-                    const borderColor = colors[colorIndex % colors.length];
+                    const isMentor = evaluatorUser.role === 'mentor';
+                    const borderColor = isMentor ? mentorColor : colors[memberColorIndex % colors.length];
                     
-                    // Verificar se é mentor e criar dataset com estilo diferenciado
-                    const isMentor = teamMentorIds.has(evaluatorId);
                     const dataset = {
-                        label: `${isMentor ? 'Mentor ' : ''}${evaluatorUser.full_name.split(' ')[0]}`,
+                        label: `${evaluatorUser.full_name.split(' ')[0]} ${isMentor ? '(Mentor)' : ''}`,
                         data: scores,
-                        borderColor: isMentor ? 'rgba(255, 159, 10, 1)' : borderColor,
-                        backgroundColor: isMentor ? 'rgba(255, 159, 10, 0.2)' : borderColor.replace('1)', '0.2)'),
-                        borderWidth: isMentor ? 3 : 2,
+                        borderColor: borderColor,
+                        backgroundColor: borderColor.replace('1)', '0.2)'),
+                        borderWidth: 2,
                         borderDash: isMentor ? [5, 5] : [],
                     };
                     datasets.push(dataset);
-                    colorIndex++;
+                    if (!isMentor) {
+                        memberColorIndex++;
+                    }
                 }
             });
-            
-            if (datasets.length > 0) {
-                evaluation360ThirdPersonChartInstance = new Chart(evaluation360ThirdPersonCtx, {
-                    type: 'radar',
-                    data: { labels: questionLabels, datasets: datasets },
-                    options: {
-                        responsive: true,
-                        plugins: { legend: { position: 'bottom' } },
-                        scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
-                    }
-                });
-            } else {
-                renderEmptyChart("Nenhuma avaliação de colegas sobre este usuário foi encontrada.");
+
+            if (datasets.length === 0) {
+                renderEmptyChart("Não há dados de respostas para as avaliações recebidas.");
+                return;
             }
+            
+            evaluation360ThirdPersonChartInstance = new Chart(evaluation360ThirdPersonCtx, {
+                type: 'radar',
+                data: { labels: questionLabels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+        
+        // ===================================================================================
+        // GRÁFICO DE AVALIAÇÃO DE MENTORES (CORRIGIDO)
+        // ===================================================================================
+        function renderMentorEvaluationChart(data, selectedUserId) {
+            if (mentorEvaluationChartInstance) {
+                mentorEvaluationChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('mentorEvaluationChart').getContext('2d');
+            const titleEl = document.getElementById('mentorEvaluationTitle');
+
+            const renderEmptyChart = (message) => {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.textAlign = "center";
+                ctx.font = "14px sans-serif";
+                ctx.fillText(message, ctx.canvas.width / 2, 50);
+                titleEl.textContent = "Avaliação Mentores";
+            };
+            
+            if (!selectedUserId) {
+                renderEmptyChart("Selecione um participante para ver as avaliações.");
+                return;
+            }
+            
+            const targetUser = data.users.find(u => u.id === selectedUserId);
+            if (!targetUser) {
+                renderEmptyChart("Usuário selecionado não encontrado.");
+                return;
+            }
+            
+            titleEl.textContent = `Avaliação Mentores para ${targetUser.full_name.split(' ')[0]}`;
+            
+            const allEvaluationsForUser = data.mentorins.filter(m => m.target_user_id === selectedUserId);
+            
+            const questionConfig = {
+                "16": { label: "Confiança e Clareza", index: 0 },
+                "17": { label: "Escuta e Colaboração", index: 1 },
+                "18": { label: "Orientação e Ideias", index: 2 },
+                "19": { label: "Apoio e Evolução", index: 3 }
+            };
+            const questionIds = Object.keys(questionConfig);
+            const labels = Object.values(questionConfig).sort((a,b) => a.index - b.index).map(q => q.label);
+            
+            const datasets = [];
+            const colors = [
+                { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' },
+                { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' },
+                { borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)' },
+                { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' },
+                { borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)' }
+            ];
+
+            allEvaluationsForUser.forEach((evaluation) => {
+                const evaluator = data.users.find(u => u.id === evaluation.evaluator_id);
+
+                // CORREÇÃO: A verificação de 'role' agora é flexível e não diferencia maiúsculas/minúsculas.
+                // Isso garante que perfis como 'mentor' ou 'mentora' sejam incluídos.
+                if (evaluator && evaluator.role && evaluator.role.toLowerCase().includes('mentor')) {
+                    const mentorName = evaluator.full_name.split(' ')[0];
+                    const submissionId = evaluation.id;
+                    
+                    let answers = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                    if (answers.length === 0) {
+                        answers = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                    }
+                    
+                    const scores = [0, 0, 0, 0];
+                    let hasScores = false;
+                    answers.forEach(ans => {
+                        const config = questionConfig[ans.question_id];
+                        if (config) {
+                            const value = parseFloat(ans.answer || ans.answer_numeric);
+                            if (!isNaN(value)) {
+                               scores[config.index] = value;
+                               hasScores = true;
+                            }
+                        }
+                    });
+                    
+                    if (hasScores) {
+                        const color = colors[datasets.length % colors.length];
+                        const evaluationDate = evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : 'Sem data';
+                        const label = `Mentor: ${mentorName} (${evaluationDate})`;
+
+                        datasets.push({
+                            label: label,
+                            data: scores,
+                            borderColor: color.borderColor,
+                            backgroundColor: color.backgroundColor,
+                            borderWidth: 2
+                        });
+                    }
+                }
+            });
+
+            if (datasets.length === 0) {
+                 renderEmptyChart("Nenhuma avaliação de MENTOR encontrada para este participante.");
+                 return;
+            }
+
+            mentorEvaluationChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    },
+                    scales: {
+                        r: {
+                            suggestedMin: 0,
+                            suggestedMax: 5,
+                            ticks: { stepSize: 1 }
+                        }
+                    }
+                }
+            });
         }
 
 
@@ -1345,15 +1410,14 @@
             }
 
             // ===================================================================================
-            // LÓGICA DE ATUALIZAÇÃO DO GRÁFICO 360
+            // LÓGICA DE ATUALIZAÇÃO DOS GRÁFICOS
             // ===================================================================================
             if (sourceTableKey === 'teams') {
                 renderEvaluation360Chart(originalSegregatedData, { teamId: itemId });
             } else if (sourceTableKey === 'users') {
-                // Chama a nova função para a visão em 1ª pessoa
                 renderEvaluation360FirstPersonChart(originalSegregatedData, itemId);
-                // Chama a nova função para a visão em 3ª pessoa
                 renderEvaluation360ThirdPersonChart(originalSegregatedData, itemId);
+                renderMentorEvaluationChart(originalSegregatedData, itemId);
             }
 
             let relevantAnswers = [];
@@ -1385,13 +1449,13 @@
             if (relevantAnswers.length === 0) {
                  console.warn(`Nenhuma resposta encontrada em 'Assessment Answers' para o item selecionado. Exibindo apenas o item selecionado.`);
                  Object.keys(originalSegregatedData).forEach(key => {
-                      const tableBody = document.querySelector(`#table-container-${key} tbody`);
-                      if(tableBody) {
+                     const tableBody = document.querySelector(`#table-container-${key} tbody`);
+                     if(tableBody) {
                          tableBody.querySelectorAll('tr').forEach(row => {
-                            const isSelectedRow = (key === sourceTableKey && row.dataset.itemId === itemId);
-                            row.classList.toggle('filtered-out', !isSelectedRow);
-                        });
-                      }
+                             const isSelectedRow = (key === sourceTableKey && row.dataset.itemId === itemId);
+                             row.classList.toggle('filtered-out', !isSelectedRow);
+                         });
+                     }
                  });
                  document.getElementById('validate-btn').style.display = 'none';
                  document.getElementById('clear-filter-btn').style.display = 'inline-block';
@@ -1476,13 +1540,11 @@
             renderAllTables(segregatedData, currentTableOrder);
             renderCharts(originalSegregatedData);
             renderEvaluation360Chart(originalSegregatedData);
-            // Limpa o gráfico 3ª pessoa
-            if (evaluation360ThirdPersonChartInstance) {
-                evaluation360ThirdPersonChartInstance.destroy();
-                evaluation360ThirdPersonChartInstance = null;
-            }
-            document.getElementById('evaluation360ThirdPersonTitle').textContent = 'Avaliação 360° 3ª pessoa';
             
+            // Limpa os gráficos específicos de usuário
+            renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
+            renderMentorEvaluationChart(originalSegregatedData, null);
+
             document.getElementById('validate-btn').style.display = 'inline-block';
             document.getElementById('clear-filter-btn').style.display = 'none';
         }
