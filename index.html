@@ -3,911 +3,1301 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portfólio Digital - ResolvTask</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <title>BI Interno - Validação de Dados</title>
+    <!-- Adicionando a biblioteca de gráficos Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-
     <style>
-        /* Color Variables */
         :root {
-            --primary-color: #0d6efd;
-            --secondary-color: #6c757d;
-            --success-color: #198754;
-            --danger-color: #dc3545;
-            --warning-color: #ffc107;
-            --info-color: #0dcaf0;
-            --light-color: #f8f9fa;
-            --dark-color: #212529;
+            --bg-color: #f4f7f9;
+            --text-color: #333;
+            --header-bg: #e9ecef;
+            --border-color: #dee2e6;
+            --table-bg: #ffffff;
+            --highlight-color: #d1ecf1;
+            --highlight-success-color: #d4edda;
+            --button-bg: #007bff;
+            --button-hover-bg: #0056b3;
+            --button-text-color: #fff;
+            --shadow-color: rgba(0, 0, 0, 0.05);
+            --select-btn-bg: #28a745;
+            --select-btn-hover-bg: #218838;
+            --clear-btn-bg: #dc3545;
+            --clear-btn-hover-bg: #c82333;
         }
 
-        /* Global Styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--light-color);
-            overflow-x: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
         }
 
-        /* Loading Screen */
-        .loading-screen {
+        .container {
+            max-width: 1600px;
+            margin: auto;
+            background: var(--table-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-color);
+        }
+
+        h1 {
+            text-align: center;
+            color: #495057;
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            margin-top: 0;
+            margin-bottom: 0;
+            color: var(--text-color);
+            font-size: 1.5em;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            background-color: var(--header-bg);
+            border-radius: 6px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            width: 100%;
+        }
+
+        .controls .buttons-group {
+            display: flex;
+            gap: 10px;
+            align-self: center;
+        }
+
+        .primary-table-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: var(--highlight-success-color);
+            padding: 5px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--select-btn-bg);
+        }
+
+        .primary-table-selector label {
+            font-weight: bold;
+            font-size: 0.9em;
+        }
+
+        #primary-table-select {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            background-color: var(--table-bg);
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+        }
+        
+        .controls label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+
+        .controls input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        .controls button {
+            padding: 10px 20px;
+            color: var(--button-text-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        #validate-btn { background-color: var(--button-bg); }
+        #validate-btn:hover { background-color: var(--button-hover-bg); }
+        
+        #clear-filter-btn { background-color: var(--clear-btn-bg); }
+        #clear-filter-btn:hover { background-color: var(--clear-btn-hover-bg); }
+
+
+        .select-row-btn {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            background-color: var(--select-btn-bg);
+            color: var(--button-text-color);
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .select-row-btn:hover {
+            background-color: var(--select-btn-hover-bg);
+        }
+        
+        #charts-section {
+            margin-top: 30px;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            justify-content: space-around;
+        }
+
+        .chart-wrapper {
+            flex: 1 1 30%;
+            min-width: 300px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-shadow: 0 1px 4px var(--shadow-color);
+        }
+        
+        .chart-wrapper h3 {
+            text-align: center;
+            margin-bottom: 15px;
+            color: #495057;
+        }
+
+        .table-container {
+            margin-bottom: 30px;
+        }
+        
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .table-header h2 {
+            cursor: move;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85em;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 8px 10px;
+            text-align: left;
+            word-break: break-all;
+        }
+
+        th[data-column] {
+            cursor: pointer;
+        }
+
+        .sort-arrow {
+            display: inline-block;
+            width: 1em;
+            text-align: center;
+            color: #ccc;
+        }
+
+        th.sorted-asc .sort-arrow::after {
+            content: ' \25B2'; /* Seta para cima */
+            color: #333;
+        }
+        th.sorted-desc .sort-arrow::after {
+            content: ' \25BC'; /* Seta para baixo */
+            color: #333;
+        }
+
+
+        thead {
+            background-color: var(--header-bg);
+            font-weight: bold;
+        }
+
+        tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        tr.filtered-out {
+            display: none;
+        }
+
+        .highlighted {
+            background-color: var(--highlight-success-color) !important;
+            transition: background-color: 0.5s ease;
+        }
+
+        #loading-indicator {
+            text-align: center;
+            font-size: 1.2em;
+            padding: 40px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
             position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 1200px;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+        }
+
+        .close-btn {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-btn:hover,
+        .close-btn:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .modal-body {
+            position: relative;
+            padding: 20px;
+            height: 60vh;
+        }
+
+        #diagram-container {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 60px;
+            height: 100%;
+            align-items: center;
+            justify-items: center;
+        }
+
+        .diagram-table {
+            border: 2px solid var(--border-color);
+            background-color: var(--header-bg);
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            width: 150px;
+            font-weight: bold;
+            box-shadow: 0 2px 4px var(--shadow-color);
+            position: relative;
+            z-index: 2;
+        }
+
+        .diagram-table.primary {
+            border-color: var(--select-btn-bg);
+            background-color: var(--highlight-success-color);
+        }
+
+        .diagram-table.related {
+            border-color: var(--button-bg);
+            background-color: var(--highlight-color);
+        }
+
+        #diagram-svg {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color) 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-            color: white;
-        }
-        .loading-screen .spinner {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 20px;
-        }
-
-        /* Header */
-        .portfolio-header {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--info-color) 100%);
-            color: white;
-            padding: 60px 0;
-            text-align: center;
-        }
-        .portfolio-header h1 {
-            font-size: 3rem;
-            font-weight: 300;
-            margin-bottom: 20px;
-        }
-        .portfolio-header .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        /* Cards */
-        .card {
-            border: none;
-            border-radius: 15px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-            margin-bottom: 25px;
-            transition: transform 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-        }
-
-        /* Statistics Cards */
-        .stat-card {
-            text-align: center;
-            padding: 30px 20px;
-        }
-        .stat-card .stat-number {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 10px;
-        }
-        .stat-card .stat-label {
-            font-size: 0.9rem;
-            color: var(--secondary-color);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .stat-card .stat-improvement {
-            font-size: 0.8rem;
-            margin-top: 5px;
-            font-weight: 600;
-        }
-        .improvement-positive {
-            color: var(--success-color);
-        }
-        .improvement-neutral {
-            color: var(--info-color);
-        }
-
-        /* Timeline */
-        .timeline {
-            position: relative;
-            padding: 20px 0;
-        }
-        .timeline::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 30px;
-            height: 100%;
-            width: 2px;
-            background: var(--primary-color);
-        }
-        .timeline-item {
-            position: relative;
-            margin-bottom: 30px;
-            padding-left: 70px;
-        }
-        .timeline-item::before {
-            content: '';
-            position: absolute;
-            left: 24px;
-            top: 0;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: var(--primary-color);
-        }
-        .timeline-date {
-            font-size: 0.85rem;
-            color: var(--secondary-color);
-            margin-bottom: 5px;
-        }
-        .timeline-title {
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        .timeline-description {
-            color: var(--secondary-color);
-            font-size: 0.9rem;
-        }
-
-        /* Radar Chart Container */
-        .radar-container {
-            position: relative;
-            height: 400px;
-            width: 100%;
-        }
-
-        /* Event Cards */
-        .event-card {
-            border-left: 4px solid var(--primary-color);
-            margin-bottom: 15px;
-        }
-        .event-card .card-body {
-            padding: 20px;
-        }
-        .event-placement {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .placement-1 { background-color: #ffd700; color: #333; }
-        .placement-2 { background-color: #c0c0c0; color: #333; }
-        .placement-3 { background-color: #cd7f32; color: white; }
-        .placement-4 { background-color: var(--info-color); color: white; }
-        .placement-participant { background-color: var(--secondary-color); color: white; }
-
-        /* Checkpoint Progress */
-        .checkpoint-progress {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .checkpoint-score {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-right: 15px;
-            min-width: 40px;
-        }
-        .checkpoint-details {
-            flex: 1;
-        }
-        .checkpoint-title {
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-        .checkpoint-feedback {
-            font-size: 0.9rem;
-            color: var(--secondary-color);
-        }
-
-        /* Mentorship Cards */
-        .mentorship-card {
-            border-left: 4px solid var(--success-color);
-            margin-bottom: 15px;
-        }
-        .mentorship-rating {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .star-filled {
-            color: #ffd700;
-        }
-        .star-empty {
-            color: #ddd;
-        }
-
-        /* Content Sections */
-        .content-section {
-            padding: 60px 0;
-        }
-        .section-title {
-            font-size: 2.5rem;
-            font-weight: 300;
-            margin-bottom: 40px;
-            text-align: center;
-            color: var(--dark-color);
-        }
-
-        /* Error States */
-        .error-message {
-            text-align: center;
-            padding: 40px;
-            color: var(--danger-color);
-        }
-        .no-data {
-            text-align: center;
-            padding: 40px;
-            color: var(--secondary-color);
-        }
-
-        /* Animations */
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .portfolio-header h1 {
-                font-size: 2rem;
-            }
-            .section-title {
-                font-size: 2rem;
-            }
-            .stat-card .stat-number {
-                font-size: 2rem;
-            }
-        }
-
-        /* Hidden by default */
-        .main-content {
-            display: none;
+            pointer-events: none;
+            z-index: 1;
         }
     </style>
 </head>
 <body>
-    <!-- Loading Screen -->
-    <div class="loading-screen" id="loadingScreen">
-        <div class="spinner"></div>
-        <h4>Carregando Portfólio Digital</h4>
-        <p>Conectando com Supabase...</p>
+
+    <div class="container">
+        <h1>Painel de Validação de Dados</h1>
+
+        <div class="controls">
+            <div class="controls-row">
+                 <div class="primary-table-selector">
+                    <label for="primary-table-select">Tabela Principal:</label>
+                    <select id="primary-table-select"></select>
+                </div>
+                <div class="buttons-group">
+                    <button id="validate-btn">Validar IDs</button>
+                    <button id="clear-filter-btn" style="display: none;">Limpar Filtro</button>
+                </div>
+            </div>
+            <div class="controls-row checkbox-group">
+                <!-- Checkboxes serão gerados dinamicamente -->
+            </div>
+        </div>
+        
+        <div id="tables-wrapper">
+             <div id="loading-indicator">Carregando dados...</div>
+        </div>
+
+        <div id="charts-section">
+            <h2>Análise Gráfica</h2>
+            <div class="charts-container">
+                <div class="chart-wrapper">
+                    <h3>Radar de Competências 21D</h3>
+                    <canvas id="competenciesChart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3>Evolução Pessoal - Radar de Checkpoints</h3>
+                    <canvas id="checkpointChart"></canvas>
+                </div>
+                <div class="chart-wrapper">
+                    <h3 id="evaluation360Title">Avaliação 360°</h3>
+                    <canvas id="evaluation360Chart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Main Content -->
-    <div class="main-content" id="mainContent">
-        <!-- Header -->
-        <header class="portfolio-header">
-            <div class="container">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <div></div>
-                    <div class="text-end">
-                        <small class="text-light">Maratona mais recente</small><br>
-                        <strong>Portohack 2025</strong> - <span class="badge bg-warning text-dark">1º Lugar</span>
-                    </div>
-                </div>
-                <h1 id="userFullName">Portfólio Digital</h1>
-                <p class="subtitle" id="userRole">Desenvolvedor</p>
+    <div id="diagram-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Diagrama de Relacionamento</h2>
+                <span class="close-btn">&times;</span>
             </div>
-        </header>
-
-        <!-- Journey Summary -->
-        <section class="content-section">
-            <div class="container">
-                <h2 class="section-title">Resumo da Jornada</h2>
-                <div class="row">
-                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-                        <div class="card stat-card">
-                            <div class="stat-number" id="totalHackatons">0</div>
-                            <div class="stat-label">Hackatons</div>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-                        <div class="card stat-card">
-                            <div class="stat-number" id="bestPlacement">-</div>
-                            <div class="stat-label">Melhor Colocação</div>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-                        <div class="card stat-card">
-                            <div class="stat-number" id="overallEvolution">0</div>
-                            <div class="stat-label">Evolução Geral</div>
-                            <div class="stat-improvement improvement-positive" id="evolutionImprovement">+0%</div>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-                        <div class="card stat-card">
-                            <div class="stat-number" id="stagePresence">0/0</div>
-                            <div class="stat-label">Presença em Etapas</div>
-                            <div class="stat-improvement improvement-neutral" id="presencePercentage">0%</div>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-                        <div class="card stat-card">
-                            <div class="stat-number" id="totalMentorships">0</div>
-                            <div class="stat-label">Mentorias</div>
-                            <div class="stat-improvement improvement-positive" id="mentorshipDetails">0h total</div>
-                        </div>
-                    </div>
-                    <div class="col-lg-2 col-md-4 col-sm-6 mb-4">
-                        <div class="card stat-card">
-                            <div class="stat-number" id="mentorshipApproval">0%</div>
-                            <div class="stat-label">Aproveitamento</div>
-                        </div>
-                    </div>
-                </div>
+            <div class="modal-body">
+                <div id="diagram-container"></div>
+                <svg id="diagram-svg"></svg>
             </div>
-        </section>
-
-        <!-- Personal Evolution -->
-        <section class="content-section" style="background-color: white;">
-            <div class="container">
-                <h2 class="section-title">Evolução Pessoal</h2>
-                <div class="row">
-                    <div class="col-lg-8">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>Radar de Competências 21D</h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="radar-container">
-                                    <canvas id="competencyRadar"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-4">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>Principais Competências</h5>
-                            </div>
-                            <div class="card-body" id="topCompetencies">
-                                <!-- Top competencies will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Event History -->
-        <section class="content-section">
-            <div class="container">
-                <h2 class="section-title">Histórico de Eventos</h2>
-                <div id="eventHistory">
-                    <!-- Event history will be loaded here -->
-                </div>
-            </div>
-        </section>
-
-        <!-- Checkpoint Evolution -->
-        <section class="content-section" style="background-color: white;">
-            <div class="container">
-                <h2 class="section-title">Evolução por Checkpoint</h2>
-                <div class="row">
-                    <div class="col-lg-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>Avaliações Durante Hackatons</h5>
-                            </div>
-                            <div class="card-body">
-                                <canvas id="checkpointEvolutionChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-lg-6">
-                        <div class="card">
-                            <div class="card-header">
-                                <h5>Feedbacks de Mentores</h5>
-                            </div>
-                            <div class="card-body" id="mentorFeedbacks">
-                                <!-- Mentor feedbacks will be loaded here -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Presented Solutions -->
-        <section class="content-section">
-            <div class="container">
-                <h2 class="section-title">Soluções Apresentadas</h2>
-                <div id="presentedSolutions">
-                    <!-- Solutions will be loaded here -->
-                </div>
-            </div>
-        </section>
+        </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Supabase client (will be initialized after loading config)
-        let supabase = null;
+        const DATA_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker';
+        let segregatedData = {};
+        let originalSegregatedData = {};
+        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance;
+        const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
+        let currentTableOrder = [...initialTableOrder];
+        let sortStates = {};
 
-        // Load Supabase configuration from server
-        async function loadSupabaseConfig() {
+        const tableConfig = {
+            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id'] },
+            assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
+            teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
+            mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id'] },
+            assessment_questions: { title: 'Assessment Questions (Habilidades)', headers: ['selecionar', 'id', 'text', 'category', 'order'] },
+            assessment_questions_survey: { title: 'Assessment Questions (Survey)', headers: ['selecionar', 'id', 'text', 'type', 'survey_id'] },
+            f_submissions: { title: 'F Submissions', headers: ['selecionar', 'submission_id', 'user_id', 'question_id', 'answer', 'moment'] },
+            guilds: { title: 'Guilds', headers: ['selecionar', 'event_id', 'name', 'invite', 'created_at'] },
+        };
+
+        window.onload = async () => {
             try {
-                const response = await fetch('/api/supabase-config');
-                const config = await response.json();
+                const response = await fetch(DATA_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const allData = await response.json();
                 
-                if (!config.url || !config.key) {
-                    throw new Error('Credenciais do Supabase não configuradas');
+                segregatedData = segregateData(allData);
+                originalSegregatedData = JSON.parse(JSON.stringify(segregatedData));
+                renderCharts(segregatedData);
+                renderEvaluation360Chart(segregatedData); 
+                renderAllTables(segregatedData, currentTableOrder);
+                setupEventListeners();
+            } catch (error) {
+                document.getElementById('loading-indicator').innerText = `Erro ao carregar os dados: ${error.message}`;
+                console.error("Fetch error:", error);
+            }
+        };
+
+        function mockFAnswers(submissions) {
+            const mockAnswers = [];
+            const questionIds = ["16", "17", "18", "19"];
+            submissions.forEach(sub => {
+                questionIds.forEach(qId => {
+                    mockAnswers.push({
+                        submission_id: sub.id,
+                        question_id: qId,
+                        answer_numeric: (Math.random() * 2 + 3).toFixed(2)
+                    });
+                });
+            });
+            return mockAnswers;
+        }
+
+        function segregateData(data) {
+            const result = {
+                teams: [], users: [], mentorins: [], assessment_answers: [],
+                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
+            };
+            data.forEach(item => {
+                if (item.code && item.name && item.status) result.teams.push(item);
+                else if (item.full_name && item.role) result.users.push(item);
+                else if (item.evaluator_id) result.mentorins.push(item);
+                else if (item.question_id && typeof item.answer !== 'undefined') {
+                    result.assessment_answers.push(item);
+                    if (!item.f_submission_id) item.f_submission_id = item.id;
+                    result.f_submissions.push(item);
+                } else if (item.text && item.category) result.assessment_questions.push(item);
+                else if (item.text && item.type && item.survey_id) result.assessment_questions_survey.push(item);
+                else if (item.name && item.invite) result.guilds.push({ ...item, id: item.invite });
+            });
+            
+            result.f_answers = mockFAnswers(result.mentorins);
+            return result;
+        }
+
+        function renderCharts(data) {
+            if (competenciesChartInstance) competenciesChartInstance.destroy();
+            if (checkpointChartInstance) checkpointChartInstance.destroy();
+            
+            const competenciesCtx = document.getElementById('competenciesChart').getContext('2d');
+            
+            const competenciesConfig = [
+                { id: 'e6f01262-3bec-4e9f-ba35-ea36cebb044c', label: 'Pitch' }, { id: '2f8ae888-2c26-4c0b-b43e-22ad12e8365b', label: 'Análise' },
+                { id: '317f7809-2213-4d44-9789-bcc649e3da44', label: 'Lógica' }, { id: '51f51eb7-5361-4c70-ab2c-a873e6fca0a0', label: 'Escrita' },
+                { id: '5f58d78e-4ef8-4458-989b-913f4d6c4ffc', label: 'Comunicação' }, { id: '65d43ab9-8d6c-4493-8894-f230d1086dce', label: 'Colaboração' },
+                { id: '6744721d-ae32-40c2-980e-7c506e15af2d', label: 'Liderança' }, { id: '6daa3a49-5cc5-412e-b934-3af6345235cf', label: 'Autonomia' },
+                { id: '6eedbdf2-4f0a-4c35-a2b6-a30e04819edb', label: 'Planejamento' }, { id: '70b23f83-a102-4d56-992d-3c94e704930f', label: 'Foco' },
+                { id: '9c5c2681-ae93-4e56-8326-8d8c778e5216', label: 'Resiliência' }, { id: 'a1742180-ecc8-4759-a084-5e32447a8150', label: 'Ética' },
+                { id: 'b07af2c9-96a0-4e85-b741-d12ef3203033', label: 'UX' }, { id: 'b5f31da7-27ab-4a68-9505-0e3bb8704fee', label: 'Dados' },
+                { id: 'c0ddcd58-5755-417d-a6a8-8ebe542099cb', label: 'APIs' }, { id: 'cfb379a9-e00f-4188-94a5-44781ac97c86', label: 'IA' },
+                { id: 'd1d42aed-99e1-4e1c-9674-6426e34d46dc', label: 'Segurança' }, { id: 'e2c54ce7-88a7-4ab7-a81b-8763aa5c2d6b', label: 'Testes' },
+                { id: 'e390c310-8f41-4f4a-8589-c92639e428a2', label: 'Entrega' }, { id: 'e65172cd-410d-495a-a1f5-813511e3bb48', label: 'Impacto' }
+            ];
+
+            const labelsCompetencies = competenciesConfig.map(c => c.label);
+            const competencyIds = competenciesConfig.map(c => c.id);
+            const skillAnswersForChart = data.assessment_answers.filter(a => competencyIds.includes(a.question_id));
+            
+            const dataAntes = competenciesConfig.map(config => {
+                const answers = skillAnswersForChart.filter(a => a.question_id === config.id && a.moment === 'INITIAL');
+                if (answers.length === 0) return 0;
+                const sum = answers.reduce((total, current) => total + Number(current.answer), 0);
+                return sum / answers.length;
+            });
+            
+            const dataDepois = competenciesConfig.map(config => {
+                const answers = skillAnswersForChart.filter(a => a.question_id === config.id && (a.moment === 'FINAL' || a.moment !== 'INITIAL'));
+                if (answers.length === 0) return 0;
+                const sum = answers.reduce((total, current) => total + Number(current.answer), 0);
+                return sum / answers.length;
+            });
+
+            competenciesChartInstance = new Chart(competenciesCtx, {
+                type: 'radar', data: { labels: labelsCompetencies, datasets: [{ label: 'Antes', data: dataAntes, backgroundColor: 'rgba(88, 86, 214, 0.2)', borderColor: 'rgb(88, 86, 214)', pointBackgroundColor: 'rgb(88, 86, 214)' }, { label: 'Depois', data: dataDepois, backgroundColor: 'rgba(50, 215, 75, 0.2)', borderColor: 'rgb(50, 215, 75)', pointBackgroundColor: 'rgb(50, 215, 75)' }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
+            });
+
+            const checkpointCtx = document.getElementById('checkpointChart').getContext('2d');
+            const labelsCheckpoint = ['Confiança', 'Colaboração', 'Aplicação', 'Evolução', 'Confiança do Time'];
+            const submissions = [...new Set(data.assessment_answers.map(a => a.submission_id))];
+            const checkpointDatasets = [];
+            const colors = ['rgba(255, 69, 58, 0.6)', 'rgba(10, 132, 255, 0.6)', 'rgba(48, 209, 88, 0.6)', 'rgba(255, 159, 10, 0.6)'];
+            const etapaNomes = ['Desafio', 'Ideação', 'Prototipagem', 'Apresentação'];
+            submissions.slice(0, 4).forEach((subId, index) => {
+                const dataPoints = labelsCheckpoint.map(() => Math.random() * 5);
+                checkpointDatasets.push({ label: etapaNomes[index] || `Etapa ${index + 1}`, data: dataPoints, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length].replace('0.6', '0.2'), });
+            });
+
+            checkpointChartInstance = new Chart(checkpointCtx, {
+                type: 'radar', data: { labels: labelsCheckpoint, datasets: checkpointDatasets },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
+            });
+        }
+        
+        // ===================================================================================
+        // GRÁFICO AVALIAÇÃO 360° (VISÃO RECEBIDA)
+        // ===================================================================================
+        function renderEvaluation360Chart(data, selection = {}) {
+            if (evaluation360ChartInstance) {
+                evaluation360ChartInstance.destroy();
+            }
+
+            const { teamId, userId } = selection;
+            const evaluation360Ctx = document.getElementById('evaluation360Chart').getContext('2d');
+            const evaluation360Title = document.getElementById('evaluation360Title');
+
+            const LEADER_EVALUATION_QUESTIONS = {
+                "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
+                "18": "Orientação e Ideias", "19": "Apoio e Evolução",
+            };
+            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
+            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
+
+            const renderEmptyChart = (message) => {
+                evaluation360Ctx.clearRect(0, 0, evaluation360Ctx.canvas.width, evaluation360Ctx.canvas.height);
+                evaluation360Ctx.textAlign = "center";
+                evaluation360Ctx.fillText(message, evaluation360Ctx.canvas.width / 2, 50);
+                evaluation360Title.textContent = "Avaliação 360°";
+            };
+
+            let targetUserId = userId;
+            let targetTeamId = teamId;
+
+            // Define o usuário alvo e o time de contexto
+            if (userId) {
+                targetUserId = userId;
+                const userTeamAnswer = data.assessment_answers.find(a => a.user_id === userId && a.team_id);
+                if (userTeamAnswer) targetTeamId = userTeamAnswer.team_id;
+            } else if (teamId) {
+                targetTeamId = teamId;
+                const teamSubmissions = data.mentorins.filter(s => s.target_team_id === teamId);
+                const leaderTargetCounts = teamSubmissions.reduce((acc, s) => { if (s.target_user_id) acc[s.target_user_id] = (acc[s.target_user_id] || 0) + 1; return acc; }, {});
+                targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
+            } else {
+                 if (data.teams.length > 0) {
+                      targetTeamId = data.teams[0].id; // Padrão
+                      const teamSubmissions = data.mentorins.filter(s => s.target_team_id === targetTeamId);
+                      const leaderTargetCounts = teamSubmissions.reduce((acc, s) => { if (s.target_user_id) acc[s.target_user_id] = (acc[s.target_user_id] || 0) + 1; return acc; }, {});
+                      targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
+                 } else {
+                    renderEmptyChart("Selecione um time ou usuário.");
+                    return;
+                 }
+            }
+            
+            if (!targetUserId) { renderEmptyChart("Participante alvo não identificado."); return; }
+
+            const targetUser = data.users.find(u => u.id === targetUserId);
+            const targetUserName = targetUser ? targetUser.full_name.split(' ')[0] : 'Participante';
+            const team = targetTeamId ? data.teams.find(t => t.id === targetTeamId) : null;
+            evaluation360Title.textContent = `Avaliação 360° - ${targetUserName} ${team ? `(${team.name})` : ''}`;
+
+            const targetSubmissions = data.mentorins.filter(s => s.target_user_id === targetUserId);
+            if (targetSubmissions.length === 0) { renderEmptyChart(`Nenhuma avaliação encontrada para ${targetUserName}.`); return; }
+            
+            const targetSubmissionIds = new Set(targetSubmissions.map(s => s.id));
+            const relevantAnswers = data.assessment_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
+            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.f_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
+            if (sourceOfAnswers.length === 0) { renderEmptyChart("Não há dados de respostas para estas avaliações."); return; }
+            
+            const scoresBySubmission = {};
+            sourceOfAnswers.forEach(answer => {
+                const subId = answer.submission_id;
+                const qId = answer.question_id;
+                const value = parseFloat(answer.answer || answer.answer_numeric);
+                if (subId && qId && !isNaN(value)) {
+                    if (!scoresBySubmission[subId]) scoresBySubmission[subId] = {};
+                    scoresBySubmission[subId][qId] = value;
                 }
+            });
+
+            const getScoresForSubmission = (submissionId) => questionIds.map(qId => (scoresBySubmission[submissionId] && scoresBySubmission[submissionId][qId]) || 0);
+
+            const datasets = [];
+            const memberScoresByQuestion = {};
+            questionIds.forEach(qId => memberScoresByQuestion[qId] = []);
+            const mentorScoresByQuestion = {};
+            questionIds.forEach(qId => mentorScoresByQuestion[qId] = []);
+
+            targetSubmissions.forEach(sub => {
+                const evaluator = data.users.find(u => u.id === sub.evaluator_id);
+                if (!evaluator) return;
                 
-                // Initialize Supabase client
-                supabase = window.supabase.createClient(config.url, config.key);
-                console.log('✅ Cliente Supabase inicializado');
-                return supabase;
-            } catch (error) {
-                console.error('❌ Erro ao carregar configuração do Supabase:', error);
-                throw error;
+                const submissionScores = getScoresForSubmission(sub.id);
+
+                if (evaluator.id === targetUserId) {
+                     datasets.push({
+                        label: `Autoavaliação - ${targetUserName}`,
+                        data: submissionScores,
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        borderWidth: 2.5,
+                    });
+                } else if (evaluator.role === 'member') {
+                    questionIds.forEach((qId, index) => { if(submissionScores[index] > 0) memberScoresByQuestion[qId].push(submissionScores[index]); });
+                } else if (evaluator.role === 'mentor') {
+                     questionIds.forEach((qId, index) => { if(submissionScores[index] > 0) mentorScoresByQuestion[qId].push(submissionScores[index]); });
+                }
+            });
+            
+            const calculateAverage = (scoresByQuestion) => questionIds.map(qId => {
+                const scores = scoresByQuestion[qId];
+                if (!scores || scores.length === 0) return 0;
+                return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
+            });
+
+            const memberAverageScores = calculateAverage(memberScoresByQuestion);
+            if (memberAverageScores.some(s => s > 0)) {
+                datasets.push({
+                    label: 'Média da Equipe',
+                    data: memberAverageScores,
+                    borderColor: 'rgba(48, 209, 88, 1)',
+                    backgroundColor: 'rgba(48, 209, 88, 0.2)',
+                    borderWidth: 2,
+                });
             }
-        }
 
-        // Global variables
-        let currentUser = null;
-        let userData = {};
-
-        // Utility functions
-        function hideLoading() {
-            document.getElementById('loadingScreen').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'block';
-        }
-
-        function showError(message) {
-            console.error('Error:', message);
-            document.querySelector('.loading-screen p').textContent = `Erro: ${message}`;
-        }
-
-        // Data loading functions
-        async function loadUserData(userId = null) {
-            try {
-                console.log('🔄 Carregando dados do usuário...');
-                
-                // Gustavo Silva Nusch data from PDF
-                currentUser = {
-                    id: '00000000-0000-0000-0000-000000000000',
-                    full_name: 'Gustavo Silva Nusch',
-                    role: 'Desenvolvedor • SmartSyntax', 
-                    member_id: null,
-                    email: 'gustavo@smartsyntax.com'
-                };
-
-                // Update header with demo user info
-                document.getElementById('userFullName').textContent = currentUser.full_name;
-                document.getElementById('userRole').textContent = currentUser.role;
-
-                console.log('✅ Dados do usuário demo carregados:', currentUser);
-                return currentUser;
-            } catch (error) {
-                console.error('❌ Erro ao carregar dados do usuário:', error);
-                throw error;
+            const mentorAverageScores = calculateAverage(mentorScoresByQuestion);
+            if (mentorAverageScores.some(s => s > 0)) {
+                datasets.push({
+                    label: 'Visão do Mentor',
+                    data: mentorAverageScores,
+                    borderColor: 'rgba(100, 100, 100, 1)',
+                    backgroundColor: 'rgba(100, 100, 100, 0.2)',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                });
             }
+
+            if (datasets.length === 0) { renderEmptyChart("Dados insuficientes para montar o comparativo 360°."); return; }
+
+            evaluation360ChartInstance = new Chart(evaluation360Ctx, {
+                type: 'radar',
+                data: { labels: questionLabels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
+                }
+            });
         }
-
-        async function loadJourneySummary() {
-            try {
-                console.log('🔄 Carregando resumo da jornada...');
-                
-                // Gustavo Silva Nusch data from PDF
-                document.getElementById('totalHackatons').textContent = '5';
-                document.getElementById('bestPlacement').textContent = '1º';
-                document.getElementById('overallEvolution').textContent = '+0.8';
-                document.getElementById('evolutionImprovement').textContent = '+47% de melhora';
-                document.getElementById('stagePresence').textContent = '5/6';
-                document.getElementById('presencePercentage').textContent = '83,4% de Participação';
-                document.getElementById('totalMentorships').textContent = '4/5';
-                document.getElementById('mentorshipDetails').textContent = 'Tempo: 12h';
-                document.getElementById('mentorshipApproval').textContent = '85%';
-
-                console.log('✅ Resumo da jornada carregado');
-            } catch (error) {
-                console.error('❌ Erro ao carregar resumo da jornada:', error);
+        
+        // ===================================================================================
+        // LÓGICA FINAL CORRIGIDA: GRÁFICO AVALIAÇÃO 360° (VISÃO EM 1ª PESSOA)
+        // ===================================================================================
+        function renderEvaluation360FirstPersonChart(data, selectedUserId) {
+            if (evaluation360ChartInstance) {
+                evaluation360ChartInstance.destroy();
             }
-        }
 
-        async function loadCompetencyRadar() {
-            try {
-                console.log('🔄 Carregando radar de competências...');
-                
-                // Gustavo Silva Nusch radar data from PDF (21D competencies)
-                const categories = [
-                    'Pitch', 'Impacto', 'Entrega', 'Testes', 'Segurança', 'IA', 
-                    'APIs', 'Dados', 'UX', 'Ética', 'Resiliência', 'Foco',
-                    'Planejamento', 'Autonomia', 'Liderança', 'Colaboração',
-                    'Comunicação', 'Escrita', 'Lógica', 'Análise', 'Curiosidade'
-                ];
-                const scores = [
-                    5, 4, 3, 2, 1, 0,
-                    1, 2, 3, 4, 5, 4,
-                    3, 2, 1, 0, 1, 2, 3, 4, 5
-                ];
+            const evaluation360Ctx = document.getElementById('evaluation360Chart').getContext('2d');
+            const evaluation360Title = document.getElementById('evaluation360Title');
 
-                // Create radar chart
-                const ctx = document.getElementById('competencyRadar').getContext('2d');
-                new Chart(ctx, {
-                    type: 'radar',
-                    data: {
-                        labels: categories,
-                        datasets: [{
-                            label: 'Competências 21D',
+            const renderEmptyChart = (message) => {
+                evaluation360Ctx.clearRect(0, 0, evaluation360Ctx.canvas.width, evaluation360Ctx.canvas.height);
+                evaluation360Ctx.textAlign = "center";
+                evaluation360Ctx.fillText(message, evaluation360Ctx.canvas.width / 2, 50);
+                evaluation360Title.textContent = "Avaliação 360°";
+            };
+
+            const selectedUser = data.users.find(u => u.id === selectedUserId);
+            if (!selectedUser) {
+                renderEmptyChart("Usuário selecionado não encontrado.");
+                return;
+            }
+            
+            // --- INÍCIO DA LÓGICA CORRIGIDA CONFORME DIAGRAMA ---
+
+            // 1. Encontra o ID do time principal do usuário a partir da tabela 'assessment_answers'.
+            //    Isso define o contexto do time.
+            const teamIdOccurrences = data.assessment_answers
+                .filter(a => a.user_id === selectedUserId && a.team_id)
+                .reduce((acc, a) => {
+                    acc[a.team_id] = (acc[a.team_id] || 0) + 1;
+                    return acc;
+                }, {});
+            
+            const teamId = Object.keys(teamIdOccurrences).length > 0
+                ? Object.keys(teamIdOccurrences).sort((a, b) => teamIdOccurrences[b] - teamIdOccurrences[a])[0]
+                : null;
+
+            if (!teamId) {
+                console.error(`Não foi possível encontrar um time para o usuário ${selectedUser.full_name} na tabela 'assessment_answers'.`);
+                renderEmptyChart(`Time do usuário ${selectedUser.full_name.split(' ')[0]} não encontrado.`);
+                return;
+            }
+
+            // 2. Com o ID do time, busca todos os usuários que pertencem a ele, usando 'assessment_answers' como fonte da verdade.
+            const teamMemberIds = new Set(
+                data.assessment_answers
+                    .filter(a => a.team_id === teamId && a.user_id)
+                    .map(a => a.user_id)
+            );
+            
+            const team = data.teams.find(t => t.id === teamId);
+            const teamName = team ? `(${team.name})` : '';
+            evaluation360Title.textContent = `Avaliação 360° 1ª pessoa - ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
+            
+            // --- FIM DA LÓGICA CORRIGIDA ---
+
+            const LEADER_EVALUATION_QUESTIONS = {
+                "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
+                "18": "Orientação e Ideias", "19": "Apoio e Evolução",
+            };
+            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
+            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
+            
+            const userEvaluations = data.mentorins.filter(sub => sub.evaluator_id === selectedUserId);
+            if (userEvaluations.length === 0) {
+                renderEmptyChart(`Nenhuma avaliação feita por ${selectedUser.full_name.split(' ')[0]} foi encontrada.`);
+                return;
+            }
+
+            const getScoresForSubmission = (submissionId) => {
+                let answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                if (answersForSubmission.length === 0) {
+                    answersForSubmission = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                }
+                const scores = {};
+                answersForSubmission.forEach(answer => {
+                    const value = parseFloat(answer.answer || answer.answer_numeric);
+                    if (!isNaN(value)) scores[answer.question_id] = value;
+                });
+                return questionIds.map(qId => scores[qId] || 0);
+            };
+
+            const datasets = [];
+            const colors = ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'];
+            let colorIndex = 0;
+
+            userEvaluations.forEach(evaluation => {
+                const targetUser = data.users.find(u => u.id === evaluation.target_user_id);
+                if (!targetUser) return; 
+
+                const scores = getScoresForSubmission(evaluation.id);
+
+                if (scores.some(s => s > 0)) {
+                    let dataset;
+                    // Condição 1: É a autoavaliação
+                    if (evaluation.target_user_id === selectedUserId) {
+                        dataset = {
+                            label: `Autoavaliação`,
                             data: scores,
-                            borderColor: 'rgb(13, 110, 253)',
-                            backgroundColor: 'rgba(13, 110, 253, 0.2)',
-                            pointBackgroundColor: 'rgb(13, 110, 253)',
-                            pointBorderColor: '#fff',
-                            pointHoverBackgroundColor: '#fff',
-                            pointHoverBorderColor: 'rgb(13, 110, 253)'
-                        }]
-                    },
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            borderWidth: 3,
+                            order: -1
+                        };
+                         datasets.unshift(dataset);
+                    } 
+                    // Condição 2: O alvo da avaliação pertence ao time correto
+                    else if (teamMemberIds.has(targetUser.id)) {
+                        const borderColor = colors[colorIndex % colors.length];
+                        dataset = {
+                            label: `${targetUser.full_name.split(' ')[0]}`,
+                            data: scores,
+                            borderColor: borderColor,
+                            backgroundColor: borderColor.replace('1)', '0.2)'),
+                            borderWidth: 2,
+                        };
+                        datasets.push(dataset);
+                        colorIndex++;
+                    }
+                }
+            });
+            
+            if (datasets.length > 0) {
+                evaluation360ChartInstance = new Chart(evaluation360Ctx, {
+                    type: 'radar',
+                    data: { labels: questionLabels, datasets: datasets },
                     options: {
                         responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            r: {
-                                beginAtZero: true,
-                                max: 5
-                            }
-                        }
+                        plugins: { legend: { position: 'bottom' } },
+                        scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
                     }
                 });
-
-                // Top competencies from PDF with evolution
-                const topCompetenciesData = [
-                    { name: 'Lógica', score: 5, evolution: '+3' },
-                    { name: 'Impacto', score: 5, evolution: '+3' },
-                    { name: 'APIs', score: 5, evolution: '+1' },
-                    { name: 'IA', score: 5, evolution: '+0' },
-                    { name: 'Curiosidade', score: 4, evolution: '+1' },
-                    { name: 'Colaboração', score: 4, evolution: '+2' },
-                    { name: 'Autonomia', score: 4, evolution: '+1' },
-                    { name: 'Foco', score: 4, evolution: '+1' },
-                    { name: 'Planejamento', score: 4, evolution: '+0' },
-                    { name: 'UX', score: 4, evolution: '+2' }
-                ];
-
-                const topCompetenciesHtml = topCompetenciesData.map(comp => `
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <span>${comp.name}</span>
-                        <span class="d-flex align-items-center">
-                            <span class="badge bg-primary me-2">${comp.score}</span>
-                            <small class="text-success">(${comp.evolution})</small>
-                        </span>
-                    </div>
-                `).join('');
-
-                document.getElementById('topCompetencies').innerHTML = topCompetenciesHtml;
-
-                console.log('✅ Radar de competências carregado');
-            } catch (error) {
-                console.error('❌ Erro ao carregar radar de competências:', error);
-                document.getElementById('competencyRadar').parentElement.innerHTML = `<p class="error-message">Erro ao carregar competências: ${error.message}</p>`;
+            } else {
+                renderEmptyChart("Nenhuma avaliação sobre os membros deste time foi encontrada.");
             }
         }
 
-        async function loadEventHistory() {
-            try {
-                console.log('🔄 Carregando histórico de eventos...');
+
+        function renderControls(order) {
+            const selectBox = document.getElementById('primary-table-select');
+            const checkboxWrapper = document.querySelector('.controls .checkbox-group');
+            
+            selectBox.innerHTML = '';
+            checkboxWrapper.innerHTML = '';
+
+            initialTableOrder.forEach(key => {
+                const config = tableConfig[key];
+                if (!config) return;
                 
-                // Gustavo Silva Nusch event history from PDF
-                const events = [
-                    {
-                        name: 'PortoHack 2024',
-                        placement: '4º Lugar',
-                        evolution: '+4',
-                        date: '14/09/2024',
-                        placementClass: 'placement-4'
-                    },
-                    {
-                        name: 'Expologhack 2024',
-                        placement: 'Participante',
-                        evolution: '-1',
-                        date: '21/10/2024',
-                        placementClass: 'placement-participant'
-                    },
-                    {
-                        name: 'Expologhack 2025',
-                        placement: 'Participante',
-                        evolution: '-1',
-                        date: '30/10/2025',
-                        placementClass: 'placement-participant'
-                    },
-                    {
-                        name: 'PortoHack 2025',
-                        placement: '1º Lugar',
-                        evolution: '+3',
-                        date: '08/11/2025',
-                        placementClass: 'placement-1'
-                    }
-                ];
-
-                const eventHistoryHtml = events.map((event, index) => `
-                    <div class="card event-card fade-in" style="animation-delay: ${index * 0.1}s">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <h5 class="card-title">${event.name}</h5>
-                                    <p class="card-text text-muted">Evolução: ${event.evolution}</p>
-                                    <small class="text-muted">
-                                        <i class="fas fa-calendar me-1"></i>
-                                        ${event.date}
-                                    </small>
-                                </div>
-                                <span class="event-placement ${event.placementClass}">${event.placement}</span>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-
-                document.getElementById('eventHistory').innerHTML = eventHistoryHtml;
-
-                console.log('✅ Histórico de eventos carregado');
-            } catch (error) {
-                console.error('❌ Erro ao carregar histórico de eventos:', error);
-                document.getElementById('eventHistory').innerHTML = `<p class="error-message">Erro ao carregar eventos: ${error.message}</p>`;
-            }
-        }
-
-        async function loadMentorFeedbacks() {
-            try {
-                console.log('🔄 Carregando feedbacks de mentores...');
-                
-                // Gustavo Silva Nusch mentor feedbacks from PDF
-                const mentorings = [
-                    {
-                        type: 'Desafio',
-                        date: '20/09/2025 09:40',
-                        mentor: 'Marina (PCS)',
-                        rating: 5,
-                        feedback: 'Escopo refinado, métrica de dor definida.'
-                    },
-                    {
-                        type: 'Ideação',
-                        date: '20/09/2025 10:22',
-                        mentor: 'Rita (Inovação)',
-                        rating: 3,
-                        feedback: 'Selecionar hipótese A e definir critério de aceitação.'
-                    },
-                    {
-                        type: 'Agente',
-                        date: '20/09/2025 16:30',
-                        mentor: 'Silva (Tech)',
-                        rating: 4,
-                        feedback: 'Retry + logs no consumo de API do simulador.'
-                    }
-                ];
-
-                const feedbacksHtml = mentorings.map((mentoring, index) => {
-                    const stars = Array.from({length: 5}, (_, i) => 
-                        `<i class="fas fa-star ${i < mentoring.rating ? 'star-filled' : 'star-empty'}"></i>`
-                    ).join('');
-                    
-                    return `
-                        <div class="checkpoint-progress fade-in" style="animation-delay: ${index * 0.1}s">
-                            <div class="checkpoint-score">${mentoring.rating}</div>
-                            <div class="checkpoint-details">
-                                <div class="checkpoint-title">${mentoring.type} ${mentoring.date}</div>
-                                <div class="text-muted small mb-1">${mentoring.mentor}</div>
-                                <div class="checkpoint-feedback">${mentoring.feedback}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                document.getElementById('mentorFeedbacks').innerHTML = feedbacksHtml;
-
-                console.log('✅ Feedbacks de mentores carregados');
-            } catch (error) {
-                console.error('❌ Erro ao carregar feedbacks:', error);
-                document.getElementById('mentorFeedbacks').innerHTML = `<p class="error-message">Erro ao carregar feedbacks: ${error.message}</p>`;
-            }
-        }
-
-        async function loadCheckpointEvolution() {
-            try {
-                console.log('🔄 Carregando evolução por checkpoint...');
-                
-                const { data: checkpoints, error } = await supabase
-                    .from('f_submissions')
-                    .select(`
-                        checkpoint_id,
-                        created_at,
-                        f_answers (
-                            answer_numeric,
-                            f_questions (
-                                text,
-                                type
-                            )
-                        ),
-                        checkpoints (
-                            number,
-                            created_at
-                        )
-                    `)
-                    .eq('target_user_id', currentUser.id)
-                    .order('created_at');
-                
-                // Error handling moved to try-catch block above
-                
-                if (!checkpoints || checkpoints.length === 0) {
-                    document.getElementById('checkpointEvolutionChart').parentElement.innerHTML = '<p class="no-data">Nenhum dado de checkpoint encontrado</p>';
-                    return;
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = config.title;
+                if (key === order[0]) {
+                    option.selected = true;
                 }
+                selectBox.appendChild(option);
 
-                // Process data for chart
-                const checkpointData = {};
-                checkpoints.forEach(checkpoint => {
-                    const checkpointNum = checkpoint.checkpoints?.number || 1;
-                    if (!checkpointData[checkpointNum]) {
-                        checkpointData[checkpointNum] = [];
-                    }
-                    
-                    checkpoint.f_answers?.forEach(answer => {
-                        if (answer.answer_numeric !== null) {
-                            checkpointData[checkpointNum].push(answer.answer_numeric);
-                        }
-                    });
-                });
+                checkboxWrapper.innerHTML += `<label><input type="checkbox" class="table-toggle" data-table="${key}" checked> ${config.title}</label>`;
+            });
+        }
 
-                // Calculate averages
-                const labels = Object.keys(checkpointData).sort((a, b) => a - b);
-                const data = labels.map(label => {
-                    const values = checkpointData[label];
-                    return values.length > 0 ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
-                });
+        function renderAllTables(data, renderOrder) {
+            const wrapper = document.getElementById('tables-wrapper');
+            wrapper.innerHTML = '';
+            renderControls(renderOrder);
 
-                // Create checkpoint evolution chart
-                const ctx = document.getElementById('checkpointEvolutionChart').getContext('2d');
+            renderOrder.forEach((key, index) => {
+                const config = tableConfig[key];
+                const tableData = data[key] || [];
+                const tableContainer = document.createElement('div');
+                tableContainer.id = `table-container-${key}`;
+                tableContainer.className = 'table-container';
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'table-header';
+                headerDiv.draggable = true;
+                headerDiv.dataset.tableKey = key;
+                headerDiv.innerHTML = `<h2>${config.title}</h2>`;
+                tableContainer.appendChild(headerDiv);
+
+                const table = document.createElement('table');
+                const headers = (config.headers.includes('selecionar') && index === 0) ? config.headers : config.headers.filter(h => h !== 'selecionar');
                 
-                if (labels.length > 0 && data.length > 0) {
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: labels.map(l => `Checkpoint ${l}`),
-                            datasets: [{
-                                label: 'Pontuação Média',
-                                data: data,
-                                borderColor: 'rgb(13, 110, 253)',
-                                backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                                tension: 0.4,
-                                fill: true
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: {
-                                    display: true
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    max: 5,
-                                    title: {
-                                        display: true,
-                                        text: 'Pontuação'
-                                    }
-                                },
-                                x: {
-                                    title: {
-                                        display: true,
-                                        text: 'Checkpoints'
-                                    }
-                                }
-                            }
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                headers.forEach(header => {
+                    const th = document.createElement('th');
+                    if (header !== 'selecionar') {
+                        th.dataset.column = header;
+                        th.dataset.tableKey = key;
+                        th.innerHTML = `${header} <span class="sort-arrow"></span>`;
+                        
+                        if (sortStates[key] && sortStates[key].column === header) {
+                            th.classList.add(sortStates[key].order === 'asc' ? 'sorted-asc' : 'sorted-desc');
                         }
+                    } else {
+                        th.textContent = header;
+                    }
+                    headerRow.appendChild(th);
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+                
+                if (tableData && tableData.length > 0) {
+                    tableData.forEach(item => {
+                        const row = tbody.insertRow();
+                        row.dataset.itemId = item.id || item.submission_id || item.invite;
+                        if (item.user_id) row.dataset.userId = item.user_id;
+                        if (item.team_id) row.dataset.teamId = item.team_id;
+                        if (item.submission_id) row.dataset.submissionId = item.submission_id;
+                        if (item.target_user_id) row.dataset.targetUserId = item.target_user_id;
+                        if (item.question_id) row.dataset.questionId = item.question_id;
+
+                        headers.forEach(header => {
+                            const cell = row.insertCell();
+                            if (header === 'selecionar') {
+                                cell.innerHTML = `<button class="select-row-btn" data-item-id="${row.dataset.itemId}" data-table-key="${key}">Selecionar</button>`;
+                            } else {
+                                cell.textContent = item[header] ?? '';
+                            }
+                        });
                     });
                 } else {
-                    // Show message when no data available
-                    ctx.font = '16px Arial';
-                    ctx.fillStyle = '#6c757d';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Nenhum dado de checkpoint disponível', ctx.canvas.width / 2, ctx.canvas.height / 2);
+                    tbody.innerHTML = `<tr><td colspan="${headers.length}" style="text-align: center;">Nenhum dado encontrado.</td></tr>`;
                 }
+                table.appendChild(tbody);
+                tableContainer.appendChild(table);
+                wrapper.appendChild(tableContainer);
+            });
+            document.querySelectorAll('.table-toggle').forEach(checkbox => {
+                checkbox.addEventListener('change', (event) => {
+                    const tableKey = event.target.dataset.table;
+                    document.getElementById(`table-container-${tableKey}`).style.display = event.target.checked ? '' : 'none';
+                });
+            });
+        }
+        
+        function sortTable(tableKey, column) {
+            const currentSort = sortStates[tableKey];
+            let newOrder;
 
-                console.log('✅ Evolução por checkpoint carregada');
-            } catch (error) {
-                console.error('❌ Erro ao carregar evolução por checkpoint:', error);
-                document.getElementById('checkpointEvolutionChart').parentElement.innerHTML = `<p class="error-message">Erro ao carregar evolução: ${error.message}</p>`;
+            if (currentSort && currentSort.column === column) {
+                newOrder = currentSort.order === 'asc' ? 'desc' : null; 
+            } else {
+                newOrder = 'asc';
             }
+            
+            Object.keys(sortStates).forEach(key => delete sortStates[key]);
+
+            if (newOrder) {
+                sortStates[tableKey] = { column, order: newOrder };
+                const direction = newOrder === 'asc' ? 1 : -1;
+                segregatedData[tableKey].sort((a, b) => {
+                    const valA = a[column] === null || a[column] === undefined ? '' : a[column];
+                    const valB = b[column] === null || b[column] === undefined ? '' : b[column];
+                    
+                    const comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' });
+                    return comparison * direction;
+                });
+            } else {
+                delete sortStates[tableKey];
+                segregatedData[tableKey] = JSON.parse(JSON.stringify(originalSegregatedData[tableKey]));
+            }
+
+            renderAllTables(segregatedData, currentTableOrder);
         }
 
-        async function loadPresentedSolutions() {
+        function setupEventListeners() {
+            document.getElementById('validate-btn').addEventListener('click', validatePrimaryTableIds);
+            document.getElementById('clear-filter-btn').addEventListener('click', clearAdvancedFilter);
+            
+            document.getElementById('primary-table-select').addEventListener('change', (event) => {
+                const selectedTableKey = event.target.value;
+                const index = currentTableOrder.indexOf(selectedTableKey);
+                if (index > -1) {
+                    currentTableOrder.splice(index, 1);
+                }
+                currentTableOrder.unshift(selectedTableKey);
+                renderAllTables(segregatedData, currentTableOrder);
+            });
+
+
+            const tablesWrapper = document.getElementById('tables-wrapper');
+            let draggedKey = null;
+
+            tablesWrapper.addEventListener('click', (event) => {
+                if (event.target.classList.contains('select-row-btn')) {
+                    const { itemId, tableKey } = event.target.dataset;
+                    applyAdvancedFilter(itemId, tableKey);
+                }
+                const th = event.target.closest('th[data-column]');
+                if (th) {
+                    const { tableKey, column } = th.dataset;
+                    sortTable(tableKey, column);
+                }
+            });
+            
+            tablesWrapper.addEventListener('dragstart', (event) => {
+                const header = event.target.closest('.table-header');
+                if (header) {
+                    draggedKey = header.dataset.tableKey;
+                    event.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => {
+                        header.closest('.table-container').style.opacity = '0.5';
+                    }, 0);
+                }
+            });
+
+            tablesWrapper.addEventListener('dragend', (event) => {
+                const header = event.target.closest('.table-header');
+                if (header) {
+                   header.closest('.table-container').style.opacity = '1';
+                }
+            });
+
+            tablesWrapper.addEventListener('dragover', (event) => {
+                const dropTarget = event.target.closest('.table-container');
+                if (dropTarget) {
+                    event.preventDefault();
+                }
+            });
+
+            tablesWrapper.addEventListener('drop', (event) => {
+                event.preventDefault();
+                const dropTargetContainer = event.target.closest('.table-container');
+                if (dropTargetContainer && draggedKey) {
+                    if (draggedKey !== currentTableOrder[0]) {
+                        const draggedIndex = currentTableOrder.indexOf(draggedKey);
+                        if (draggedIndex > -1) {
+                            currentTableOrder.splice(draggedIndex, 1);
+                            currentTableOrder.unshift(draggedKey);
+                            renderAllTables(segregatedData, currentTableOrder);
+                        }
+                    }
+                }
+                draggedKey = null;
+            });
+            
+            const modal = document.getElementById('diagram-modal');
+            const closeBtn = modal.querySelector('.close-btn');
+
+            closeBtn.onclick = function() {
+                modal.style.display = "none";
+            }
+
+            window.onclick = function(event) {
+                if (event.target == modal) {
+                    modal.style.display = "none";
+                }
+            }
+        }
+        
+        function validatePrimaryTableIds() {
+            const primaryTableKey = currentTableOrder[0];
+            const primaryTableData = segregatedData[primaryTableKey];
+            
+            if (!primaryTableData || primaryTableData.length === 0) {
+                alert(`A tabela principal '${tableConfig[primaryTableKey].title}' está vazia.`);
+                return;
+            }
+
+            const primaryIds = new Set();
+            const idColumns = Object.keys(primaryTableData[0]).filter(k => k.endsWith('_id') || k === 'id');
+            primaryTableData.forEach(item => {
+                idColumns.forEach(col => {
+                    if(item[col]) primaryIds.add(item[col]);
+                });
+            });
+
+            const relatedTables = new Set();
+            initialTableOrder.forEach(key => {
+                if (key === primaryTableKey) return;
+                const tableData = segregatedData[key];
+                if (tableData && tableData.length > 0) {
+                    for (const item of tableData) {
+                        for (const value of Object.values(item)) {
+                            if (primaryIds.has(value)) {
+                                relatedTables.add(key);
+                                return; 
+                            }
+                        }
+                    }
+                }
+            });
+
+            showDiagramModal(primaryTableKey, Array.from(relatedTables));
+        }
+
+        function showDiagramModal(primaryTableKey, relatedTables) {
+            const modal = document.getElementById('diagram-modal');
+            const diagramContainer = document.getElementById('diagram-container');
+            const svg = document.getElementById('diagram-svg');
+            diagramContainer.innerHTML = '';
+            svg.innerHTML = '';
+
+            const primaryDiv = document.createElement('div');
+            primaryDiv.className = 'diagram-table primary';
+            primaryDiv.id = `d-table-${primaryTableKey}`;
+            primaryDiv.textContent = tableConfig[primaryTableKey].title;
+            primaryDiv.style.gridColumn = '2 / span 2';
+            primaryDiv.style.gridRow = '1';
+            diagramContainer.appendChild(primaryDiv);
+            
+            let otherTables = initialTableOrder.filter(k => k !== primaryTableKey);
+
+            otherTables.forEach((key) => {
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'diagram-table';
+                tableDiv.id = `d-table-${key}`;
+                if (relatedTables.includes(key)) {
+                    tableDiv.classList.add('related');
+                }
+                tableDiv.textContent = tableConfig[key]?.title || key;
+                diagramContainer.appendChild(tableDiv);
+            });
+
+            modal.style.display = 'block';
+
+            setTimeout(() => {
+                const primaryElem = document.getElementById(`d-table-${primaryTableKey}`);
+                relatedTables.forEach(key => {
+                    const relatedElem = document.getElementById(`d-table-${key}`);
+                    if (primaryElem && relatedElem) {
+                        drawLine(svg, primaryElem, relatedElem);
+                    }
+                });
+            }, 150);
+        }
+
+        function drawLine(svg, el1, el2) {
             try {
-                console.log('🔄 Carregando soluções apresentadas...');
-                
-                // Gustavo Silva Nusch solution from PDF
-                const solutionsHtml = `
-                    <div class="card fade-in">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-3">
-                                <h5 class="card-title mb-0">Solução Apresentada</h5>
-                                <a href="#" class="btn btn-outline-primary btn-sm">
-                                    <i class="fab fa-github me-1"></i>Acessar Repositório no Github
-                                </a>
-                            </div>
-                            <p class="card-text">
-                                A solução permite que o tempo de execução do método utilizado atualmente seja reduzido em 80%.
-                            </p>
-                        </div>
-                    </div>
-                `;
+                const svgRect = svg.getBoundingClientRect();
+                const rect1 = el1.getBoundingClientRect();
+                const rect2 = el2.getBoundingClientRect();
 
-                document.getElementById('presentedSolutions').innerHTML = solutionsHtml;
+                if (!svgRect.width || !svgRect.height) return;
 
-                console.log('✅ Soluções apresentadas carregadas');
-            } catch (error) {
-                console.error('❌ Erro ao carregar soluções:', error);
-                document.getElementById('presentedSolutions').innerHTML = `<p class="error-message">Erro ao carregar soluções: ${error.message}</p>`;
+                const x1 = rect1.left + rect1.width / 2 - svgRect.left;
+                const y1 = rect1.top + rect1.height / 2 - svgRect.top;
+                const x2 = rect2.left + rect2.width / 2 - svgRect.left;
+                const y2 = rect2.top + rect2.height / 2 - svgRect.top;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#007bff');
+                line.setAttribute('stroke-width', '2');
+                svg.appendChild(line);
+            } catch (e) {
+                console.error("Error drawing line:", e);
             }
         }
-
-        // Main initialization function
-        async function initializePortfolio() {
-            try {
-                console.log('🚀 Iniciando Portfólio Digital...');
-                
-                // Load Supabase configuration and initialize client
-                await loadSupabaseConfig();
-                
-                // Test Supabase connection
-                const { data, error } = await supabase.from('users').select('count', { count: 'exact', head: true });
-                if (error) throw new Error(`Erro de conexão com Supabase: ${error.message}`);
-                
-                console.log('✅ Conexão com Supabase estabelecida');
-                
-                // Load user data
-                await loadUserData();
-                
-                // Load all sections in parallel with error handling
-                const loadingPromises = [
-                    loadJourneySummary().catch(err => console.error('Journey summary failed:', err)),
-                    loadCompetencyRadar().catch(err => console.error('Competency radar failed:', err)),
-                    loadEventHistory().catch(err => console.error('Event history failed:', err)),
-                    loadMentorFeedbacks().catch(err => console.error('Mentor feedbacks failed:', err)),
-                    loadCheckpointEvolution().catch(err => console.error('Checkpoint evolution failed:', err)),
-                    loadPresentedSolutions().catch(err => console.error('Presented solutions failed:', err))
-                ];
-                
-                await Promise.allSettled(loadingPromises);
-                
-                // Hide loading screen and show content
-                hideLoading();
-                
-                console.log('✅ Portfólio Digital inicializado com sucesso');
-                
-            } catch (error) {
-                console.error('❌ Erro ao inicializar portfólio:', error);
-                showError(error.message);
+        
+        function applyAdvancedFilter(itemId, sourceTableKey) {
+            const sourceItem = originalSegregatedData[sourceTableKey].find(item => (item.id || item.submission_id || item.invite) === itemId);
+            if (!sourceItem) {
+                console.error("Item de origem não encontrado:", itemId, sourceTableKey);
+                return;
             }
+
+            // ===================================================================================
+            // LÓGICA DE ATUALIZAÇÃO DO GRÁFICO 360
+            // ===================================================================================
+            if (sourceTableKey === 'teams') {
+                renderEvaluation360Chart(originalSegregatedData, { teamId: itemId });
+            } else if (sourceTableKey === 'users') {
+                // Chama a nova função para a visão em 1ª pessoa
+                renderEvaluation360FirstPersonChart(originalSegregatedData, itemId);
+            }
+
+            let relevantAnswers = [];
+            
+            const idFieldMap = {
+                users: 'user_id',
+                teams: 'team_id',
+                assessment_questions: 'question_id',
+                assessment_questions_survey: 'question_id',
+                assessment_answers: 'id',
+                f_submissions: 'submission_id'
+            };
+            const relevantField = idFieldMap[sourceTableKey];
+
+            if (relevantField) {
+                 relevantAnswers = originalSegregatedData.assessment_answers.filter(answer => answer[relevantField] === itemId);
+            } else if (sourceTableKey === 'mentorins') {
+                const userIds = new Set([sourceItem.evaluator_id, sourceItem.target_user_id].filter(Boolean));
+                const teamIds = new Set([sourceItem.target_team_id].filter(Boolean));
+                relevantAnswers = originalSegregatedData.assessment_answers.filter(answer =>
+                    userIds.has(answer.user_id) || teamIds.has(answer.team_id)
+                );
+            } else {
+                 console.warn(`A filtragem a partir da tabela '${sourceTableKey}' não está diretamente implementada via 'Assessment Answers'.`);
+                 clearAdvancedFilter();
+                 return;
+            }
+            
+            if (relevantAnswers.length === 0) {
+                 console.warn(`Nenhuma resposta encontrada em 'Assessment Answers' para o item selecionado. Exibindo apenas o item selecionado.`);
+                 Object.keys(originalSegregatedData).forEach(key => {
+                      const tableBody = document.querySelector(`#table-container-${key} tbody`);
+                      if(tableBody) {
+                         tableBody.querySelectorAll('tr').forEach(row => {
+                            const isSelectedRow = (key === sourceTableKey && row.dataset.itemId === itemId);
+                            row.classList.toggle('filtered-out', !isSelectedRow);
+                        });
+                      }
+                 });
+                 document.getElementById('validate-btn').style.display = 'none';
+                 document.getElementById('clear-filter-btn').style.display = 'inline-block';
+                 return;
+            }
+
+            const relatedIds = {
+                users: new Set(),
+                teams: new Set(),
+                questions: new Set(),
+                submissions: new Set(),
+                answer_ids: new Set()
+            };
+
+            relevantAnswers.forEach(answer => {
+                if (answer.id) relatedIds.answer_ids.add(answer.id);
+                if (answer.user_id) relatedIds.users.add(answer.user_id);
+                if (answer.team_id) relatedIds.teams.add(answer.team_id);
+                if (answer.question_id) relatedIds.questions.add(answer.question_id);
+                if (answer.submission_id) relatedIds.submissions.add(answer.submission_id);
+            });
+
+            const filteredChartData = {
+                ...originalSegregatedData,
+                assessment_answers: originalSegregatedData.assessment_answers.filter(a => relatedIds.users.has(a.user_id)),
+            };
+            renderCharts(filteredChartData);
+
+            Object.keys(originalSegregatedData).forEach(tableKey => {
+                const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
+                if (!tableBody) return;
+
+                tableBody.querySelectorAll('tr').forEach(row => {
+                    const rowItemId = row.dataset.itemId;
+                    const rowData = originalSegregatedData[tableKey].find(d => (d.id || d.submission_id || d.invite) === rowItemId);
+                    let isVisible = false;
+
+                    if (rowData) {
+                        switch (tableKey) {
+                            case 'users':
+                                isVisible = relatedIds.users.has(rowData.id);
+                                break;
+                            case 'teams':
+                                isVisible = relatedIds.teams.has(rowData.id);
+                                break;
+                            case 'assessment_answers':
+                                isVisible = relatedIds.answer_ids.has(rowData.id);
+                                break;
+                            case 'f_submissions':
+                                isVisible = relatedIds.submissions.has(rowData.submission_id) || relatedIds.users.has(rowData.user_id);
+                                break;
+                            case 'mentorins':
+                                isVisible = relatedIds.users.has(rowData.evaluator_id) || 
+                                            relatedIds.users.has(rowData.target_user_id) ||
+                                            relatedIds.teams.has(rowData.target_team_id);
+                                break;
+                            case 'assessment_questions':
+                            case 'assessment_questions_survey':
+                                isVisible = relatedIds.questions.has(rowData.id);
+                                break;
+                            case 'guilds':
+                                isVisible = false;
+                                break;
+                            default:
+                                isVisible = false;
+                        }
+                    }
+                    row.classList.toggle('filtered-out', !isVisible);
+                });
+            });
+            
+            document.getElementById('validate-btn').style.display = 'none';
+            document.getElementById('clear-filter-btn').style.display = 'inline-block';
         }
 
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initializePortfolio);
+
+        function clearAdvancedFilter() {
+            segregatedData = JSON.parse(JSON.stringify(originalSegregatedData));
+            currentTableOrder = [...initialTableOrder];
+            sortStates = {};
+            
+            renderAllTables(segregatedData, currentTableOrder);
+            renderCharts(originalSegregatedData);
+            renderEvaluation360Chart(originalSegregatedData);
+            
+            document.getElementById('validate-btn').style.display = 'inline-block';
+            document.getElementById('clear-filter-btn').style.display = 'none';
+        }
     </script>
 </body>
 </html>
+
