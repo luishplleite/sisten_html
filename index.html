@@ -132,7 +132,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            transition: background-color 0.3s ease;
+            transition: background-color: 0.3s ease;
         }
 
         #validate-btn { background-color: var(--button-bg); }
@@ -158,6 +158,47 @@
         #charts-section {
             margin-top: 30px;
         }
+        
+        .team-summary {
+            background-color: #e9ecef;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        .team-summary h2 {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        #team-averages-content {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+            text-align: center;
+        }
+        
+        .average-item {
+            background-color: var(--table-bg);
+            padding: 10px 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px var(--shadow-color);
+        }
+
+        .average-item h4 {
+            margin: 0 0 5px 0;
+            color: #495057;
+        }
+
+        .average-item p {
+            margin: 0;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: var(--button-bg);
+        }
+
 
         .charts-container {
             display: grid;
@@ -379,6 +420,11 @@
             </div>
         </div>
         
+        <div id="team-averages-summary" class="team-summary" style="display: none;">
+            <h2 id="team-summary-title">Resumo das Médias da Equipe</h2>
+            <div id="team-averages-content"></div>
+        </div>
+        
         <div id="tables-wrapper">
              <div id="loading-indicator">Carregando dados...</div>
         </div>
@@ -454,7 +500,7 @@
                 renderCharts(segregatedData);
                 renderEvaluation360Chart(segregatedData);
                 renderEvaluation360ThirdPersonChart(segregatedData, null);
-                renderMentorEvaluationChart(segregatedData, null);
+                renderMentorEvaluationChart(segregatedData, {});
                 renderAllTables(segregatedData, currentTableOrder);
                 setupEventListeners();
             } catch (error) {
@@ -464,14 +510,28 @@
         };
 
         function mockFAnswers(submissions) {
+            // Gera um valor pseudo-aleatório consistente com base em uma string de entrada (seed)
+            const deterministicHash = (str) => {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = (hash << 5) - hash + char;
+                    hash |= 0; // Converte para um inteiro de 32 bits
+                }
+                return Math.abs(hash);
+            };
+
             const mockAnswers = [];
             const questionIds = ["16", "17", "18", "19"];
             submissions.forEach(sub => {
                 questionIds.forEach(qId => {
+                    // Usa o ID da submissão e da questão como seed para gerar um número consistente
+                    const seed = `${sub.id}-${qId}`;
+                    const deterministicValue = 3 + (deterministicHash(seed) % 201) / 100; // Gera valor entre 3.00 e 5.00
                     mockAnswers.push({
                         submission_id: sub.id,
                         question_id: qId,
-                        answer_numeric: (Math.random() * 2 + 3).toFixed(2)
+                        answer_numeric: deterministicValue.toFixed(2)
                     });
                 });
             });
@@ -542,15 +602,63 @@
                 options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
             });
 
+            // ===================================================================================
+            // LÓGICA CORRIGIDA E DETERMINÍSTICA PARA O GRÁFICO DE CHECKPOINTS
+            // ===================================================================================
             const checkpointCtx = document.getElementById('checkpointChart').getContext('2d');
             const labelsCheckpoint = ['Confiança', 'Colaboração', 'Aplicação', 'Evolução', 'Confiança do Time'];
-            const submissions = [...new Set(data.assessment_answers.map(a => a.submission_id))];
+            const checkpointQuestions = { "16": 0, "17": 1, "18": 2, "19": 3 };
+            const questionIds360 = Object.keys(checkpointQuestions);
+            
+            const submissionsByCheckpoint = data.mentorins.reduce((acc, sub) => {
+                if(sub.checkpoint_id) {
+                    if (!acc[sub.checkpoint_id]) acc[sub.checkpoint_id] = [];
+                    acc[sub.checkpoint_id].push(sub.id);
+                }
+                return acc;
+            }, {});
+
+            const allAnswers = [...data.assessment_answers, ...data.f_answers];
             const checkpointDatasets = [];
             const colors = ['rgba(255, 69, 58, 0.6)', 'rgba(10, 132, 255, 0.6)', 'rgba(48, 209, 88, 0.6)', 'rgba(255, 159, 10, 0.6)'];
             const etapaNomes = ['Desafio', 'Ideação', 'Prototipagem', 'Apresentação'];
-            submissions.slice(0, 4).forEach((subId, index) => {
-                const dataPoints = labelsCheckpoint.map(() => Math.random() * 5);
-                checkpointDatasets.push({ label: etapaNomes[index] || `Etapa ${index + 1}`, data: dataPoints, borderColor: colors[index % colors.length], backgroundColor: colors[index % colors.length].replace('0.6', '0.2'), });
+            
+            const sortedCheckpoints = Object.keys(submissionsByCheckpoint).sort((a,b) => a - b);
+
+            sortedCheckpoints.slice(0, 4).forEach((checkpointId, index) => {
+                const submissionIds = submissionsByCheckpoint[checkpointId];
+                const answersForCheckpoint = allAnswers.filter(a => submissionIds.includes(a.submission_id) && questionIds360.includes(a.question_id));
+                
+                const scoresByQuestion = { "16": [], "17": [], "18": [], "19": [] };
+                answersForCheckpoint.forEach(a => {
+                    const value = parseFloat(a.answer || a.answer_numeric);
+                    if (!isNaN(value)) scoresByQuestion[a.question_id].push(value);
+                });
+
+                const dataPoints = Array(5).fill(0);
+                let totalSum = 0;
+                let totalCount = 0;
+
+                Object.keys(scoresByQuestion).forEach(qId => {
+                    const scores = scoresByQuestion[qId];
+                    if(scores.length > 0) {
+                        const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
+                        dataPoints[checkpointQuestions[qId]] = avg;
+                        totalSum += avg;
+                        totalCount++;
+                    }
+                });
+
+                if (totalCount > 0) {
+                    dataPoints[4] = totalSum / totalCount; // Média para "Confiança do Time"
+                }
+
+                checkpointDatasets.push({
+                    label: etapaNomes[index] || `Checkpoint ${checkpointId}`,
+                    data: dataPoints,
+                    borderColor: colors[index % colors.length],
+                    backgroundColor: colors[index % colors.length].replace('0.6', '0.2'),
+                });
             });
 
             checkpointChartInstance = new Chart(checkpointCtx, {
@@ -567,7 +675,6 @@
                 evaluation360ChartInstance.destroy();
             }
 
-            const { teamId, userId } = selection;
             const evaluation360Ctx = document.getElementById('evaluation360Chart').getContext('2d');
             const evaluation360Title = document.getElementById('evaluation360Title');
 
@@ -584,11 +691,120 @@
                 evaluation360Ctx.fillText(message, evaluation360Ctx.canvas.width / 2, 50);
                 evaluation360Title.textContent = "Avaliação 360°";
             };
+            
+            if (selection.isTeamAverage && selection.teamId) {
+                const teamId = selection.teamId;
+                const team = data.teams.find(t => t.id === teamId);
+                if (!team) {
+                    renderEmptyChart("Time não encontrado.");
+                    return;
+                }
 
+                evaluation360Title.textContent = `Avaliação 360° - Média da Equipe ${team.name}`;
+
+                const teamMemberIds = new Set(
+                    data.assessment_answers
+                        .filter(a => a.team_id === teamId && a.user_id)
+                        .map(a => a.user_id)
+                );
+
+                if (teamMemberIds.size === 0) {
+                    renderEmptyChart("Nenhum membro com dados encontrado neste time.");
+                    return;
+                }
+
+                const teamEvaluationsReceived = data.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id));
+                if (teamEvaluationsReceived.length === 0) {
+                    renderEmptyChart("Nenhuma avaliação encontrada para os membros deste time.");
+                    return;
+                }
+
+                const submissionIds = new Set(teamEvaluationsReceived.map(s => s.id));
+                
+                let allAnswers = data.assessment_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
+                if (allAnswers.length === 0) {
+                    allAnswers = data.f_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
+                }
+                
+                if (allAnswers.length === 0) {
+                    renderEmptyChart("Nenhum dado de resposta encontrado para as avaliações do time.");
+                    return;
+                }
+
+                const scoresByRole = { self: {}, member: {}, mentor: {} };
+                questionIds.forEach(qId => {
+                    scoresByRole.self[qId] = [];
+                    scoresByRole.member[qId] = [];
+                    scoresByRole.mentor[qId] = [];
+                });
+
+                teamEvaluationsReceived.forEach(sub => {
+                    const evaluator = data.users.find(u => u.id === sub.evaluator_id);
+                    if (!evaluator) return;
+
+                    let role = 'member';
+                    if (evaluator.id === sub.target_user_id) {
+                        role = 'self';
+                    } else if (evaluator.role === 'mentor') {
+                        role = 'mentor';
+                    }
+
+                    allAnswers.filter(a => a.submission_id === sub.id).forEach(answer => {
+                        const value = parseFloat(answer.answer || answer.answer_numeric);
+                        if (!isNaN(value)) {
+                            scoresByRole[role][answer.question_id].push(value);
+                        }
+                    });
+                });
+
+                const calculateAverage = (scoresByQuestion) => questionIds.map(qId => {
+                    const scores = scoresByQuestion[qId];
+                    if (!scores || scores.length === 0) return 0;
+                    return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
+                });
+
+                const datasets = [];
+                
+                const selfAverageScores = calculateAverage(scoresByRole.self);
+                if (selfAverageScores.some(s => s > 0)) {
+                    datasets.push({
+                        label: 'Média Autoavaliação', data: selfAverageScores,
+                        borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2.5,
+                    });
+                }
+
+                const memberAverageScores = calculateAverage(scoresByRole.member);
+                if (memberAverageScores.some(s => s > 0)) {
+                    datasets.push({
+                        label: 'Média da Equipe (Pares)', data: memberAverageScores,
+                        borderColor: 'rgba(48, 209, 88, 1)', backgroundColor: 'rgba(48, 209, 88, 0.2)', borderWidth: 2,
+                    });
+                }
+
+                const mentorAverageScores = calculateAverage(scoresByRole.mentor);
+                if (mentorAverageScores.some(s => s > 0)) {
+                    datasets.push({
+                        label: 'Média dos Mentores', data: mentorAverageScores,
+                        borderColor: 'rgba(100, 100, 100, 1)', backgroundColor: 'rgba(100, 100, 100, 0.2)', borderWidth: 2, borderDash: [5, 5],
+                    });
+                }
+                
+                if (datasets.length === 0) { 
+                    renderEmptyChart("Dados insuficientes para montar a média 360° do time."); 
+                    return; 
+                }
+
+                evaluation360ChartInstance = new Chart(evaluation360Ctx, {
+                    type: 'radar', data: { labels: questionLabels, datasets: datasets },
+                    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
+                });
+                return; 
+            }
+            
+            const { teamId, userId } = selection;
             let targetUserId = userId;
             let targetTeamId = teamId;
 
-            // Define o usuário alvo e o time de contexto
             if (userId) {
                 targetUserId = userId;
                 const userTeamAnswer = data.assessment_answers.find(a => a.user_id === userId && a.team_id);
@@ -600,13 +816,13 @@
                 targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
             } else {
                  if (data.teams.length > 0) {
-                       targetTeamId = data.teams[0].id; // Padrão
-                       const teamSubmissions = data.mentorins.filter(s => s.target_team_id === targetTeamId);
-                       const leaderTargetCounts = teamSubmissions.reduce((acc, s) => { if (s.target_user_id) acc[s.target_user_id] = (acc[s.target_user_id] || 0) + 1; return acc; }, {});
-                       targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
+                        targetTeamId = data.teams[0].id;
+                        const teamSubmissions = data.mentorins.filter(s => s.target_team_id === targetTeamId);
+                        const leaderTargetCounts = teamSubmissions.reduce((acc, s) => { if (s.target_user_id) acc[s.target_user_id] = (acc[s.target_user_id] || 0) + 1; return acc; }, {});
+                        targetUserId = Object.keys(leaderTargetCounts).sort((a, b) => leaderTargetCounts[b] - leaderTargetCounts[a])[0];
                  } else {
-                     renderEmptyChart("Selecione um time ou usuário.");
-                     return;
+                       renderEmptyChart("Selecione um time ou usuário.");
+                       return;
                  }
             }
             
@@ -674,23 +890,16 @@
             const memberAverageScores = calculateAverage(memberScoresByQuestion);
             if (memberAverageScores.some(s => s > 0)) {
                 datasets.push({
-                    label: 'Média da Equipe',
-                    data: memberAverageScores,
-                    borderColor: 'rgba(48, 209, 88, 1)',
-                    backgroundColor: 'rgba(48, 209, 88, 0.2)',
-                    borderWidth: 2,
+                    label: 'Média da Equipe', data: memberAverageScores,
+                    borderColor: 'rgba(48, 209, 88, 1)', backgroundColor: 'rgba(48, 209, 88, 0.2)', borderWidth: 2,
                 });
             }
 
             const mentorAverageScores = calculateAverage(mentorScoresByQuestion);
             if (mentorAverageScores.some(s => s > 0)) {
                 datasets.push({
-                    label: 'Visão do Mentor',
-                    data: mentorAverageScores,
-                    borderColor: 'rgba(100, 100, 100, 1)',
-                    backgroundColor: 'rgba(100, 100, 100, 0.2)',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
+                    label: 'Visão do Mentor', data: mentorAverageScores,
+                    borderColor: 'rgba(100, 100, 100, 1)', backgroundColor: 'rgba(100, 100, 100, 0.2)', borderWidth: 2, borderDash: [5, 5],
                 });
             }
 
@@ -700,16 +909,12 @@
                 type: 'radar',
                 data: { labels: questionLabels, datasets: datasets },
                 options: {
-                    responsive: true,
-                    plugins: { legend: { position: 'bottom' } },
+                    responsive: true, plugins: { legend: { position: 'bottom' } },
                     scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
                 }
             });
         }
         
-        // ===================================================================================
-        // GRÁFICO AVALIAÇÃO 360° (VISÃO EM 1ª PESSOA) - AVALIAÇÕES FEITAS
-        // ===================================================================================
         function renderEvaluation360FirstPersonChart(data, selectedUserId) {
             if (evaluation360ChartInstance) {
                 evaluation360ChartInstance.destroy();
@@ -724,6 +929,11 @@
                 evaluation360Ctx.fillText(message, evaluation360Ctx.canvas.width / 2, 50);
                 evaluation360Title.textContent = "Avaliação 360° (Visão Própria)";
             };
+            
+            if (!selectedUserId) {
+                renderEmptyChart("Selecione um usuário para ver as avaliações feitas.");
+                return;
+            }
 
             const selectedUser = data.users.find(u => u.id === selectedUserId);
             if (!selectedUser) {
@@ -757,10 +967,7 @@
             const teamName = team ? `(${team.name})` : '';
             evaluation360Title.textContent = `Avaliações Feitas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
-            const LEADER_EVALUATION_QUESTIONS = {
-                "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
-                "18": "Orientação e Ideias", "19": "Apoio e Evolução",
-            };
+            const LEADER_EVALUATION_QUESTIONS = { "16": "Confiança e Clareza", "17": "Escuta e Colaboração", "18": "Orientação e Ideias", "19": "Apoio e Evolução" };
             const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
             const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
             
@@ -797,7 +1004,7 @@
                 evaluationsByTarget[targetId].push(evaluation);
             });
 
-            Object.keys(evaluationsByTarget).forEach(targetUserId => {
+            Object.keys(evaluationsByTarget).sort().forEach(targetUserId => {
                 const targetUser = data.users.find(u => u.id === targetUserId);
                 if (!targetUser) return;
 
@@ -839,9 +1046,6 @@
             }
         }
 
-        // ===================================================================================
-        // GRÁFICO AVALIAÇÃO 360° (VISÃO EM 3ª PESSOA) - AVALIAÇÕES RECEBIDAS (COLEGAS E MENTORES)
-        // ===================================================================================
         function renderEvaluation360ThirdPersonChart(data, selectedUserId) {
             if (evaluation360ThirdPersonChartInstance) {
                 evaluation360ThirdPersonChartInstance.destroy();
@@ -866,10 +1070,7 @@
 
             const teamIdOccurrences = data.assessment_answers
                 .filter(a => a.user_id === selectedUserId && a.team_id)
-                .reduce((acc, a) => {
-                    acc[a.team_id] = (acc[a.team_id] || 0) + 1;
-                    return acc;
-                }, {});
+                .reduce((acc, a) => { acc[a.team_id] = (acc[a.team_id] || 0) + 1; return acc; }, {});
             
             const teamId = Object.keys(teamIdOccurrences).length > 0
                 ? Object.keys(teamIdOccurrences).sort((a, b) => teamIdOccurrences[b] - teamIdOccurrences[a])[0]
@@ -879,10 +1080,7 @@
             const teamName = team ? `(${team.name})` : '';
             evaluation360ThirdPersonTitle.textContent = `Avaliações Recebidas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
-            const LEADER_EVALUATION_QUESTIONS = {
-                "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
-                "18": "Orientação e Ideias", "19": "Apoio e Evolução",
-            };
+            const LEADER_EVALUATION_QUESTIONS = { "16": "Confiança e Clareza", "17": "Escuta e Colaboração", "18": "Orientação e Ideias", "19": "Apoio e Evolução" };
             const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
             const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
 
@@ -920,7 +1118,7 @@
                 evaluationsByEvaluator[evaluatorId].push(evaluation);
             });
 
-            Object.keys(evaluationsByEvaluator).forEach(evaluatorId => {
+            Object.keys(evaluationsByEvaluator).sort().forEach(evaluatorId => {
                 const evaluatorUser = data.users.find(u => u.id === evaluatorId);
                 if (!evaluatorUser) return;
 
@@ -963,14 +1161,12 @@
             });
         }
         
-        // ===================================================================================
-        // GRÁFICO DE AVALIAÇÃO DE MENTORES (CORRIGIDO)
-        // ===================================================================================
-        function renderMentorEvaluationChart(data, selectedUserId) {
+        function renderMentorEvaluationChart(data, selection = {}) {
             if (mentorEvaluationChartInstance) {
                 mentorEvaluationChartInstance.destroy();
             }
 
+            const { userId, teamId } = selection;
             const ctx = document.getElementById('mentorEvaluationChart').getContext('2d');
             const titleEl = document.getElementById('mentorEvaluationTitle');
 
@@ -982,46 +1178,52 @@
                 titleEl.textContent = "Avaliação Mentores";
             };
             
-            if (!selectedUserId) {
-                renderEmptyChart("Selecione um participante para ver as avaliações.");
+            if (!userId && !teamId) {
+                renderEmptyChart("Selecione um participante ou time para ver as avaliações.");
                 return;
             }
             
-            const targetUser = data.users.find(u => u.id === selectedUserId);
-            if (!targetUser) {
-                renderEmptyChart("Usuário selecionado não encontrado.");
-                return;
-            }
-            
-            titleEl.textContent = `Avaliação Mentores para ${targetUser.full_name.split(' ')[0]}`;
-            
-            const allEvaluationsForUser = data.mentorins.filter(m => m.target_user_id === selectedUserId);
-            
-            const questionConfig = {
-                "16": { label: "Confiança e Clareza", index: 0 },
-                "17": { label: "Escuta e Colaboração", index: 1 },
-                "18": { label: "Orientação e Ideias", index: 2 },
-                "19": { label: "Apoio e Evolução", index: 3 }
-            };
+            const questionConfig = { "16": { label: "Confiança e Clareza", index: 0 }, "17": { label: "Escuta e Colaboração", index: 1 }, "18": { label: "Orientação e Ideias", index: 2 }, "19": { label: "Apoio e Evolução", index: 3 } };
             const questionIds = Object.keys(questionConfig);
             const labels = Object.values(questionConfig).sort((a,b) => a.index - b.index).map(q => q.label);
             
             const datasets = [];
-            const colors = [
-                { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' },
-                { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' },
-                { borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)' },
-                { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' },
-                { borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)' }
-            ];
+            const colors = [ { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' }, { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' }, { borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)' }, { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }, { borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)' } ];
 
-            allEvaluationsForUser.forEach((evaluation) => {
+            let evaluationsToProcess = [];
+            let title = "Avaliação Mentores";
+
+            if (teamId) {
+                const team = data.teams.find(t => t.id === teamId);
+                if (!team) {
+                    renderEmptyChart("Time selecionado não encontrado.");
+                    return;
+                }
+                title = `Avaliação Mentores para ${team.name}`;
+                
+                const teamMemberIds = [...new Set(data.assessment_answers.filter(a => a.team_id === teamId).map(a => a.user_id))];
+
+                if (teamMemberIds.length === 0) {
+                    renderEmptyChart(`Nenhum membro encontrado para o time ${team.name}.`);
+                    return;
+                }
+                evaluationsToProcess = data.mentorins.filter(m => teamMemberIds.includes(m.target_user_id));
+            } else { 
+                const targetUser = data.users.find(u => u.id === userId);
+                if (!targetUser) {
+                    renderEmptyChart("Usuário selecionado não encontrado.");
+                    return;
+                }
+                title = `Avaliação Mentores para ${targetUser.full_name.split(' ')[0]}`;
+                evaluationsToProcess = data.mentorins.filter(m => m.target_user_id === userId);
+            }
+            
+            titleEl.textContent = title;
+
+            evaluationsToProcess.sort((a,b) => a.evaluator_id.localeCompare(b.evaluator_id)).forEach((evaluation) => {
                 const evaluator = data.users.find(u => u.id === evaluation.evaluator_id);
 
-                // CORREÇÃO: A verificação de 'role' agora é flexível e não diferencia maiúsculas/minúsculas.
-                // Isso garante que perfis como 'mentor' ou 'mentora' sejam incluídos.
-                if (evaluator && evaluator.role && evaluator.role.toLowerCase().includes('mentor')) {
-                    const mentorName = evaluator.full_name.split(' ')[0];
+                if (evaluator && evaluator.role && typeof evaluator.role === 'string' && evaluator.role.toLowerCase().includes('mentor')) {
                     const submissionId = evaluation.id;
                     
                     let answers = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
@@ -1036,16 +1238,23 @@
                         if (config) {
                             const value = parseFloat(ans.answer || ans.answer_numeric);
                             if (!isNaN(value)) {
-                               scores[config.index] = value;
-                               hasScores = true;
+                                scores[config.index] = value;
+                                hasScores = true;
                             }
                         }
                     });
                     
                     if (hasScores) {
                         const color = colors[datasets.length % colors.length];
+                        const mentorName = evaluator.full_name.split(' ')[0];
                         const evaluationDate = evaluation.created_at ? new Date(evaluation.created_at).toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}) : 'Sem data';
-                        const label = `Mentor: ${mentorName} (${evaluationDate})`;
+                        
+                        let label = `Mentor: ${mentorName} (${evaluationDate})`;
+                        if (teamId) {
+                            const targetMember = data.users.find(u => u.id === evaluation.target_user_id);
+                            const memberName = targetMember ? targetMember.full_name.split(' ')[0] : 'Membro';
+                            label = `Mentor: ${mentorName} (p/ ${memberName} em ${evaluationDate})`;
+                        }
 
                         datasets.push({
                             label: label,
@@ -1059,26 +1268,13 @@
             });
 
             if (datasets.length === 0) {
-                 renderEmptyChart("Nenhuma avaliação de MENTOR encontrada para este participante.");
+                 renderEmptyChart("Nenhuma avaliação de MENTOR encontrada para esta seleção.");
                  return;
             }
 
             mentorEvaluationChartInstance = new Chart(ctx, {
-                type: 'radar',
-                data: { labels, datasets },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: { position: 'bottom' }
-                    },
-                    scales: {
-                        r: {
-                            suggestedMin: 0,
-                            suggestedMax: 5,
-                            ticks: { stepSize: 1 }
-                        }
-                    }
-                }
+                type: 'radar', data: { labels, datasets },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
             });
         }
 
@@ -1409,27 +1605,88 @@
                 return;
             }
 
-            // ===================================================================================
-            // LÓGICA DE ATUALIZAÇÃO DOS GRÁFICOS
-            // ===================================================================================
+            const summaryContainer = document.getElementById('team-averages-summary');
+            const summaryContent = document.getElementById('team-averages-content');
+            const summaryTitle = document.getElementById('team-summary-title');
+            
             if (sourceTableKey === 'teams') {
-                renderEvaluation360Chart(originalSegregatedData, { teamId: itemId });
+                const teamId = itemId;
+                summaryContainer.style.display = 'block';
+                summaryTitle.textContent = `Resumo das Médias da Equipe: ${sourceItem.name}`;
+
+                const teamMemberIds = new Set(
+                    originalSegregatedData.assessment_answers
+                        .filter(a => a.team_id === teamId && a.user_id)
+                        .map(a => a.user_id)
+                );
+
+                if (teamMemberIds.size > 0) {
+                    const filteredDataForCharts = JSON.parse(JSON.stringify(originalSegregatedData));
+                    filteredDataForCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => teamMemberIds.has(a.user_id));
+                    
+                    const questionIds360 = ["16", "17", "18", "19"];
+                    const evaluationsReceived = originalSegregatedData.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id));
+                    const submissionIds = new Set(evaluationsReceived.map(s => s.id));
+                    
+                    let allAnswers = [...originalSegregatedData.assessment_answers, ...originalSegregatedData.f_answers]
+                        .filter(a => submissionIds.has(a.submission_id) && questionIds360.includes(a.question_id));
+
+                    const peerScores = [];
+                    const mentorScores = [];
+
+                    evaluationsReceived.forEach(sub => {
+                        const evaluator = originalSegregatedData.users.find(u => u.id === sub.evaluator_id);
+                        if (!evaluator) return;
+
+                        const scores = allAnswers
+                            .filter(a => a.submission_id === sub.id)
+                            .map(a => parseFloat(a.answer || a.answer_numeric));
+
+                        if (evaluator.role === 'mentor') {
+                            mentorScores.push(...scores);
+                        } else if (teamMemberIds.has(evaluator.id) && evaluator.id !== sub.target_user_id) {
+                            peerScores.push(...scores);
+                        }
+                    });
+
+                    const calcAvg = (scores) => scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : 'N/A';
+                    
+                    const peerAverage = calcAvg(peerScores);
+                    const mentorAverage = calcAvg(mentorScores);
+                    const checkpointAverage = calcAvg([...peerScores, ...mentorScores]);
+
+                    summaryContent.innerHTML = `
+                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverage}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAverage}</p> </div>
+                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverage}</p> </div>
+                    `;
+
+                    renderCharts(filteredDataForCharts);
+                    renderEvaluation360Chart(originalSegregatedData, { teamId: teamId, isTeamAverage: true });
+                    renderMentorEvaluationChart(originalSegregatedData, { teamId: teamId });
+                    renderEvaluation360FirstPersonChart(originalSegregatedData, null); 
+                    renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
+                } else {
+                    summaryContent.innerHTML = '<p>Time não possui membros com respostas para gerar o resumo.</p>';
+                }
+
             } else if (sourceTableKey === 'users') {
-                renderEvaluation360FirstPersonChart(originalSegregatedData, itemId);
-                renderEvaluation360ThirdPersonChart(originalSegregatedData, itemId);
-                renderMentorEvaluationChart(originalSegregatedData, itemId);
+                summaryContainer.style.display = 'none';
+                const userId = itemId;
+                const filteredDataForUserCharts = JSON.parse(JSON.stringify(originalSegregatedData));
+                filteredDataForUserCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => a.user_id === userId);
+
+                renderCharts(filteredDataForUserCharts);
+                renderEvaluation360Chart(originalSegregatedData, { userId: userId });
+                renderEvaluation360FirstPersonChart(originalSegregatedData, userId);
+                renderEvaluation360ThirdPersonChart(originalSegregatedData, userId);
+                renderMentorEvaluationChart(originalSegregatedData, { userId: userId });
+            } else {
+                summaryContainer.style.display = 'none';
             }
 
             let relevantAnswers = [];
-            
-            const idFieldMap = {
-                users: 'user_id',
-                teams: 'team_id',
-                assessment_questions: 'question_id',
-                assessment_questions_survey: 'question_id',
-                assessment_answers: 'id',
-                f_submissions: 'submission_id'
-            };
+            const idFieldMap = { users: 'user_id', teams: 'team_id', assessment_questions: 'question_id', assessment_questions_survey: 'question_id', assessment_answers: 'id', f_submissions: 'submission_id' };
             const relevantField = idFieldMap[sourceTableKey];
 
             if (relevantField) {
@@ -1437,95 +1694,52 @@
             } else if (sourceTableKey === 'mentorins') {
                 const userIds = new Set([sourceItem.evaluator_id, sourceItem.target_user_id].filter(Boolean));
                 const teamIds = new Set([sourceItem.target_team_id].filter(Boolean));
-                relevantAnswers = originalSegregatedData.assessment_answers.filter(answer =>
-                    userIds.has(answer.user_id) || teamIds.has(answer.team_id)
-                );
-            } else {
-                 console.warn(`A filtragem a partir da tabela '${sourceTableKey}' não está diretamente implementada via 'Assessment Answers'.`);
-                 clearAdvancedFilter();
-                 return;
+                relevantAnswers = originalSegregatedData.assessment_answers.filter(answer => userIds.has(answer.user_id) || teamIds.has(answer.team_id));
             }
             
             if (relevantAnswers.length === 0) {
-                 console.warn(`Nenhuma resposta encontrada em 'Assessment Answers' para o item selecionado. Exibindo apenas o item selecionado.`);
-                 Object.keys(originalSegregatedData).forEach(key => {
-                     const tableBody = document.querySelector(`#table-container-${key} tbody`);
-                     if(tableBody) {
-                         tableBody.querySelectorAll('tr').forEach(row => {
-                             const isSelectedRow = (key === sourceTableKey && row.dataset.itemId === itemId);
-                             row.classList.toggle('filtered-out', !isSelectedRow);
-                         });
-                     }
+                 console.warn(`Nenhuma resposta encontrada para o item selecionado.`);
+                 Object.keys(originalSegregatedData).forEach(tableKey => {
+                      const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
+                      if(tableBody) {
+                           tableBody.querySelectorAll('tr').forEach(row => {
+                                const isSelectedRow = (tableKey === sourceTableKey && row.dataset.itemId === itemId);
+                                row.classList.toggle('filtered-out', !isSelectedRow);
+                          });
+                      }
                  });
-                 document.getElementById('validate-btn').style.display = 'none';
-                 document.getElementById('clear-filter-btn').style.display = 'inline-block';
-                 return;
-            }
-
-            const relatedIds = {
-                users: new Set(),
-                teams: new Set(),
-                questions: new Set(),
-                submissions: new Set(),
-                answer_ids: new Set()
-            };
-
-            relevantAnswers.forEach(answer => {
-                if (answer.id) relatedIds.answer_ids.add(answer.id);
-                if (answer.user_id) relatedIds.users.add(answer.user_id);
-                if (answer.team_id) relatedIds.teams.add(answer.team_id);
-                if (answer.question_id) relatedIds.questions.add(answer.question_id);
-                if (answer.submission_id) relatedIds.submissions.add(answer.submission_id);
-            });
-
-            const filteredChartData = {
-                ...originalSegregatedData,
-                assessment_answers: originalSegregatedData.assessment_answers.filter(a => relatedIds.users.has(a.user_id)),
-            };
-            renderCharts(filteredChartData);
-
-            Object.keys(originalSegregatedData).forEach(tableKey => {
-                const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
-                if (!tableBody) return;
-
-                tableBody.querySelectorAll('tr').forEach(row => {
-                    const rowItemId = row.dataset.itemId;
-                    const rowData = originalSegregatedData[tableKey].find(d => (d.id || d.submission_id || d.invite) === rowItemId);
-                    let isVisible = false;
-
-                    if (rowData) {
-                        switch (tableKey) {
-                            case 'users':
-                                isVisible = relatedIds.users.has(rowData.id);
-                                break;
-                            case 'teams':
-                                isVisible = relatedIds.teams.has(rowData.id);
-                                break;
-                            case 'assessment_answers':
-                                isVisible = relatedIds.answer_ids.has(rowData.id);
-                                break;
-                            case 'f_submissions':
-                                isVisible = relatedIds.submissions.has(rowData.submission_id) || relatedIds.users.has(rowData.user_id);
-                                break;
-                            case 'mentorins':
-                                isVisible = relatedIds.users.has(rowData.evaluator_id) || 
-                                            relatedIds.users.has(rowData.target_user_id) ||
-                                            relatedIds.teams.has(rowData.target_team_id);
-                                break;
-                            case 'assessment_questions':
-                            case 'assessment_questions_survey':
-                                isVisible = relatedIds.questions.has(rowData.id);
-                                break;
-                            case 'guilds':
-                                isVisible = false;
-                                break;
-                            default:
-                                isVisible = false;
-                        }
-                    }
-                    row.classList.toggle('filtered-out', !isVisible);
+            } else {
+                const relatedIds = { users: new Set(), teams: new Set(), questions: new Set(), submissions: new Set(), answer_ids: new Set() };
+                relevantAnswers.forEach(answer => {
+                    if (answer.id) relatedIds.answer_ids.add(answer.id);
+                    if (answer.user_id) relatedIds.users.add(answer.user_id);
+                    if (answer.team_id) relatedIds.teams.add(answer.team_id);
+                    if (answer.question_id) relatedIds.questions.add(answer.question_id);
+                    if (answer.submission_id) relatedIds.submissions.add(answer.submission_id);
                 });
-            });
+
+                Object.keys(originalSegregatedData).forEach(tableKey => {
+                    const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
+                    if (!tableBody) return;
+                    tableBody.querySelectorAll('tr').forEach(row => {
+                        const rowItemId = row.dataset.itemId;
+                        const rowData = originalSegregatedData[tableKey].find(d => (d.id || d.submission_id || d.invite) === rowItemId);
+                        let isVisible = false;
+                        if (rowData) {
+                            switch (tableKey) {
+                                case 'users': isVisible = relatedIds.users.has(rowData.id); break;
+                                case 'teams': isVisible = relatedIds.teams.has(rowData.id); break;
+                                case 'assessment_answers': isVisible = relatedIds.answer_ids.has(rowData.id); break;
+                                case 'f_submissions': isVisible = relatedIds.submissions.has(rowData.submission_id) || relatedIds.users.has(rowData.user_id); break;
+                                case 'mentorins': isVisible = relatedIds.users.has(rowData.evaluator_id) || relatedIds.users.has(rowData.target_user_id) || relatedIds.teams.has(rowData.target_team_id); break;
+                                case 'assessment_questions': case 'assessment_questions_survey': isVisible = relatedIds.questions.has(rowData.id); break;
+                                default: isVisible = false;
+                            }
+                        }
+                        row.classList.toggle('filtered-out', !isVisible);
+                    });
+                });
+            }
             
             document.getElementById('validate-btn').style.display = 'none';
             document.getElementById('clear-filter-btn').style.display = 'inline-block';
@@ -1537,13 +1751,14 @@
             currentTableOrder = [...initialTableOrder];
             sortStates = {};
             
+            document.getElementById('team-averages-summary').style.display = 'none';
+            
             renderAllTables(segregatedData, currentTableOrder);
             renderCharts(originalSegregatedData);
             renderEvaluation360Chart(originalSegregatedData);
             
-            // Limpa os gráficos específicos de usuário
             renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
-            renderMentorEvaluationChart(originalSegregatedData, null);
+            renderMentorEvaluationChart(originalSegregatedData, {});
 
             document.getElementById('validate-btn').style.display = 'inline-block';
             document.getElementById('clear-filter-btn').style.display = 'none';
