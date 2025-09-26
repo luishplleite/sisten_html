@@ -417,6 +417,27 @@
                     <button id="test-webhook-btn">Testar Webhook</button>
                 </div>
             </div>
+            <div class="controls-row">
+                <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: center; padding: 10px; background-color: var(--highlight-color); border-radius: 6px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="filter-no-initial-21-checkbox" style="margin-right: 8px;">
+                        Sem Auto Aval. 21 Inicial
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="filter-no-final-21-checkbox" style="margin-right: 8px;">
+                        Sem Auto Aval. 21 Final
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="filter-no-self-360-checkbox" style="margin-right: 8px;">
+                        Sem Auto Aval. 360
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="filter-no-peer-360-checkbox" style="margin-right: 8px;">
+                        Sem Aval. Participantes 360
+                    </label>
+                    <button id="apply-filters-btn" style="background-color: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Filtrar</button>
+                </div>
+            </div>
             <div class="controls-row checkbox-group">
                 <!-- Checkboxes serão gerados dinamicamente -->
             </div>
@@ -1614,6 +1635,9 @@
             document.getElementById('webhook-config-btn').addEventListener('click', showWebhookConfigModal);
             document.getElementById('test-webhook-btn').addEventListener('click', testWebhook);
             
+            // Novo botão de filtrar
+            document.getElementById('apply-filters-btn').addEventListener('click', applySelectedFilters);
+            
             document.getElementById('primary-table-select').addEventListener('change', (event) => {
                 const selectedTableKey = event.target.value;
                 const index = currentTableOrder.indexOf(selectedTableKey);
@@ -1980,10 +2004,244 @@
         }
 
 
+        // ========================================================================
+        // FILTROS ESPECÍFICOS PARA AVALIAÇÕES NÃO REALIZADAS
+        // ========================================================================
+        
+        // Configuração centralizada das competências (reutiliza a do gráfico)
+        function getCompetenciesConfig() {
+            return [
+                { id: 'e6f01262-3bec-4e9f-ba35-ea36cebb044c', label: 'Pitch' }, { id: '2f8ae888-2c26-4c0b-b43e-22ad12e8365b', label: 'Análise' },
+                { id: '317f7809-2213-4d44-9789-bcc649e3da44', label: 'Lógica' }, { id: '51f51eb7-5361-4c70-ab2c-a873e6fca0a0', label: 'Escrita' },
+                { id: '5f58d78e-4ef8-4458-989b-913f4d6c4ffc', label: 'Comunicação' }, { id: '65d43ab9-8d6c-4493-8894-f230d1086dce', label: 'Colaboração' },
+                { id: '6744721d-ae32-40c2-980e-7c506e15af2d', label: 'Liderança' }, { id: '6daa3a49-5cc5-412e-b934-3af6345235cf', label: 'Autonomia' },
+                { id: '6eedbdf2-4f0a-4c35-a2b6-a30e04819edb', label: 'Planejamento' }, { id: '70b23f83-a102-4d56-992d-3c94e704930f', label: 'Foco' },
+                { id: '9c5c2681-ae93-4e56-8326-8d8c778e5216', label: 'Resiliência' }, { id: 'a1742180-ecc8-4759-a084-5e32447a8150', label: 'Ética' },
+                { id: 'b07af2c9-96a0-4e85-b741-d12ef3203033', label: 'UX' }, { id: 'b5f31da7-27ab-4a68-9505-0e3bb8704fee', label: 'Dados' },
+                { id: 'c0ddcd58-5755-417d-a6a8-8ebe542099cb', label: 'APIs' }, { id: 'cfb379a9-e00f-4188-94a5-44781ac97c86', label: 'IA' },
+                { id: 'd1d42aed-99e1-4e1c-9674-6426e34d46dc', label: 'Segurança' }, { id: 'e2c54ce7-88a7-4ab7-a81b-8763aa5c2d6b', label: 'Testes' },
+                { id: 'e390c310-8f41-4f4a-8589-c92639e428a2', label: 'Entrega' }, { id: 'e65172cd-410d-495a-a1f5-813511e3bb48', label: 'Impacto' }
+            ];
+        }
+        
+        
+        // Nova função para aplicar filtros selecionados
+        function applySelectedFilters() {
+            const filters = [];
+            let combinedResults = [];
+            
+            // Verificar quais filtros estão marcados
+            if (document.getElementById('filter-no-initial-21-checkbox').checked) {
+                filters.push('initial21');
+            }
+            if (document.getElementById('filter-no-final-21-checkbox').checked) {
+                filters.push('final21');
+            }
+            if (document.getElementById('filter-no-self-360-checkbox').checked) {
+                filters.push('self360');
+            }
+            if (document.getElementById('filter-no-peer-360-checkbox').checked) {
+                filters.push('peer360');
+            }
+            
+            if (filters.length === 0) {
+                alert('Selecione pelo menos um filtro para aplicar.');
+                return;
+            }
+            
+            // Aplicar filtros e combinar resultados
+            filters.forEach(filterType => {
+                let filteredUsers = [];
+                
+                switch(filterType) {
+                    case 'initial21':
+                        filteredUsers = getUsersWithoutInitial21();
+                        break;
+                    case 'final21':
+                        filteredUsers = getUsersWithoutFinal21();
+                        break;
+                    case 'self360':
+                        filteredUsers = getUsersWithoutSelf360();
+                        break;
+                    case 'peer360':
+                        filteredUsers = getUsersWithoutPeer360();
+                        break;
+                }
+                
+                combinedResults = combinedResults.concat(filteredUsers);
+            });
+            
+            // Remover duplicatas baseado no ID do usuário
+            const uniqueUsers = combinedResults.filter((user, index, self) => 
+                index === self.findIndex(u => u.id === user.id)
+            );
+            
+            const filterNames = [];
+            if (filters.includes('initial21')) filterNames.push('Sem Auto Aval. 21 Inicial');
+            if (filters.includes('final21')) filterNames.push('Sem Auto Aval. 21 Final');
+            if (filters.includes('self360')) filterNames.push('Sem Auto Aval. 360°');
+            if (filters.includes('peer360')) filterNames.push('Sem Aval. Participantes 360°');
+            
+            const title = `Usuários: ${filterNames.join(' + ')}`;
+            showFilterResults(title, uniqueUsers);
+        }
+        
+        // Funções auxiliares que retornam os dados sem exibir diretamente
+        function getUsersWithoutInitial21() {
+            const competenciesConfig = getCompetenciesConfig();
+            const competencyIds = competenciesConfig.map(c => c.id);
+            const requiredCount = competencyIds.length;
+            
+            return originalSegregatedData.users.filter(user => {
+                const answeredCompetencyIds = new Set();
+                originalSegregatedData.assessment_answers
+                    .filter(answer => 
+                        answer.user_id === user.id && 
+                        competencyIds.includes(answer.question_id) && 
+                        answer.moment === 'INITIAL'
+                    )
+                    .forEach(answer => answeredCompetencyIds.add(answer.question_id));
+                
+                return answeredCompetencyIds.size < requiredCount;
+            });
+        }
+        
+        function getUsersWithoutFinal21() {
+            const competenciesConfig = getCompetenciesConfig();
+            const competencyIds = competenciesConfig.map(c => c.id);
+            const requiredCount = competencyIds.length;
+            
+            return originalSegregatedData.users.filter(user => {
+                const answeredCompetencyIds = new Set();
+                originalSegregatedData.assessment_answers
+                    .filter(answer => 
+                        answer.user_id === user.id && 
+                        competencyIds.includes(answer.question_id) && 
+                        answer.moment === 'FINAL'
+                    )
+                    .forEach(answer => answeredCompetencyIds.add(answer.question_id));
+                
+                return answeredCompetencyIds.size < requiredCount;
+            });
+        }
+        
+        function getUsersWithoutSelf360() {
+            const questionIds360 = ["16", "17", "18", "19"];
+            const requiredAnswerCount = questionIds360.length;
+            
+            return originalSegregatedData.users.filter(user => {
+                const selfEvaluations = originalSegregatedData.mentorins.filter(submission => 
+                    submission.evaluator_id === user.id && 
+                    submission.target_user_id === user.id
+                );
+                
+                if (selfEvaluations.length === 0) return true;
+                
+                const allAnswers = [...originalSegregatedData.assessment_answers, ...originalSegregatedData.f_answers];
+                const answeredQuestionIds = new Set();
+                
+                allAnswers
+                    .filter(answer => 
+                        selfEvaluations.some(sub => sub.id === answer.submission_id) &&
+                        questionIds360.includes(answer.question_id)
+                    )
+                    .forEach(answer => answeredQuestionIds.add(answer.question_id));
+                
+                return answeredQuestionIds.size < requiredAnswerCount;
+            });
+        }
+        
+        function getUsersWithoutPeer360() {
+            const questionIds360 = ["16", "17", "18", "19"];
+            const requiredAnswerCount = questionIds360.length;
+            
+            return originalSegregatedData.users.filter(user => {
+                const peerEvaluations = originalSegregatedData.mentorins.filter(submission => 
+                    submission.evaluator_id === user.id && 
+                    submission.target_user_id !== user.id
+                );
+                
+                if (peerEvaluations.length === 0) return true;
+                
+                const allAnswers = [...originalSegregatedData.assessment_answers, ...originalSegregatedData.f_answers];
+                
+                const answersBySubmission = {};
+                allAnswers
+                    .filter(answer => 
+                        peerEvaluations.some(sub => sub.id === answer.submission_id) &&
+                        questionIds360.includes(answer.question_id)
+                    )
+                    .forEach(answer => {
+                        if (!answersBySubmission[answer.submission_id]) {
+                            answersBySubmission[answer.submission_id] = new Set();
+                        }
+                        answersBySubmission[answer.submission_id].add(answer.question_id);
+                    });
+                
+                const hasCompleteEvaluation = Object.values(answersBySubmission)
+                    .some(questionSet => questionSet.size >= requiredAnswerCount);
+                
+                return !hasCompleteEvaluation;
+            });
+        }
+
+        function showFilterResults(title, filteredUsers) {
+            // Criar uma nova seção para mostrar os resultados
+            const wrapper = document.getElementById('tables-wrapper');
+            
+            // Limpar conteúdo anterior e criar nova tabela de resultados com coluna de ações
+            wrapper.innerHTML = `
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2>${title}</h2>
+                        <span style="font-size: 0.9em; color: #666;">Total: ${filteredUsers.length} usuários</span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Selecionar</th>
+                                <th>ID</th>
+                                <th>Nome Completo</th>
+                                <th>Email</th>
+                                <th>Função</th>
+                                <th>Member ID</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredUsers.map(user => `
+                                <tr data-item-id="${user.id || ''}" data-user-id="${user.id || ''}">
+                                    <td>
+                                        <button class="select-row-btn" data-item-id="${user.id || ''}" data-table-key="users">
+                                            Selecionar
+                                        </button>
+                                    </td>
+                                    <td>${user.id || ''}</td>
+                                    <td>${user.full_name || ''}</td>
+                                    <td>${user.email || ''}</td>
+                                    <td>${user.role || ''}</td>
+                                    <td>${user.member_id || ''}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Mostrar botão de limpar filtro
+            document.getElementById('clear-filter-btn').style.display = 'inline-block';
+            document.getElementById('validate-btn').style.display = 'none';
+        }
+
         function clearAdvancedFilter() {
             segregatedData = JSON.parse(JSON.stringify(originalSegregatedData));
             currentTableOrder = [...initialTableOrder];
             sortStates = {};
+            
+            // Desmarcar todos os checkboxes de filtro
+            document.getElementById('filter-no-initial-21-checkbox').checked = false;
+            document.getElementById('filter-no-final-21-checkbox').checked = false;
+            document.getElementById('filter-no-self-360-checkbox').checked = false;
+            document.getElementById('filter-no-peer-360-checkbox').checked = false;
             
             document.getElementById('team-averages-summary').style.display = 'none';
             document.getElementById('team-averages-summary-doubled').style.display = 'none';
