@@ -799,6 +799,7 @@
 
             // CORRIGIDO: Agrupa avaliações por target_user_id (quem foi avaliado) para evitar duplicações
             const evaluationsByTarget = {};
+            
             userEvaluations.forEach(evaluation => {
                 const targetId = evaluation.target_user_id;
                 if (!evaluationsByTarget[targetId]) {
@@ -823,14 +824,20 @@
                     
                     // Verifica se é autoavaliação para destacar
                     const isAutoEvaluation = targetUserId === selectedUserId;
+                    // Verifica se é mentor (fora do time ou com role mentor)
+                    const isMentor = !isAutoEvaluation && (!teamMemberIds.has(targetUserId) || targetUser.role === 'mentor');
+                    
                     const dataset = {
                         label: isAutoEvaluation ? 
                             `Autoavaliação` : 
-                            `${targetUser.full_name.split(' ')[0]}`,
+                            `${isMentor ? 'Mentor ' : ''}${targetUser.full_name.split(' ')[0]}`,
                         data: scores,
-                        borderColor: isAutoEvaluation ? 'rgba(59, 130, 246, 1)' : borderColor,
-                        backgroundColor: isAutoEvaluation ? 'rgba(59, 130, 246, 0.2)' : borderColor.replace('1)', '0.2)'),
-                        borderWidth: isAutoEvaluation ? 3 : 2,
+                        borderColor: isAutoEvaluation ? 'rgba(59, 130, 246, 1)' : 
+                                   isMentor ? 'rgba(153, 102, 255, 1)' : borderColor,
+                        backgroundColor: isAutoEvaluation ? 'rgba(59, 130, 246, 0.2)' : 
+                                       isMentor ? 'rgba(153, 102, 255, 0.2)' : borderColor.replace('1)', '0.2)'),
+                        borderWidth: isAutoEvaluation ? 3 : isMentor ? 3 : 2,
+                        borderDash: isMentor ? [5, 5] : [],
                         order: isAutoEvaluation ? -1 : 0
                     };
                     datasets.push(dataset);
@@ -861,6 +868,18 @@
                 evaluation360ThirdPersonChartInstance.destroy();
             }
 
+            // Identificar mentores: avaliadores que não pertencem ao mesmo time
+            const teamMentorIds = new Set();
+            data.mentorins.forEach(evaluation => {
+                if (evaluation.target_user_id === selectedUserId && evaluation.evaluator_id !== selectedUserId) {
+                    const evaluatorUser = data.users.find(u => u.id === evaluation.evaluator_id);
+                    // Considerar como mentor se não está no mesmo time ou se tem role 'mentor'
+                    if (evaluatorUser && (!teamMemberIds.has(evaluation.evaluator_id) || evaluatorUser.role === 'mentor')) {
+                        teamMentorIds.add(evaluation.evaluator_id);
+                    }
+                }
+            });
+            
             const evaluation360ThirdPersonCtx = document.getElementById('evaluation360ThirdPersonChart').getContext('2d');
             const evaluation360ThirdPersonTitle = document.getElementById('evaluation360ThirdPersonTitle');
 
@@ -945,6 +964,7 @@
 
             // Agrupa avaliações por evaluator_id (quem fez a avaliação) para evitar duplicações
             const evaluationsByEvaluator = {};
+            
             userEvaluations.forEach(evaluation => {
                 const evaluatorId = evaluation.evaluator_id;
                 if (!evaluationsByEvaluator[evaluatorId]) {
@@ -966,12 +986,16 @@
 
                 if (scores.some(s => s > 0)) {
                     const borderColor = colors[colorIndex % colors.length];
+                    
+                    // Verificar se é mentor e criar dataset com estilo diferenciado
+                    const isMentor = teamMentorIds.has(evaluatorId);
                     const dataset = {
-                        label: `Avaliado por ${evaluatorUser.full_name.split(' ')[0]}`,
+                        label: `${isMentor ? 'Mentor ' : ''}${evaluatorUser.full_name.split(' ')[0]}`,
                         data: scores,
-                        borderColor: borderColor,
-                        backgroundColor: borderColor.replace('1)', '0.2)'),
-                        borderWidth: 2,
+                        borderColor: isMentor ? 'rgba(255, 159, 10, 1)' : borderColor,
+                        backgroundColor: isMentor ? 'rgba(255, 159, 10, 0.2)' : borderColor.replace('1)', '0.2)'),
+                        borderWidth: isMentor ? 3 : 2,
+                        borderDash: isMentor ? [5, 5] : [],
                     };
                     datasets.push(dataset);
                     colorIndex++;
