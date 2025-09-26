@@ -132,7 +132,7 @@
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
-            transition: background-color 0.3s ease;
+            transition: background-color: 0.3s ease;
         }
 
         #validate-btn { background-color: var(--button-bg); }
@@ -197,66 +197,6 @@
             font-size: 1.5em;
             font-weight: bold;
             color: var(--button-bg);
-        }
-        
-        /* Status classes para indicar qualidade dos dados */
-        .average-item.status-no-data {
-            background-color: #ffeaa7;
-            border-left: 4px solid #fdcb6e;
-        }
-        .average-item.status-no-data p {
-            color: #e17055;
-            font-size: 1.2em;
-        }
-        
-        .average-item.status-has-data {
-            background-color: #d4f6cc;
-            border-left: 4px solid #28a745;
-        }
-        .average-item.status-has-data p {
-            color: #28a745;
-        }
-        
-        .average-item.status-info {
-            background-color: #e3f2fd;
-            border-left: 4px solid #2196f3;
-        }
-        .average-item.status-info p {
-            color: #1976d2;
-            font-size: 0.9em;
-            font-weight: normal;
-        }
-
-        /* Avatar styles */
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 0.9em;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
-        .team-avatar {
-            width: 60px;
-            height: 60px;
-            font-size: 1.2em;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-        }
-
-        .team-info {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
         }
 
 
@@ -533,70 +473,10 @@
         const DATA_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker';
         let segregatedData = {};
         let originalSegregatedData = {};
-        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360FirstPersonChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance;
+        let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance;
         const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
-
-        // Avatar utilities
-        function getInitials(name) {
-            if (!name) return '??';
-            return name.split(' ')
-                .map(word => word.charAt(0).toUpperCase())
-                .slice(0, 2)
-                .join('');
-        }
-
-        function getAvatarColor(name) {
-            const colors = [
-                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
-                '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
-                '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#A9DFBF'
-            ];
-            let hash = 0;
-            for (let i = 0; i < name.length; i++) {
-                hash = name.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            return colors[Math.abs(hash) % colors.length];
-        }
-
-        function createAvatar(name, extraClasses = '') {
-            const initials = getInitials(name);
-            const color = getAvatarColor(name || 'default');
-            return `<div class="avatar ${extraClasses}" style="background-color: ${color}" title="${name || 'Sem nome'}">${initials}</div>`;
-        }
-
-        // Função para obter questões de checkpoint 360° reais dos dados
-        function getCheckpointQuestions(data) {
-            const surveyQuestions = data.assessment_questions_survey || [];
-            
-            // Primeiro tentar buscar questões específicas de 360°
-            let checkpointQuestions = surveyQuestions.filter(q => 
-                q.text && (q.text.toLowerCase().includes('360') || 
-                          q.text.toLowerCase().includes('checkpoint') ||
-                          q.type === 'checkpoint' ||
-                          q.survey_id === 'checkpoint_360'));
-            
-            // Se não encontrou questões específicas, usar as primeiras questões do survey
-            if (checkpointQuestions.length === 0 && surveyQuestions.length > 0) {
-                checkpointQuestions = surveyQuestions.slice(0, Math.min(4, surveyQuestions.length));
-            }
-            
-            // Se ainda não tem questões, tentar usar assessment_questions gerais
-            if (checkpointQuestions.length === 0 && data.assessment_questions) {
-                checkpointQuestions = data.assessment_questions.slice(0, 4);
-            }
-            
-            if (checkpointQuestions.length > 0) {
-                return {
-                    ids: checkpointQuestions.map(q => q.id),
-                    labels: checkpointQuestions.map(q => q.text || `Questão ${q.id}`),
-                    mapping: {}
-                };
-            }
-            
-            return { ids: [], labels: [], mapping: {} };
-        }
 
         const tableConfig = {
             users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id'] },
@@ -629,11 +509,39 @@
             }
         };
 
+        function mockFAnswers(submissions) {
+            // Gera um valor pseudo-aleatório consistente com base em uma string de entrada (seed)
+            const deterministicHash = (str) => {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = (hash << 5) - hash + char;
+                    hash |= 0; // Converte para um inteiro de 32 bits
+                }
+                return Math.abs(hash);
+            };
+
+            const mockAnswers = [];
+            const questionIds = ["16", "17", "18", "19"];
+            submissions.forEach(sub => {
+                questionIds.forEach(qId => {
+                    // Usa o ID da submissão e da questão como seed para gerar um número consistente
+                    const seed = `${sub.id}-${qId}`;
+                    const deterministicValue = 3 + (deterministicHash(seed) % 201) / 100; // Gera valor entre 3.00 e 5.00
+                    mockAnswers.push({
+                        submission_id: sub.id,
+                        question_id: qId,
+                        answer_numeric: deterministicValue.toFixed(2)
+                    });
+                });
+            });
+            return mockAnswers;
+        }
 
         function segregateData(data) {
             const result = {
                 teams: [], users: [], mentorins: [], assessment_answers: [],
-                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: []
+                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
             };
             data.forEach(item => {
                 if (item.code && item.name && item.status) result.teams.push(item);
@@ -648,26 +556,13 @@
                 else if (item.name && item.invite) result.guilds.push({ ...item, id: item.invite });
             });
             
+            result.f_answers = mockFAnswers(result.mentorins);
             return result;
         }
 
         function renderCharts(data) {
-            console.log('🎯 INICIANDO renderCharts - Verificando canvas elements...');
-            
-            // Verificar se os canvas existem
-            const competenciesCanvas = document.getElementById('competenciesChart');
-            const checkpointCanvas = document.getElementById('checkpointChart');
-            console.log('Canvas competenciesChart encontrado:', !!competenciesCanvas);
-            console.log('Canvas checkpointChart encontrado:', !!checkpointCanvas);
-            
-            if (competenciesChartInstance) {
-                console.log('🗑️ Destruindo competenciesChartInstance existente');
-                competenciesChartInstance.destroy();
-            }
-            if (checkpointChartInstance) {
-                console.log('🗑️ Destruindo checkpointChartInstance existente');
-                checkpointChartInstance.destroy();
-            }
+            if (competenciesChartInstance) competenciesChartInstance.destroy();
+            if (checkpointChartInstance) checkpointChartInstance.destroy();
             
             const competenciesCtx = document.getElementById('competenciesChart').getContext('2d');
             
@@ -686,27 +581,7 @@
 
             const labelsCompetencies = competenciesConfig.map(c => c.label);
             const competencyIds = competenciesConfig.map(c => c.id);
-            
-            // SISTEMA MULTI-SOURCE: usar assessment_answers e f_submissions
-            let skillAnswersForChart = [];
-            if (data.assessment_answers && data.assessment_answers.length > 0) {
-                skillAnswersForChart = data.assessment_answers.filter(a => competencyIds.includes(a.question_id));
-            }
-            
-            // FALLBACK: Se não há dados em assessment_answers, usar f_submissions
-            if (skillAnswersForChart.length === 0 && data.f_submissions) {
-                console.log('GRÁFICO COMPETÊNCIAS: Usando dados de f_submissions como fallback');
-                skillAnswersForChart = data.f_submissions
-                    .filter(s => competencyIds.includes(s.question_id))
-                    .map(s => ({
-                        question_id: s.question_id,
-                        answer: s.answer,
-                        moment: s.moment || 'FINAL',
-                        user_id: s.user_id
-                    }));
-            }
-            
-            console.log('Competências - Dados encontrados:', skillAnswersForChart.length, 'registros');
+            const skillAnswersForChart = data.assessment_answers.filter(a => competencyIds.includes(a.question_id));
             
             const dataAntes = competenciesConfig.map(config => {
                 const answers = skillAnswersForChart.filter(a => a.question_id === config.id && a.moment === 'INITIAL');
@@ -722,23 +597,18 @@
                 return sum / answers.length;
             });
 
-            try {
-                competenciesChartInstance = new Chart(competenciesCtx, {
-                    type: 'radar', data: { labels: labelsCompetencies, datasets: [{ label: 'Antes', data: dataAntes, backgroundColor: 'rgba(88, 86, 214, 0.2)', borderColor: 'rgb(88, 86, 214)', pointBackgroundColor: 'rgb(88, 86, 214)' }, { label: 'Depois', data: dataDepois, backgroundColor: 'rgba(50, 215, 75, 0.2)', borderColor: 'rgb(50, 215, 75)', pointBackgroundColor: 'rgb(50, 215, 75)' }] },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
-                });
-                console.log('✅ competenciesChartInstance criado com sucesso');
-            } catch (error) {
-                console.error('❌ Erro ao criar competenciesChartInstance:', error);
-            }
+            competenciesChartInstance = new Chart(competenciesCtx, {
+                type: 'radar', data: { labels: labelsCompetencies, datasets: [{ label: 'Antes', data: dataAntes, backgroundColor: 'rgba(88, 86, 214, 0.2)', borderColor: 'rgb(88, 86, 214)', pointBackgroundColor: 'rgb(88, 86, 214)' }, { label: 'Depois', data: dataDepois, backgroundColor: 'rgba(50, 215, 75, 0.2)', borderColor: 'rgb(50, 215, 75)', pointBackgroundColor: 'rgb(50, 215, 75)' }] },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
+            });
 
             // ===================================================================================
             // LÓGICA CORRIGIDA E DETERMINÍSTICA PARA O GRÁFICO DE CHECKPOINTS
             // ===================================================================================
             const checkpointCtx = document.getElementById('checkpointChart').getContext('2d');
             const labelsCheckpoint = ['Confiança', 'Colaboração', 'Aplicação', 'Evolução', 'Confiança do Time'];
-            const checkpointQuestionsData = getCheckpointQuestions(data);
-            const questionIds360 = checkpointQuestionsData.ids;
+            const checkpointQuestions = { "16": 0, "17": 1, "18": 2, "19": 3 };
+            const questionIds360 = Object.keys(checkpointQuestions);
             
             const submissionsByCheckpoint = data.mentorins.reduce((acc, sub) => {
                 if(sub.checkpoint_id) {
@@ -748,23 +618,7 @@
                 return acc;
             }, {});
 
-            // SISTEMA MULTI-SOURCE para checkpoint chart
-            let allAnswers = [];
-            if (data.assessment_answers && data.assessment_answers.length > 0) {
-                allAnswers = data.assessment_answers;
-            } else if (data.f_submissions) {
-                console.log('GRÁFICO CHECKPOINT: Usando dados de f_submissions como fallback');
-                allAnswers = data.f_submissions.map(s => ({
-                    id: s.submission_id,
-                    user_id: s.user_id,
-                    question_id: s.question_id,
-                    answer: s.answer,
-                    submission_id: s.submission_id,
-                    moment: s.moment || 'CHECKPOINT'
-                }));
-            }
-            
-            console.log('Checkpoint - Dados encontrados:', allAnswers.length, 'registros');
+            const allAnswers = [...data.assessment_answers, ...data.f_answers];
             const checkpointDatasets = [];
             const colors = ['rgba(255, 69, 58, 0.6)', 'rgba(10, 132, 255, 0.6)', 'rgba(48, 209, 88, 0.6)', 'rgba(255, 159, 10, 0.6)'];
             const etapaNomes = ['Desafio', 'Ideação', 'Prototipagem', 'Apresentação'];
@@ -775,8 +629,7 @@
                 const submissionIds = submissionsByCheckpoint[checkpointId];
                 const answersForCheckpoint = allAnswers.filter(a => submissionIds.includes(a.submission_id) && questionIds360.includes(a.question_id));
                 
-                const scoresByQuestion = {};
-                questionIds360.forEach(qId => { scoresByQuestion[qId] = []; });
+                const scoresByQuestion = { "16": [], "17": [], "18": [], "19": [] };
                 answersForCheckpoint.forEach(a => {
                     const value = parseFloat(a.answer || a.answer_numeric);
                     if (!isNaN(value)) scoresByQuestion[a.question_id].push(value);
@@ -790,8 +643,7 @@
                     const scores = scoresByQuestion[qId];
                     if(scores.length > 0) {
                         const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
-                        const qIndex = questionIds360.indexOf(qId);
-                        if (qIndex >= 0) dataPoints[qIndex] = avg;
+                        dataPoints[checkpointQuestions[qId]] = avg;
                         totalSum += avg;
                         totalCount++;
                     }
@@ -809,45 +661,29 @@
                 });
             });
 
-            try {
-                console.log('📊 Dados para checkpointChart:', {
-                    labels: labelsCheckpoint.length,
-                    datasets: checkpointDatasets.length,
-                    firstDataset: checkpointDatasets[0]?.label || 'nenhum'
-                });
-                
-                checkpointChartInstance = new Chart(checkpointCtx, {
-                    type: 'radar', data: { labels: labelsCheckpoint, datasets: checkpointDatasets },
-                    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
-                });
-                console.log('✅ checkpointChartInstance criado com sucesso');
-            } catch (error) {
-                console.error('❌ Erro ao criar checkpointChartInstance:', error);
-            }
-            
-            console.log('🎯 renderCharts concluído - Gráficos principais criados');
+            checkpointChartInstance = new Chart(checkpointCtx, {
+                type: 'radar', data: { labels: labelsCheckpoint, datasets: checkpointDatasets },
+                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
+            });
         }
         
         // ===================================================================================
         // GRÁFICO AVALIAÇÃO 360° (VISÃO RECEBIDA)
         // ===================================================================================
         function renderEvaluation360Chart(data, selection = {}) {
-            console.log('🎯 renderEvaluation360Chart chamado com selection:', selection);
-            
-            const canvas = document.getElementById('evaluation360Chart');
-            console.log('Canvas evaluation360Chart encontrado:', !!canvas);
-            
             if (evaluation360ChartInstance) {
-                console.log('🗑️ Destruindo evaluation360ChartInstance existente');
                 evaluation360ChartInstance.destroy();
             }
 
             const evaluation360Ctx = document.getElementById('evaluation360Chart').getContext('2d');
             const evaluation360Title = document.getElementById('evaluation360Title');
 
-            const checkpointQuestionsData = getCheckpointQuestions(data);
-            const questionIds = checkpointQuestionsData.ids;
-            const questionLabels = checkpointQuestionsData.labels;
+            const LEADER_EVALUATION_QUESTIONS = {
+                "16": "Confiança e Clareza", "17": "Escuta e Colaboração",
+                "18": "Orientação e Ideias", "19": "Apoio e Evolução",
+            };
+            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
+            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
 
             const renderEmptyChart = (message) => {
                 evaluation360Ctx.clearRect(0, 0, evaluation360Ctx.canvas.width, evaluation360Ctx.canvas.height);
@@ -858,7 +694,7 @@
             
             if (selection.isTeamAverage && selection.teamId) {
                 const teamId = selection.teamId;
-                const team = data.teams ? data.teams.find(t => t.id === teamId) : originalSegregatedData.teams.find(t => t.id === teamId);
+                const team = data.teams.find(t => t.id === teamId);
                 if (!team) {
                     renderEmptyChart("Time não encontrado.");
                     return;
@@ -866,153 +702,32 @@
 
                 evaluation360Title.textContent = `Avaliação 360° - Média da Equipe ${team.name}`;
 
-                // USAR SISTEMA MULTI-SOURCE PARA MEMBROS DO TIME
-                const teamMemberIds = new Set();
-                
-                // Buscar por users.team_id
-                if (originalSegregatedData.users) {
-                    originalSegregatedData.users.forEach(user => {
-                        if (user.team_id === teamId || user.current_team_id === teamId) {
-                            teamMemberIds.add(user.id);
-                        }
-                    });
-                }
-                
-                // Buscar por assessment_answers
-                if (originalSegregatedData.assessment_answers) {
-                    originalSegregatedData.assessment_answers
+                const teamMemberIds = new Set(
+                    data.assessment_answers
                         .filter(a => a.team_id === teamId && a.user_id)
-                        .forEach(a => teamMemberIds.add(a.user_id));
-                }
-                
-                // Buscar por mentorins
-                if (originalSegregatedData.mentorins) {
-                    originalSegregatedData.mentorins
-                        .filter(m => m.target_team_id === teamId && m.target_user_id)
-                        .forEach(m => teamMemberIds.add(m.target_user_id));
-                }
-                
-                // Buscar por f_submissions
-                if (originalSegregatedData.f_submissions) {
-                    originalSegregatedData.f_submissions
-                        .filter(s => s.team_id === teamId && s.user_id)
-                        .forEach(s => teamMemberIds.add(s.user_id));
-                }
-
-                console.log('GRÁFICO 360° - Membros encontrados para time', team.name, ':', teamMemberIds.size);
+                        .map(a => a.user_id)
+                );
 
                 if (teamMemberIds.size === 0) {
-                    renderEmptyChart("Nenhum membro encontrado neste time.");
+                    renderEmptyChart("Nenhum membro com dados encontrado neste time.");
                     return;
                 }
 
-                // Usar dados originais para avaliações
-                const sourceData = originalSegregatedData || data;
-                const teamEvaluationsReceived = sourceData.mentorins ? 
-                    sourceData.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id) || sub.target_team_id === teamId) : [];
-                
+                const teamEvaluationsReceived = data.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id));
                 if (teamEvaluationsReceived.length === 0) {
-                    console.log('Nenhuma avaliação encontrada em mentorins para o time');
-                    renderEmptyChart("Nenhuma avaliação encontrada para este time.");
+                    renderEmptyChart("Nenhuma avaliação encontrada para os membros deste time.");
                     return;
                 }
 
                 const submissionIds = new Set(teamEvaluationsReceived.map(s => s.id));
-                console.log('GRÁFICO 360° - Submissions encontrados:', submissionIds.size);
                 
-                // PIPELINE MULTI-SOURCE CORRIGIDO para respostas
-                let allAnswers = [];
-                
-                // Debug: Verificar dados disponíveis
-                console.log('GRÁFICO 360° DEBUG:');
-                console.log('- questionIds disponíveis:', questionIds.length, questionIds.slice(0, 3));
-                console.log('- submissionIds para filtrar:', submissionIds.size);
-                console.log('- assessment_answers total:', sourceData.assessment_answers?.length || 0);
-                console.log('- f_submissions total:', sourceData.f_submissions?.length || 0);
-                
-                // Primeiro: assessment_answers
-                if (sourceData.assessment_answers) {
-                    allAnswers = sourceData.assessment_answers.filter(a => 
-                        submissionIds.has(a.submission_id)
-                    );
-                    console.log('- assessment_answers filtrados por submission_id:', allAnswers.length);
-                }
-                
-                // Fallback: f_submissions COM LÓGICA MAIS PERMISSIVA
-                if (allAnswers.length === 0 && sourceData.f_submissions) {
-                    console.log('GRÁFICO 360°: Usando f_submissions como fallback');
-                    
-                    // Primeira tentativa: filtrar por membros do time
-                    allAnswers = sourceData.f_submissions
-                        .filter(s => teamMemberIds.has(s.user_id))
-                        .map(s => ({
-                            id: s.submission_id || s.id,
-                            user_id: s.user_id,
-                            question_id: s.question_id,
-                            answer: s.answer,
-                            submission_id: s.submission_id || s.id
-                        }));
-                    
-                    console.log('- f_submissions filtrados por teamMemberIds:', allAnswers.length);
-                    
-                    // Segunda tentativa: filtrar por team_id diretamente
-                    if (allAnswers.length === 0) {
-                        allAnswers = sourceData.f_submissions
-                            .filter(s => s.team_id === teamId)
-                            .map(s => ({
-                                id: s.submission_id || s.id,
-                                user_id: s.user_id,
-                                question_id: s.question_id,
-                                answer: s.answer,
-                                submission_id: s.submission_id || s.id
-                            }));
-                        console.log('- f_submissions filtrados por team_id:', allAnswers.length);
-                    }
-                    
-                    // Terceira tentativa: pegar primeiras 20 respostas como sample
-                    if (allAnswers.length === 0 && sourceData.f_submissions.length > 0) {
-                        console.log('GRÁFICO 360°: Usando sample dos dados como último recurso');
-                        allAnswers = sourceData.f_submissions
-                            .slice(0, 20) // Pegar sample
-                            .map(s => ({
-                                id: s.submission_id || s.id,
-                                user_id: s.user_id,
-                                question_id: s.question_id,
-                                answer: s.answer,
-                                submission_id: s.submission_id || s.id
-                            }));
-                        console.log('- f_submissions sample usado:', allAnswers.length);
-                    }
-                }
-                
-                console.log('GRÁFICO 360° - Respostas FINAIS encontradas:', allAnswers.length);
-                if (allAnswers.length > 0) {
-                    console.log('- Sample das respostas:', allAnswers.slice(0, 2));
+                let allAnswers = data.assessment_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
+                if (allAnswers.length === 0) {
+                    allAnswers = data.f_answers.filter(a => submissionIds.has(a.submission_id) && questionIds.includes(a.question_id));
                 }
                 
                 if (allAnswers.length === 0) {
-                    // Última tentativa: renderizar gráfico com dados mínimos para mostrar a estrutura
-                    console.log('GRÁFICO 360°: Renderizando gráfico vazio com estrutura para', team.name);
-                    const emptyDatasets = [{
-                        label: `Dados de ${team.name} (carregando...)`,
-                        data: Array(questionLabels.length || 4).fill(0),
-                        borderColor: 'rgba(54, 162, 235, 0.8)',
-                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                        borderWidth: 2
-                    }];
-                    
-                    evaluation360ChartInstance = new Chart(evaluation360Ctx, {
-                        type: 'radar',
-                        data: {
-                            labels: questionLabels.length > 0 ? questionLabels : ['Questão 1', 'Questão 2', 'Questão 3', 'Questão 4'],
-                            datasets: emptyDatasets
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: { legend: { position: 'bottom' } },
-                            scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } }
-                        }
-                    });
+                    renderEmptyChart("Nenhum dado de resposta encontrado para as avaliações do time.");
                     return;
                 }
 
@@ -1123,7 +838,7 @@
             
             const targetSubmissionIds = new Set(targetSubmissions.map(s => s.id));
             const relevantAnswers = data.assessment_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
-            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.assessment_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
+            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.f_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
             if (sourceOfAnswers.length === 0) { renderEmptyChart("Não há dados de respostas para estas avaliações."); return; }
             
             const scoresBySubmission = {};
@@ -1201,14 +916,8 @@
         }
         
         function renderEvaluation360FirstPersonChart(data, selectedUserId) {
-            console.log('🎯 renderEvaluation360FirstPersonChart chamado com userId:', selectedUserId);
-            
-            const canvas = document.getElementById('evaluation360Chart');
-            console.log('Canvas evaluation360Chart encontrado para FirstPerson:', !!canvas);
-            
-            if (evaluation360FirstPersonChartInstance) {
-                console.log('🗑️ Destruindo evaluation360FirstPersonChartInstance existente');
-                evaluation360FirstPersonChartInstance.destroy();
+            if (evaluation360ChartInstance) {
+                evaluation360ChartInstance.destroy();
             }
 
             const evaluation360Ctx = document.getElementById('evaluation360Chart').getContext('2d');
@@ -1258,9 +967,9 @@
             const teamName = team ? `(${team.name})` : '';
             evaluation360Title.textContent = `Avaliações Feitas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
-            const checkpointQuestionsData = getCheckpointQuestions(data);
-            const questionIds = checkpointQuestionsData.ids;
-            const questionLabels = checkpointQuestionsData.labels;
+            const LEADER_EVALUATION_QUESTIONS = { "16": "Confiança e Clareza", "17": "Escuta e Colaboração", "18": "Orientação e Ideias", "19": "Apoio e Evolução" };
+            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
+            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
             
             const userEvaluations = data.mentorins.filter(sub => sub.evaluator_id === selectedUserId);
             
@@ -1272,7 +981,7 @@
             const getScoresForSubmission = (submissionId) => {
                 let answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 if (answersForSubmission.length === 0) {
-                    answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                    answersForSubmission = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 }
                 const scores = {};
                 answersForSubmission.forEach(answer => {
@@ -1323,7 +1032,7 @@
             });
             
             if (datasets.length > 0) {
-                evaluation360FirstPersonChartInstance = new Chart(evaluation360Ctx, {
+                evaluation360ChartInstance = new Chart(evaluation360Ctx, {
                     type: 'radar',
                     data: { labels: questionLabels, datasets: datasets.sort((a,b) => a.order - b.order) },
                     options: {
@@ -1338,13 +1047,7 @@
         }
 
         function renderEvaluation360ThirdPersonChart(data, selectedUserId) {
-            console.log('🎯 renderEvaluation360ThirdPersonChart chamado com userId:', selectedUserId);
-            
-            const canvas = document.getElementById('evaluation360ThirdPersonChart');
-            console.log('Canvas evaluation360ThirdPersonChart encontrado:', !!canvas);
-            
             if (evaluation360ThirdPersonChartInstance) {
-                console.log('🗑️ Destruindo evaluation360ThirdPersonChartInstance existente');
                 evaluation360ThirdPersonChartInstance.destroy();
             }
 
@@ -1377,9 +1080,9 @@
             const teamName = team ? `(${team.name})` : '';
             evaluation360ThirdPersonTitle.textContent = `Avaliações Recebidas por ${selectedUser.full_name.split(' ')[0]} ${teamName}`;
 
-            const checkpointQuestionsData = getCheckpointQuestions(data);
-            const questionIds = checkpointQuestionsData.ids;
-            const questionLabels = checkpointQuestionsData.labels;
+            const LEADER_EVALUATION_QUESTIONS = { "16": "Confiança e Clareza", "17": "Escuta e Colaboração", "18": "Orientação e Ideias", "19": "Apoio e Evolução" };
+            const questionIds = Object.keys(LEADER_EVALUATION_QUESTIONS);
+            const questionLabels = Object.values(LEADER_EVALUATION_QUESTIONS);
 
             const evaluationsReceived = data.mentorins.filter(sub => sub.target_user_id === selectedUserId && sub.evaluator_id !== selectedUserId);
 
@@ -1391,7 +1094,7 @@
             const getScoresForSubmission = (submissionId) => {
                 let answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 if (answersForSubmission.length === 0) {
-                    answersForSubmission = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                    answersForSubmission = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                 }
                 const scores = {};
                 answersForSubmission.forEach(answer => {
@@ -1459,14 +1162,7 @@
         }
         
         function renderMentorEvaluationChart(data, selection = {}) {
-            console.log('🎯 renderMentorEvaluationChart chamado com selection:', selection);
-            
-            const canvas = document.getElementById('mentorEvaluationChart');
-            console.log('Canvas mentorEvaluationChart encontrado:', !!canvas);
-            
-            
             if (mentorEvaluationChartInstance) {
-                console.log('🗑️ Destruindo mentorEvaluationChartInstance existente');
                 mentorEvaluationChartInstance.destroy();
             }
 
@@ -1487,9 +1183,9 @@
                 return;
             }
             
-            const checkpointQuestionsData = getCheckpointQuestions(data);
-            const questionIds = checkpointQuestionsData.ids;
-            const labels = checkpointQuestionsData.labels;
+            const questionConfig = { "16": { label: "Confiança e Clareza", index: 0 }, "17": { label: "Escuta e Colaboração", index: 1 }, "18": { label: "Orientação e Ideias", index: 2 }, "19": { label: "Apoio e Evolução", index: 3 } };
+            const questionIds = Object.keys(questionConfig);
+            const labels = Object.values(questionConfig).sort((a,b) => a.index - b.index).map(q => q.label);
             
             const datasets = [];
             const colors = [ { borderColor: 'rgba(255, 99, 132, 1)', backgroundColor: 'rgba(255, 99, 132, 0.2)' }, { borderColor: 'rgba(54, 162, 235, 1)', backgroundColor: 'rgba(54, 162, 235, 0.2)' }, { borderColor: 'rgba(255, 206, 86, 1)', backgroundColor: 'rgba(255, 206, 86, 0.2)' }, { borderColor: 'rgba(75, 192, 192, 1)', backgroundColor: 'rgba(75, 192, 192, 0.2)' }, { borderColor: 'rgba(153, 102, 255, 1)', backgroundColor: 'rgba(153, 102, 255, 0.2)' } ];
@@ -1532,7 +1228,7 @@
                     
                     let answers = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                     if (answers.length === 0) {
-                        answers = data.assessment_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
+                        answers = data.f_answers.filter(a => a.submission_id === submissionId && questionIds.includes(a.question_id));
                     }
                     
                     const scores = [0, 0, 0, 0];
@@ -1916,353 +1612,60 @@
             if (sourceTableKey === 'teams') {
                 const teamId = itemId;
                 summaryContainer.style.display = 'block';
-                summaryTitle.innerHTML = `<div class="team-info">${createAvatar(sourceItem.name, 'team-avatar')}Resumo das Médias da Equipe: ${sourceItem.name}</div>`;
+                summaryTitle.textContent = `Resumo das Médias da Equipe: ${sourceItem.name}`;
 
-                // Buscar membros do time de forma mais robusta
-                const teamMemberIds = new Set();
-                const teamUsers = [];
-                
-                // Primeira abordagem: buscar por relação direta users.team_id (se existir)
-                originalSegregatedData.users.forEach(user => {
-                    if (user.team_id === teamId || user.current_team_id === teamId) {
-                        teamMemberIds.add(user.id);
-                        teamUsers.push(user);
-                    }
-                });
-                
-                // Segunda abordagem: buscar através de assessment_answers
-                originalSegregatedData.assessment_answers
-                    .filter(a => a.team_id === teamId && a.user_id)
-                    .forEach(a => {
-                        if (!teamMemberIds.has(a.user_id)) {
-                            teamMemberIds.add(a.user_id);
-                            const user = originalSegregatedData.users.find(u => u.id === a.user_id);
-                            if (user) teamUsers.push(user);
-                        }
-                    });
-                
-                // Terceira abordagem: buscar através de mentorins (target_user_id relacionado ao team)
-                originalSegregatedData.mentorins
-                    .filter(m => m.target_team_id === teamId && m.target_user_id)
-                    .forEach(m => {
-                        if (!teamMemberIds.has(m.target_user_id)) {
-                            teamMemberIds.add(m.target_user_id);
-                            const user = originalSegregatedData.users.find(u => u.id === m.target_user_id);
-                            if (user) teamUsers.push(user);
-                        }
-                    });
-                
-                // Quarta abordagem: buscar através de f_submissions
-                originalSegregatedData.f_submissions
-                    .filter(s => s.team_id === teamId && s.user_id)
-                    .forEach(s => {
-                        if (!teamMemberIds.has(s.user_id)) {
-                            teamMemberIds.add(s.user_id);
-                            const user = originalSegregatedData.users.find(u => u.id === s.user_id);
-                            if (user) teamUsers.push(user);
-                        }
-                    });
-                
-                console.log("DEBUG: Estratégias de busca de membros aplicadas:");
-                console.log("- Por users.team_id:", originalSegregatedData.users.filter(u => u.team_id === teamId || u.current_team_id === teamId).length);
-                console.log("- Por assessment_answers.team_id:", originalSegregatedData.assessment_answers.filter(a => a.team_id === teamId).length);
-                console.log("- Por mentorins.target_team_id:", originalSegregatedData.mentorins.filter(m => m.target_team_id === teamId).length);
-                console.log("- Por f_submissions.team_id:", originalSegregatedData.f_submissions.filter(s => s.team_id === teamId).length);
+                const teamMemberIds = new Set(
+                    originalSegregatedData.assessment_answers
+                        .filter(a => a.team_id === teamId && a.user_id)
+                        .map(a => a.user_id)
+                );
 
-                // Log defensivo para capturar quando o lookup de membership retorna vazio
-                if (teamMemberIds.size === 0) {
-                    console.warn("AVISO CRÍTICO: Nenhum membro encontrado para o time", teamId, sourceItem.name);
-                    console.log("Estruturas de dados disponíveis:");
-                    console.log("- Users:", originalSegregatedData.users.length, "registros");
-                    console.log("- Assessment_answers:", originalSegregatedData.assessment_answers.length, "registros");
-                    console.log("- Mentorins:", originalSegregatedData.mentorins.length, "registros");
-                    console.log("- F_submissions:", originalSegregatedData.f_submissions.length, "registros");
-                    
-                    // Tentar listar todas as equipes disponíveis para debug
-                    const availableTeams = new Set();
-                    originalSegregatedData.assessment_answers.forEach(a => { if (a.team_id) availableTeams.add(a.team_id); });
-                    originalSegregatedData.mentorins.forEach(m => { if (m.target_team_id) availableTeams.add(m.target_team_id); });
-                    console.log("Teams encontrados nos dados:", Array.from(availableTeams));
-                    
-                    summaryContent.innerHTML = `
-                        <div class="average-item"> 
-                            <h4>Status</h4> 
-                            <p>⚠️ Nenhum membro encontrado para este time nos dados</p> 
-                        </div>
-                        <div class="average-item"> 
-                            <h4>Sugestão</h4> 
-                            <p>Verifique se os dados do webhook incluem as relações corretas time-usuário</p> 
-                        </div>
-                    `;
-                }
-                
                 if (teamMemberIds.size > 0) {
                     const filteredDataForCharts = JSON.parse(JSON.stringify(originalSegregatedData));
                     filteredDataForCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => teamMemberIds.has(a.user_id));
                     
-                    // Buscar questões de survey_id específico para checkpoints 360°
-                    const checkpointQuestionsData = getCheckpointQuestions(originalSegregatedData);
-                    const questionIds360 = checkpointQuestionsData.ids;
-                    
-                    // Buscar avaliações recebidas pelos membros do time
-                    const evaluationsReceived = originalSegregatedData.mentorins.filter(sub => 
-                        teamMemberIds.has(sub.target_user_id) || sub.target_team_id === teamId
-                    );
+                    const questionIds360 = ["16", "17", "18", "19"];
+                    const evaluationsReceived = originalSegregatedData.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id));
                     const submissionIds = new Set(evaluationsReceived.map(s => s.id));
                     
-                    // Se não há questionIds360 específicos, usar todas as questões de survey
-                    let finalQuestionIds = questionIds360.length > 0 ? questionIds360 : 
-                        originalSegregatedData.assessment_questions_survey.map(q => q.id);
-                    
-                    // Se ainda não temos questões específicas, usar questões gerais
-                    if (finalQuestionIds.length === 0 && originalSegregatedData.assessment_questions) {
-                        finalQuestionIds = originalSegregatedData.assessment_questions.map(q => q.id).slice(0, 10);
-                    }
-                    
-                    // Debug logs para entender por que as médias estão N/A
-                    console.log("=== DEBUG MÉDIAS DA EQUIPE ===");
-                    console.log("Team ID:", teamId);
-                    console.log("Team Name:", sourceItem.name);
-                    console.log("Team members found:", teamMemberIds.size, Array.from(teamMemberIds));
-                    console.log("Evaluations received:", evaluationsReceived.length);
-                    console.log("Submission IDs:", Array.from(submissionIds));
-                    console.log("Total assessment_answers:", originalSegregatedData.assessment_answers.length);
-                    console.log("Question IDs 360:", finalQuestionIds.slice(0, 5), "(showing first 5)");
-                    console.log("Team members list:", teamUsers.map(u => u.full_name));
-                    
-                    // PIPELINE ESTENDIDO: Buscar dados de múltiplas fontes
-                    let allAnswers = [];
-                    
-                    // 1. Primeira tentativa: assessment_answers padrão
-                    allAnswers = originalSegregatedData.assessment_answers
-                        .filter(a => {
-                            // Filtrar por submission_id se disponível
-                            if (submissionIds.has(a.submission_id)) {
-                                return finalQuestionIds.length === 0 || finalQuestionIds.includes(a.question_id);
-                            }
-                            // Ou filtrar por team_id e membros do time
-                            return (a.team_id === teamId || teamMemberIds.has(a.user_id)) && 
-                                   (finalQuestionIds.length === 0 || finalQuestionIds.includes(a.question_id));
-                        });
-                    
-                    // 2. FALLBACK: Se assessment_answers está vazio, usar dados de f_submissions
-                    if (allAnswers.length === 0) {
-                        console.log("FALLBACK: Buscando dados de f_submissions...");
-                        const fSubmissionAnswers = originalSegregatedData.f_submissions
-                            .filter(s => s.user_id && teamMemberIds.has(s.user_id))
-                            .map(s => ({
-                                id: s.submission_id,
-                                user_id: s.user_id,
-                                team_id: teamId, // Inferir team_id
-                                question_id: s.question_id,
-                                answer: s.answer,
-                                submission_id: s.submission_id,
-                                moment: s.moment || 'CHECKPOINT',
-                                source: 'f_submissions'
-                            }));
-                        allAnswers = fSubmissionAnswers;
-                        console.log(`Encontradas ${fSubmissionAnswers.length} respostas em f_submissions`);
-                    }
-                    
-                    // 3. FALLBACK ADICIONAL: Criar respostas sintéticas baseadas em mentorins
-                    if (allAnswers.length === 0 && evaluationsReceived.length > 0) {
-                        console.log("FALLBACK: Criando respostas sintéticas baseadas em mentorins...");
-                        const syntheticAnswers = evaluationsReceived.flatMap(mentor => {
-                            // Criar respostas sintéticas com valores médios (escala 1-5)
-                            const baseQuestions = finalQuestionIds.length > 0 ? finalQuestionIds.slice(0, 4) : 
-                                ['synthetic_1', 'synthetic_2', 'synthetic_3', 'synthetic_4'];
-                            
-                            return baseQuestions.map((questionId, index) => ({
-                                id: `synthetic_${mentor.id}_${index}`,
-                                user_id: mentor.target_user_id,
-                                team_id: teamId,
-                                question_id: questionId,
-                                answer: Math.floor(Math.random() * 2) + 3, // Valores entre 3-4 (neutro/bom)
-                                submission_id: mentor.id,
-                                moment: 'SYNTHETIC',
-                                source: 'mentorins_synthetic'
-                            }));
-                        });
-                        allAnswers = syntheticAnswers;
-                        console.log(`Criadas ${syntheticAnswers.length} respostas sintéticas`);
-                    }
-                    
-                    console.log("Filtered answers for 360 questions:", allAnswers.length);
-                    if (allAnswers.length > 0) {
-                        console.log("Sample answers:", allAnswers.slice(0, 3).map(a => ({
-                            submission_id: a.submission_id,
-                            user_id: a.user_id,
-                            team_id: a.team_id,
-                            question_id: a.question_id,
-                            answer: a.answer,
-                            moment: a.moment
-                        })));
-                    } else {
-                        console.log("Nenhuma resposta encontrada - tentando busca alternativa...");
-                        // Tentar busca por team_id diretamente
-                        const alternativeAnswers = originalSegregatedData.assessment_answers
-                            .filter(a => a.team_id === teamId);
-                        console.log("Respostas encontradas por team_id:", alternativeAnswers.length);
-                        if (alternativeAnswers.length > 0) {
-                            allAnswers = alternativeAnswers;
-                        }
-                    }
+                    let allAnswers = [...originalSegregatedData.assessment_answers, ...originalSegregatedData.f_answers]
+                        .filter(a => submissionIds.has(a.submission_id) && questionIds360.includes(a.question_id));
 
                     const peerScores = [];
                     const mentorScores = [];
-                    const allTeamScores = []; // Para média geral
 
-                    // Processar avaliações com submission_id
                     evaluationsReceived.forEach(sub => {
                         const evaluator = originalSegregatedData.users.find(u => u.id === sub.evaluator_id);
-                        if (!evaluator) {
-                            console.log("Evaluator not found for submission:", sub.id, "evaluator_id:", sub.evaluator_id);
-                            return;
-                        }
+                        if (!evaluator) return;
 
                         const scores = allAnswers
-                            .filter(a => a.submission_id === sub.id || 
-                                       (a.user_id === sub.target_user_id && a.team_id === sub.target_team_id))
-                            .map(a => {
-                                const value = a.answer || a.answer_numeric || a.response;
-                                const numValue = parseFloat(value);
-                                return isNaN(numValue) ? 0 : numValue;
-                            })
-                            .filter(score => score > 0); // Remover scores inválidos
+                            .filter(a => a.submission_id === sub.id)
+                            .map(a => parseFloat(a.answer || a.answer_numeric));
 
-                        console.log("Processing submission:", sub.id, "evaluator:", evaluator.full_name, "role:", evaluator.role, "scores found:", scores.length);
-
-                        if (scores.length > 0) {
-                            allTeamScores.push(...scores);
-                            if (evaluator.role === 'mentor' || evaluator.role === 'staff') {
-                                mentorScores.push(...scores);
-                            } else if (teamMemberIds.has(evaluator.id) && evaluator.id !== sub.target_user_id) {
-                                peerScores.push(...scores);
-                            } else {
-                                // Categoria geral para avaliadores não identificados
-                                allTeamScores.push(...scores);
-                            }
+                        if (evaluator.role === 'mentor') {
+                            mentorScores.push(...scores);
+                        } else if (teamMemberIds.has(evaluator.id) && evaluator.id !== sub.target_user_id) {
+                            peerScores.push(...scores);
                         }
                     });
-                    
-                    // FALLBACK FINAL: Se ainda não temos scores, tentar extrair de qualquer fonte disponível
-                    if (allTeamScores.length === 0 && peerScores.length === 0 && mentorScores.length === 0) {
-                        console.log("FALLBACK FINAL: Buscando qualquer dado do time disponível...");
-                        
-                        // Buscar em assessment_answers por team_id
-                        const directTeamAnswers = originalSegregatedData.assessment_answers
-                            .filter(a => a.team_id === teamId)
-                            .map(a => {
-                                const value = a.answer || a.answer_numeric || a.response;
-                                const numValue = parseFloat(value);
-                                return isNaN(numValue) ? 0 : numValue;
-                            })
-                            .filter(score => score > 0);
-                        
-                        if (directTeamAnswers.length > 0) {
-                            allTeamScores.push(...directTeamAnswers);
-                            console.log("Encontradas", directTeamAnswers.length, "respostas diretas por team_id");
-                        } else {
-                            // Último recurso: buscar por qualquer membro do time
-                            const memberAnswers = originalSegregatedData.assessment_answers
-                                .filter(a => teamMemberIds.has(a.user_id))
-                                .map(a => {
-                                    const value = a.answer || a.answer_numeric || a.response;
-                                    const numValue = parseFloat(value);
-                                    return isNaN(numValue) ? 0 : numValue;
-                                })
-                                .filter(score => score > 0);
-                            
-                            if (memberAnswers.length > 0) {
-                                allTeamScores.push(...memberAnswers);
-                                console.log("Encontradas", memberAnswers.length, "respostas de membros do time");
-                            }
-                        }
-                    }
-                    
-                    console.log("Final peer scores:", peerScores);
-                    console.log("Final mentor scores:", mentorScores);
 
-                    const calcAvg = (scores, label = '') => {
-                        const validScores = scores.filter(s => s > 0);
-                        if (validScores.length === 0) {
-                            console.log(`Nenhum score válido encontrado para ${label}`);
-                            return 'Sem dados';
-                        }
-                        const avg = (validScores.reduce((a, b) => a + b, 0) / validScores.length).toFixed(2);
-                        console.log(`${label}: ${validScores.length} scores válidos, média: ${avg}`);
-                        return avg;
-                    };
+                    const calcAvg = (scores) => scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : 'N/A';
                     
-                    const peerAverage = calcAvg(peerScores, 'Pares');
-                    const mentorAverage = calcAvg(mentorScores, 'Mentores');
-                    const checkpointAverage = allTeamScores.length > 0 ? calcAvg(allTeamScores, 'Geral') : 
-                        calcAvg([...peerScores, ...mentorScores], 'Checkpoint Combined');
-                    
-                    console.log("=== RESULTADOS FINAIS ===");
-                    console.log("- Peer scores:", peerScores.length, "=> Média:", peerAverage);
-                    console.log("- Mentor scores:", mentorScores.length, "=> Média:", mentorAverage);
-                    console.log("- All team scores:", allTeamScores.length, "=> Média:", checkpointAverage);
-                    console.log("- Fonte dos dados:", allAnswers.length > 0 ? allAnswers[0].source || 'assessment_answers' : 'nenhuma');
+                    const peerAverage = calcAvg(peerScores);
+                    const mentorAverage = calcAvg(mentorScores);
+                    const checkpointAverage = calcAvg([...peerScores, ...mentorScores]);
 
-                    // Determinar status dos dados e cores apropriadas
-                    const getStatusClass = (value) => {
-                        if (value === 'Sem dados') return 'status-no-data';
-                        if (value === 'N/A') return 'status-na';
-                        return 'status-has-data';
-                    };
-                    
-                    const dataSource = allAnswers.length > 0 ? (allAnswers[0].source || 'assessment_answers') : 'nenhuma';
-                    const hasAnyData = peerAverage !== 'Sem dados' || mentorAverage !== 'Sem dados' || checkpointAverage !== 'Sem dados';
-                    
-                    let summaryHTML = `
-                        <div class="average-item ${getStatusClass(peerAverage)}"> 
-                            <h4>Média da Avaliação da Equipe (Pares)</h4> 
-                            <p>${peerAverage}</p> 
-                        </div>
-                        <div class="average-item ${getStatusClass(mentorAverage)}"> 
-                            <h4>Média da Avaliação dos Mentores</h4> 
-                            <p>${mentorAverage}</p> 
-                        </div>
-                        <div class="average-item ${getStatusClass(checkpointAverage)}"> 
-                            <h4>Média Geral (Checkpoints)</h4> 
-                            <p>${checkpointAverage}</p> 
-                        </div>
+                    summaryContent.innerHTML = `
+                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverage}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAverage}</p> </div>
+                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverage}</p> </div>
                     `;
-                    
-                    // Adicionar informações de debug se não houver dados
-                    if (!hasAnyData) {
-                        summaryHTML += `
-                            <div class="average-item status-info"> 
-                                <h4>📊 Status dos Dados</h4> 
-                                <p style="font-size: 0.9em;">
-                                    Membros encontrados: ${teamMemberIds.size}<br>
-                                    Respostas processadas: ${allAnswers.length}<br>
-                                    Fonte: ${dataSource}
-                                </p>
-                            </div>
-                        `;
-                    }
-                    
-                    summaryContent.innerHTML = summaryHTML;
 
-                    // Atualizar gráficos com dados filtrados
-                    console.log("Atualizando gráficos para o time:", sourceItem.name);
-                    try {
-                        renderCharts(filteredDataForCharts);
-                        renderEvaluation360Chart(originalSegregatedData, { teamId: teamId, isTeamAverage: true });
-                        renderMentorEvaluationChart(originalSegregatedData, { teamId: teamId });
-                        renderEvaluation360ThirdPersonChart(originalSegregatedData, teamId);
-                        
-                        // Atualizar títulos dos gráficos para mostrar que são específicos do time
-                        document.getElementById('evaluation360Title').textContent = `Avaliação 360° - ${sourceItem.name}`;
-                        document.getElementById('evaluation360ThirdPersonTitle').textContent = `Avaliação 360° 3ª pessoa - ${sourceItem.name}`;
-                        document.getElementById('mentorEvaluationTitle').textContent = `Avaliação Mentores - ${sourceItem.name}`;
-                        
-                        console.log("Gráficos atualizados com sucesso");
-                    } catch (error) {
-                        console.error("Erro ao atualizar gráficos:", error);
-                    }
+                    renderCharts(filteredDataForCharts);
+                    renderEvaluation360Chart(originalSegregatedData, { teamId: teamId, isTeamAverage: true });
+                    renderMentorEvaluationChart(originalSegregatedData, { teamId: teamId });
+                    renderEvaluation360FirstPersonChart(originalSegregatedData, null); 
+                    renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
                 } else {
                     summaryContent.innerHTML = '<p>Time não possui membros com respostas para gerar o resumo.</p>';
                 }
@@ -2282,187 +1685,59 @@
                 summaryContainer.style.display = 'none';
             }
 
-            // USAR ASSESSMENT ANSWERS COMO TABELA MESTRE - Seguindo Diagrama de Relacionamento
-            console.log('🔄 FILTRO MESTRE: Usando Assessment Answers como centro', sourceTableKey, itemId);
-            
             let relevantAnswers = [];
-            
-            // Baseado no diagrama: Assessment Answers se conecta a todas as outras tabelas
-            switch (sourceTableKey) {
-                case 'teams':
-                    // Assessment Answers -> Teams (via team_id)
-                    relevantAnswers = originalSegregatedData.assessment_answers.filter(a => a.team_id === itemId);
-                    console.log(`Filtro Teams: ${relevantAnswers.length} assessment_answers encontrados para team_id=${itemId}`);
-                    break;
-                    
-                case 'users':
-                    // Assessment Answers -> Users (via user_id)
-                    relevantAnswers = originalSegregatedData.assessment_answers.filter(a => a.user_id === itemId);
-                    console.log(`Filtro Users: ${relevantAnswers.length} assessment_answers encontrados para user_id=${itemId}`);
-                    break;
-                    
-                case 'assessment_questions':
-                    // Assessment Answers -> Assessment Questions (Habilidades) (via question_id)
-                    relevantAnswers = originalSegregatedData.assessment_answers.filter(a => a.question_id === itemId);
-                    console.log(`Filtro Questions: ${relevantAnswers.length} assessment_answers encontrados para question_id=${itemId}`);
-                    break;
-                    
-                case 'assessment_questions_survey':
-                    // Assessment Answers -> Assessment Questions (Survey) (via question_id)
-                    relevantAnswers = originalSegregatedData.assessment_answers.filter(a => a.question_id === itemId);
-                    console.log(`Filtro Survey Questions: ${relevantAnswers.length} assessment_answers encontrados para question_id=${itemId}`);
-                    break;
-                    
-                case 'f_submissions':
-                    // Assessment Answers -> F Submissions (via submission_id)
-                    relevantAnswers = originalSegregatedData.assessment_answers.filter(a => a.submission_id === itemId);
-                    console.log(`Filtro F_Submissions: ${relevantAnswers.length} assessment_answers encontrados para submission_id=${itemId}`);
-                    break;
-                    
-                case 'mentorins':
-                    // Assessment Answers -> Mentorins (via submission_id + relacionamentos)
-                    const userIds = new Set([sourceItem.evaluator_id, sourceItem.target_user_id].filter(Boolean));
-                    const teamIds = new Set([sourceItem.target_team_id].filter(Boolean));
-                    relevantAnswers = originalSegregatedData.assessment_answers.filter(answer => 
-                        answer.submission_id === sourceItem.id || 
-                        userIds.has(answer.user_id) || 
-                        teamIds.has(answer.team_id)
-                    );
-                    console.log(`Filtro Mentorins: ${relevantAnswers.length} assessment_answers encontrados para submission=${sourceItem.id}`);
-                    break;
-                    
-                case 'assessment_answers':
-                    // Assessment Answers é a própria tabela mestre
-                    relevantAnswers = [sourceItem];
-                    console.log(`Filtro Assessment Answers: 1 registro selecionado`);
-                    break;
-                    
-                default:
-                    console.warn(`Tipo de tabela não reconhecido no diagrama: ${sourceTableKey}`);
-                    relevantAnswers = [];
+            const idFieldMap = { users: 'user_id', teams: 'team_id', assessment_questions: 'question_id', assessment_questions_survey: 'question_id', assessment_answers: 'id', f_submissions: 'submission_id' };
+            const relevantField = idFieldMap[sourceTableKey];
+
+            if (relevantField) {
+                 relevantAnswers = originalSegregatedData.assessment_answers.filter(answer => answer[relevantField] === itemId);
+            } else if (sourceTableKey === 'mentorins') {
+                const userIds = new Set([sourceItem.evaluator_id, sourceItem.target_user_id].filter(Boolean));
+                const teamIds = new Set([sourceItem.target_team_id].filter(Boolean));
+                relevantAnswers = originalSegregatedData.assessment_answers.filter(answer => userIds.has(answer.user_id) || teamIds.has(answer.team_id));
             }
             
             if (relevantAnswers.length === 0) {
-                console.warn(`❌ FILTRO MESTRE: Nenhum assessment_answer encontrado para ${sourceTableKey}:${itemId}`);
-                
-                // Mostrar apenas a linha selecionada quando não há dados relacionados
-                Object.keys(originalSegregatedData).forEach(tableKey => {
-                    const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
-                    if(tableBody) {
-                        tableBody.querySelectorAll('tr').forEach(row => {
-                            const isSelectedRow = (tableKey === sourceTableKey && row.dataset.itemId === itemId);
-                            row.classList.toggle('filtered-out', !isSelectedRow);
-                        });
-                    }
-                });
+                 console.warn(`Nenhuma resposta encontrada para o item selecionado.`);
+                 Object.keys(originalSegregatedData).forEach(tableKey => {
+                      const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
+                      if(tableBody) {
+                           tableBody.querySelectorAll('tr').forEach(row => {
+                                const isSelectedRow = (tableKey === sourceTableKey && row.dataset.itemId === itemId);
+                                row.classList.toggle('filtered-out', !isSelectedRow);
+                          });
+                      }
+                 });
             } else {
-                console.log(`✅ FILTRO MESTRE: ${relevantAnswers.length} assessment_answers encontrados. Propagando filtros...`);
-                // PROPAGAÇÃO BASEADA NO DIAGRAMA: Assessment Answers -> Todas as outras tabelas
-                const relatedIds = { 
-                    users: new Set(), 
-                    teams: new Set(), 
-                    assessment_questions: new Set(),
-                    assessment_questions_survey: new Set(),
-                    submissions: new Set(), 
-                    answer_ids: new Set(),
-                    mentorins: new Set(),
-                    f_submissions: new Set(),
-                    guilds: new Set()
-                };
-                
+                const relatedIds = { users: new Set(), teams: new Set(), questions: new Set(), submissions: new Set(), answer_ids: new Set() };
                 relevantAnswers.forEach(answer => {
-                    // Coletar todos os IDs relacionados baseado no diagrama
                     if (answer.id) relatedIds.answer_ids.add(answer.id);
                     if (answer.user_id) relatedIds.users.add(answer.user_id);
                     if (answer.team_id) relatedIds.teams.add(answer.team_id);
-                    if (answer.question_id) {
-                        relatedIds.assessment_questions.add(answer.question_id);
-                        relatedIds.assessment_questions_survey.add(answer.question_id);
-                    }
-                    if (answer.submission_id) {
-                        relatedIds.submissions.add(answer.submission_id);
-                        relatedIds.f_submissions.add(answer.submission_id);
-                        relatedIds.mentorins.add(answer.submission_id);
-                    }
-                });
-                
-                console.log('🔗 IDs coletados do Assessment Answers:', {
-                    users: relatedIds.users.size,
-                    teams: relatedIds.teams.size,
-                    questions: relatedIds.assessment_questions.size,
-                    submissions: relatedIds.submissions.size
+                    if (answer.question_id) relatedIds.questions.add(answer.question_id);
+                    if (answer.submission_id) relatedIds.submissions.add(answer.submission_id);
                 });
 
-                // APLICAR FILTROS BASEADO NO DIAGRAMA DE RELACIONAMENTO
                 Object.keys(originalSegregatedData).forEach(tableKey => {
                     const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
                     if (!tableBody) return;
-                    
-                    let visibleCount = 0;
                     tableBody.querySelectorAll('tr').forEach(row => {
                         const rowItemId = row.dataset.itemId;
                         const rowData = originalSegregatedData[tableKey].find(d => (d.id || d.submission_id || d.invite) === rowItemId);
                         let isVisible = false;
-                        
                         if (rowData) {
-                            // Aplicar filtros seguindo exatamente o diagrama
                             switch (tableKey) {
-                                case 'teams':
-                                    // Teams <- Assessment Answers (via team_id)
-                                    isVisible = relatedIds.teams.has(rowData.id) || (sourceTableKey === 'teams' && rowData.id === itemId);
-                                    break;
-                                    
-                                case 'users':
-                                    // Users <- Assessment Answers (via user_id)
-                                    isVisible = relatedIds.users.has(rowData.id) || (sourceTableKey === 'users' && rowData.id === itemId);
-                                    break;
-                                    
-                                case 'assessment_answers':
-                                    // Assessment Answers (tabela mestre)
-                                    isVisible = relatedIds.answer_ids.has(rowData.id) || (sourceTableKey === 'assessment_answers' && rowData.id === itemId);
-                                    break;
-                                    
-                                case 'f_submissions':
-                                    // F Submissions <- Assessment Answers (via submission_id)
-                                    isVisible = relatedIds.f_submissions.has(rowData.submission_id) || 
-                                               relatedIds.users.has(rowData.user_id) || 
-                                               (sourceTableKey === 'f_submissions' && rowData.submission_id === itemId);
-                                    break;
-                                    
-                                case 'mentorins':
-                                    // Mentorins <- Assessment Answers (via submission_id + relacionamentos)
-                                    isVisible = relatedIds.mentorins.has(rowData.id) ||
-                                               relatedIds.users.has(rowData.evaluator_id) || 
-                                               relatedIds.users.has(rowData.target_user_id) || 
-                                               relatedIds.teams.has(rowData.target_team_id) ||
-                                               (sourceTableKey === 'mentorins' && rowData.id === itemId);
-                                    break;
-                                    
-                                case 'assessment_questions':
-                                    // Assessment Questions (Habilidades) <- Assessment Answers (via question_id)
-                                    isVisible = relatedIds.assessment_questions.has(rowData.id) || (sourceTableKey === 'assessment_questions' && rowData.id === itemId);
-                                    break;
-                                    
-                                case 'assessment_questions_survey':
-                                    // Assessment Questions (Survey) <- Assessment Answers (via question_id)
-                                    isVisible = relatedIds.assessment_questions_survey.has(rowData.id) || (sourceTableKey === 'assessment_questions_survey' && rowData.id === itemId);
-                                    break;
-                                    
-                                case 'guilds':
-                                    // Guilds - sem conexão direta no diagrama, mostrar apenas se selecionado diretamente
-                                    isVisible = (sourceTableKey === 'guilds' && rowData.invite === itemId);
-                                    break;
-                                    
-                                default:
-                                    isVisible = false;
+                                case 'users': isVisible = relatedIds.users.has(rowData.id); break;
+                                case 'teams': isVisible = relatedIds.teams.has(rowData.id); break;
+                                case 'assessment_answers': isVisible = relatedIds.answer_ids.has(rowData.id); break;
+                                case 'f_submissions': isVisible = relatedIds.submissions.has(rowData.submission_id) || relatedIds.users.has(rowData.user_id); break;
+                                case 'mentorins': isVisible = relatedIds.users.has(rowData.evaluator_id) || relatedIds.users.has(rowData.target_user_id) || relatedIds.teams.has(rowData.target_team_id); break;
+                                case 'assessment_questions': case 'assessment_questions_survey': isVisible = relatedIds.questions.has(rowData.id); break;
+                                default: isVisible = false;
                             }
                         }
-                        
                         row.classList.toggle('filtered-out', !isVisible);
-                        if (isVisible) visibleCount++;
                     });
-                    
-                    console.log(`📊 ${tableKey}: ${visibleCount} registros visíveis`);
                 });
             }
             
