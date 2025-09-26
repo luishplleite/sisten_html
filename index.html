@@ -397,6 +397,97 @@
             pointer-events: none;
             z-index: 1;
         }
+
+        /* Documentation Modal Styles */
+        .doc-tab-btn {
+            padding: 10px 20px;
+            border: none;
+            background-color: #f8f9fa;
+            color: #495057;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .doc-tab-btn.active {
+            background-color: var(--button-bg);
+            color: white;
+        }
+
+        .doc-tab-btn:hover {
+            background-color: var(--button-hover-bg);
+            color: white;
+        }
+
+        .doc-tab-content {
+            display: none;
+        }
+
+        .doc-tab-content.active {
+            display: block;
+        }
+
+        .chart-doc-section, .table-doc-section, .api-section, .relationship-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+
+        .code-block {
+            background-color: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+
+        .code-block pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .code-block code {
+            color: #e2e8f0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .table-description {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: white;
+            border-left: 4px solid var(--button-bg);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .table-description h5 {
+            color: var(--button-bg);
+            margin-top: 0;
+        }
+
+        .table-description ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .table-description li {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .table-description code {
+            background-color: #f1f3f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #d73a49;
+        }
     </style>
 </head>
 <body>
@@ -413,8 +504,7 @@
                 <div class="buttons-group">
                     <button id="validate-btn">Validar IDs</button>
                     <button id="clear-filter-btn" style="display: none;">Limpar Filtro</button>
-                    <button id="webhook-config-btn">Config N8N</button>
-                    <button id="test-webhook-btn">Testar Webhook</button>
+                    <button id="documentation-btn" style="background-color: #17a2b8; border-color: #17a2b8;">📚 Documentação</button>
                 </div>
             </div>
             <div class="controls-row checkbox-group">
@@ -480,19 +570,514 @@
         </div>
     </div>
 
-    <div id="webhook-config-modal" class="modal">
-        <div class="modal-content">
+    <div id="documentation-modal" class="modal">
+        <div class="modal-content" style="max-width: 90%; width: 1400px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
-                <h2>Configurar Webhook N8N</h2>
+                <h2>📚 Documentação Técnica - BI Interno</h2>
                 <span class="close-btn">&times;</span>
             </div>
-            <div class="modal-body">
-                <div style="padding: 20px;">
-                    <label for="n8n-webhook-url" style="display: block; margin-bottom: 10px; font-weight: bold;">URL do Webhook N8N:</label>
-                    <input type="url" id="n8n-webhook-url" placeholder="https://seu-n8n.com/webhook/your-path" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">
-                    <div style="text-align: right;">
-                        <button id="save-webhook-btn" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Salvar</button>
-                        <button id="cancel-webhook-btn" style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
+            <div class="modal-body" style="padding: 30px; height: auto; overflow-y: auto;">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button class="doc-tab-btn active" data-tab="overview">Visão Geral</button>
+                    <button class="doc-tab-btn" data-tab="charts">Gráficos Radar</button>
+                    <button class="doc-tab-btn" data-tab="tables">Tabelas e Dados</button>
+                    <button class="doc-tab-btn" data-tab="diagram">Diagrama ER</button>
+                    <button class="doc-tab-btn" data-tab="api">APIs e Endpoints</button>
+                </div>
+                
+                <div id="doc-tab-overview" class="doc-tab-content active">
+                    <h3>🎯 Visão Geral do Sistema</h3>
+                    <p><strong>Sistema:</strong> Painel de Validação de Dados - BI Interno para Porto Hack Santos Universitário</p>
+                    <p><strong>Tecnologias:</strong> HTML5, CSS3, JavaScript ES6+, Chart.js, Python 3.12</p>
+                    <p><strong>Objetivo:</strong> Dashboard para análise de competências, avaliações 360° e validação de dados de participantes</p>
+                    
+                    <h4>📋 Funcionalidades Principais</h4>
+                    <ul>
+                        <li>✅ <strong>Validação de IDs:</strong> Verifica consistência entre tabelas relacionadas</li>
+                        <li>📊 <strong>Gráficos Radar:</strong> Visualização de competências, checkpoints e avaliações</li>
+                        <li>🔍 <strong>Filtros Avançados:</strong> Filtragem por usuário/time com destaque visual</li>
+                        <li>📈 <strong>Análise 360°:</strong> Avaliações feitas e recebidas (excluindo mentores)</li>
+                        <li>🏆 <strong>Radar de Categorias:</strong> Análise por competência específica</li>
+                        <li>👥 <strong>Avaliação de Mentores:</strong> Feedback de mentores para equipes</li>
+                        <li>🔄 <strong>Integração N8N:</strong> Webhook para coleta automática de dados</li>
+                    </ul>
+                    
+                    <h4>🏗️ Arquitetura Frontend</h4>
+                    <ul>
+                        <li><strong>Segregação de Dados:</strong> Organização automática por tipo de tabela</li>
+                        <li><strong>Renderização Dinâmica:</strong> Tabelas e gráficos atualizados em tempo real</li>
+                        <li><strong>Estado Reativo:</strong> Sincronização entre filtros, seleções e visualizações</li>
+                        <li><strong>Cache Inteligente:</strong> Backup de dados originais para reset rápido</li>
+                    </ul>
+                </div>
+
+                <div id="doc-tab-charts" class="doc-tab-content" style="display: none;">
+                    <h3>📊 Scripts dos Gráficos Radar</h3>
+                    
+                    <div class="chart-doc-section">
+                        <h4>1. 🎯 Radar de Competências 21D (renderCharts)</h4>
+                        <div class="code-block">
+                            <h5>Configuração das 20 Competências:</h5>
+                            <pre><code>const competenciesConfig = [
+    { id: 'e6f01262-3bec-4e9f-ba35-ea36cebb044c', label: 'Pitch' },
+    { id: '2f8ae888-2c26-4c0b-b43e-22ad12e8365b', label: 'Análise' },
+    { id: '317f7809-2213-4d44-9789-bcc649e3da44', label: 'Lógica' },
+    { id: '51f51eb7-5361-4c70-ab2c-a873e6fca0a0', label: 'Escrita' },
+    { id: '5f58d78e-4ef8-4458-989b-913f4d6c4ffc', label: 'Comunicação' },
+    { id: '65d43ab9-8d6c-4493-8894-f230d1086dce', label: 'Colaboração' },
+    { id: '6744721d-ae32-40c2-980e-7c506e15af2d', label: 'Liderança' },
+    { id: '6daa3a49-5cc5-412e-b934-3af6345235cf', label: 'Autonomia' },
+    { id: '6eedbdf2-4f0a-4c35-a2b6-a30e04819edb', label: 'Planejamento' },
+    { id: '70b23f83-a102-4d56-992d-3c94e704930f', label: 'Foco' },
+    { id: '9c5c2681-ae93-4e56-8326-8d8c778e5216', label: 'Resiliência' },
+    { id: 'a1742180-ecc8-4759-a084-5e32447a8150', label: 'Ética' },
+    { id: 'b07af2c9-96a0-4e85-b741-d12ef3203033', label: 'UX' },
+    { id: 'b5f31da7-27ab-4a68-9505-0e3bb8704fee', label: 'Dados' },
+    { id: 'c0ddcd58-5755-417d-a6a8-8ebe542099cb', label: 'APIs' },
+    { id: 'cfb379a9-e00f-4188-94a5-44781ac97c86', label: 'IA' },
+    { id: 'd1d42aed-99e1-4e1c-9674-6426e34d46dc', label: 'Segurança' },
+    { id: 'e2c54ce7-88a7-4ab7-a81b-8763aa5c2d6b', label: 'Testes' },
+    { id: 'e390c310-8f41-4f4a-8589-c92639e428a2', label: 'Entrega' },
+    { id: 'e65172cd-410d-495a-a1f5-813511e3bb48', label: 'Impacto' }
+];</code></pre>
+                        </div>
+                        <p><strong>Comparação:</strong> ANTES (moment: 'INITIAL') vs DEPOIS (moment: 'FINAL' ou outros)</p>
+                    </div>
+                    
+                    <div class="chart-doc-section">
+                        <h4>2. ⚡ Evolução Pessoal - Radar de Checkpoints</h4>
+                        <div class="code-block">
+                            <h5>Labels e Questões 360°:</h5>
+                            <pre><code>const labelsCheckpoint = ['Confiança', 'Colaboração', 'Aplicação', 'Evolução', 'Confiança do Time'];
+const checkpointQuestions = { "16": 0, "17": 1, "18": 2, "19": 3 };
+
+// Questões de Liderança
+const LEADER_EVALUATION_QUESTIONS = {
+    "16": "Confiança e Clareza", 
+    "17": "Escuta e Colaboração", 
+    "18": "Orientação e Ideias", 
+    "19": "Apoio e Evolução"
+};</code></pre>
+                        </div>
+                        <p><strong>Funcionamento:</strong> Agrupa submissões por checkpoint e calcula médias por período</p>
+                    </div>
+                    
+                    <div class="chart-doc-section">
+                        <h4>3. 🔄 Avaliação 360° - Avaliações Feitas (renderEvaluation360Chart)</h4>
+                        <div class="code-block">
+                            <p><strong>Lógica:</strong> Mostra avaliações que o usuário selecionado FEZ para outros</p>
+                            <pre><code>const userEvaluations = data.mentorins.filter(sub => 
+    sub.evaluator_id === selectedUserId
+);
+
+// Agrupa por target (quem foi avaliado)
+const evaluationsByTarget = {};
+userEvaluations.forEach(evaluation => {
+    const targetId = evaluation.target_user_id;
+    if (!evaluationsByTarget[targetId]) {
+        evaluationsByTarget[targetId] = [];
+    }
+    evaluationsByTarget[targetId].push(evaluation);
+});</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-doc-section">
+                        <h4>4. 📥 Avaliação 360° 3ª Pessoa - Avaliações Recebidas (renderEvaluation360ThirdPersonChart)</h4>
+                        <div class="code-block">
+                            <p><strong>Lógica:</strong> Mostra avaliações que o usuário selecionado RECEBEU (⚠️ MENTORES EXCLUÍDOS)</p>
+                            <pre><code>const evaluationsReceived = data.mentorins.filter(sub => 
+    sub.target_user_id === selectedUserId && 
+    sub.evaluator_id !== selectedUserId
+);
+
+// ⚠️ FILTRO DE MENTORES ADICIONADO
+Object.keys(evaluationsByEvaluator).forEach(evaluatorId => {
+    const evaluatorUser = data.users.find(u => u.id === evaluatorId);
+    if (!evaluatorUser) return;
+    
+    // Excluir avaliações de mentores
+    const isMentor = evaluatorUser.role === 'mentor';
+    if (isMentor) return; // ← EXCLUSÃO APLICADA AQUI
+});</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-doc-section">
+                        <h4>5. 👨‍🏫 Avaliação Mentores (renderMentorEvaluationChart)</h4>
+                        <div class="code-block">
+                            <p><strong>Lógica:</strong> Apenas avaliações feitas por usuários com role === 'mentor'</p>
+                            <pre><code>// Filtra apenas mentores
+if (evaluator && evaluator.role && 
+    typeof evaluator.role === 'string' && 
+    evaluator.role.toLowerCase().includes('mentor')) {
+    
+    // Processa avaliação do mentor
+    const scores = [0, 0, 0, 0]; // 4 questões de liderança
+    // ... lógica de processamento
+}</code></pre>
+                        </div>
+                    </div>
+                    
+                    <div class="chart-doc-section">
+                        <h4>6. 📊 Radar por Categoria (renderCategoryRadarChart)</h4>
+                        <div class="code-block">
+                            <h5>Categorias de Competências:</h5>
+                            <pre><code>const realCategories = [
+    'HABILIDADES_BASICAS',      // Habilidades Básicas
+    'HABILIDADES_TECNICAS',     // Habilidades Técnicas
+    'COMPETENCIAS_SOCIAIS',     // Competências Sociais
+    'COMPETENCIAS_COGNITIVAS',  // Competências Cognitivas
+    'IMPACTO_E_AUTOPERCEPCAO'   // Impacto e Autopercepção
+];
+
+// Mapeia questões para categorias
+const questionCategoryMap = {};
+data.assessment_questions.forEach(q => {
+    if (q.category && realCategories.includes(q.category)) {
+        questionCategoryMap[q.id] = q.category;
+    }
+});</code></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="doc-tab-tables" class="doc-tab-content" style="display: none;">
+                    <h3>🗄️ Estrutura das Tabelas e Dados</h3>
+                    
+                    <div class="table-doc-section">
+                        <h4>📋 Configuração das Tabelas (tableConfig)</h4>
+                        <div class="code-block">
+                            <pre><code>const tableConfig = {
+    users: { 
+        title: 'Users', 
+        headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id'] 
+    },
+    assessment_answers: { 
+        title: 'Assessment Answers', 
+        headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] 
+    },
+    teams: { 
+        title: 'Teams', 
+        headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] 
+    },
+    mentorins: { 
+        title: 'Mentorins (f_submissions)', 
+        headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] 
+    },
+    assessment_questions: { 
+        title: 'Assessment Questions (Habilidades)', 
+        headers: ['selecionar', 'id', 'text', 'category', 'order'] 
+    },
+    assessment_questions_survey: { 
+        title: 'Assessment Questions (Survey)', 
+        headers: ['selecionar', 'id', 'text', 'type', 'survey_id'] 
+    },
+    f_submissions: { 
+        title: 'F Submissions', 
+        headers: ['selecionar', 'submission_id', 'user_id', 'question_id', 'answer', 'moment'] 
+    },
+    guilds: { 
+        title: 'Guilds', 
+        headers: ['selecionar', 'event_id', 'name', 'invite', 'created_at'] 
+    }
+};</code></pre>
+                        </div>
+                    </div>
+                    
+                    <h4>📊 Descrição Detalhada das Tabelas</h4>
+                    
+                    <div class="table-description">
+                        <h5>👥 USERS</h5>
+                        <p><strong>Função:</strong> Cadastro de participantes, mentores e staff</p>
+                        <ul>
+                            <li><code>id</code> - UUID único do usuário (PK)</li>
+                            <li><code>full_name</code> - Nome completo do participante (required)</li>
+                            <li><code>email</code> - Email principal para contato e login (required)</li>
+                            <li><code>role</code> - Papel: member, admin, staff, mentor (required)</li>
+                            <li><code>member_id</code> - ID no Discord (opcional, quando disponível)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>🏆 TEAMS</h5>
+                        <p><strong>Função:</strong> Equipes da maratona</p>
+                        <ul>
+                            <li><code>id</code> - UUID único da equipe (PK)</li>
+                            <li><code>name</code> - Nome da equipe (required)</li>
+                            <li><code>code</code> - Código de convite da equipe (required)</li>
+                            <li><code>status</code> - CLOSED/OPEN (aceita novos membros?)</li>
+                            <li><code>event_id</code> - FK para events(id) - Evento associado</li>
+                            <li><code>priority</code> - Boolean - Time é prioritário? (opcional)</li>
+                            <li><code>number</code> - Número do time (opcional)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>📝 ASSESSMENT_ANSWERS</h5>
+                        <p><strong>Função:</strong> Respostas das autoavaliações de competências</p>
+                        <ul>
+                            <li><code>id</code> - ID único da resposta (PK)</li>
+                            <li><code>user_id</code> - FK para users(id) - Quem respondeu</li>
+                            <li><code>team_id</code> - FK para teams(id) - Equipe do respondente</li>
+                            <li><code>question_id</code> - FK para assessment_questions(id) - Competência avaliada</li>
+                            <li><code>answer</code> - Resposta numérica (escala 1-5)</li>
+                            <li><code>moment</code> - INITIAL/FINAL (antes/depois da maratona)</li>
+                            <li><code>submission_id</code> - FK para assessment_submissions(id)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>🎯 MENTORINS (F_SUBMISSIONS)</h5>
+                        <p><strong>Função:</strong> Submissões de avaliações 360° entre participantes</p>
+                        <ul>
+                            <li><code>id</code> - ID único da submissão (PK)</li>
+                            <li><code>evaluator_id</code> - FK para users(id) - Quem fez a avaliação</li>
+                            <li><code>target_user_id</code> - FK para users(id) - Quem foi avaliado (pode ser null)</li>
+                            <li><code>target_team_id</code> - FK para teams(id) - Equipe avaliada (pode ser null)</li>
+                            <li><code>survey_id</code> - FK para f_surveys(id) - Formulário usado</li>
+                            <li><code>checkpoint_id</code> - FK para checkpoints(id) - Checkpoint da avaliação</li>
+                            <li><code>created_at</code> - Timestamp da avaliação</li>
+                        </ul>
+                        <p><strong>⚠️ Lógica de Tipos de Avaliação:</strong></p>
+                        <ul>
+                            <li><code>target_user_id = null, target_team_id ≠ null</code> → Avaliação da equipe inteira</li>
+                            <li><code>evaluator_id = target_user_id, target_team_id = null</code> → Autoavaliação</li>
+                            <li><code>evaluator_id ≠ target_user_id, ambos preenchidos</code> → Avaliação peer-to-peer</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>❓ ASSESSMENT_QUESTIONS</h5>
+                        <p><strong>Função:</strong> Questões das 20 competências para autoavaliação</p>
+                        <ul>
+                            <li><code>id</code> - UUID da questão (PK)</li>
+                            <li><code>text</code> - Texto descritivo da competência (required)</li>
+                            <li><code>category</code> - Categoria da competência (required):</li>
+                            <li style="margin-left: 20px;">- HABILIDADES_BASICAS</li>
+                            <li style="margin-left: 20px;">- HABILIDADES_TECNICAS</li>
+                            <li style="margin-left: 20px;">- COMPETENCIAS_SOCIAIS</li>
+                            <li style="margin-left: 20px;">- COMPETENCIAS_COGNITIVAS</li>
+                            <li style="margin-left: 20px;">- IMPACTO_E_AUTOPERCEPCAO</li>
+                            <li><code>order</code> - Ordem de apresentação no formulário</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>📊 ASSESSMENT_QUESTIONS_SURVEY</h5>
+                        <p><strong>Função:</strong> Questões dos formulários de checkpoint (avaliações 360°)</p>
+                        <ul>
+                            <li><code>id</code> - ID da questão (PK)</li>
+                            <li><code>text</code> - Texto da pergunta (required)</li>
+                            <li><code>type</code> - Tipo de resposta: scale_1_5, text</li>
+                            <li><code>survey_id</code> - FK para f_surveys(id) - Formulário associado</li>
+                        </ul>
+                        <p><strong>📋 Questões Principais de Liderança (IDs 16-19):</strong></p>
+                        <ul>
+                            <li><code>ID 16:</code> "Confiança e Clareza"</li>
+                            <li><code>ID 17:</code> "Escuta e Colaboração"</li>
+                            <li><code>ID 18:</code> "Orientação e Ideias"</li>
+                            <li><code>ID 19:</code> "Apoio e Evolução"</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>📤 F_SUBMISSIONS</h5>
+                        <p><strong>Função:</strong> Dados derivados de mentorins para compatibilidade</p>
+                        <ul>
+                            <li><code>submission_id</code> - ID da submissão (copiado de mentorins.id)</li>
+                            <li><code>user_id</code> - FK para users(id) - Quem respondeu</li>
+                            <li><code>question_id</code> - FK para assessment_questions(id) - Questão</li>
+                            <li><code>answer</code> - Resposta numérica (1-5)</li>
+                            <li><code>moment</code> - Momento da resposta (INITIAL/FINAL)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="table-description">
+                        <h5>🎮 GUILDS</h5>
+                        <p><strong>Função:</strong> Servidores Discord associados aos eventos</p>
+                        <ul>
+                            <li><code>id</code> - ID do Discord (copiado de invite) (PK)</li>
+                            <li><code>event_id</code> - FK para events(id) - Evento associado</li>
+                            <li><code>name</code> - Nome do servidor Discord</li>
+                            <li><code>invite</code> - Código de convite do Discord</li>
+                            <li><code>created_at</code> - Data de criação</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div id="doc-tab-diagram" class="doc-tab-content" style="display: none;">
+                    <h3>🔗 Diagrama de Relacionamento das Tabelas</h3>
+                    
+                    <div style="text-align: center; margin: 20px 0;">
+                        <svg width="800" height="400" style="border: 1px solid #ccc; background: #f9f9f9;">
+                            <!-- Central Table: Assessment Answers -->
+                            <rect x="300" y="120" width="200" height="80" fill="#d4edda" stroke="#28a745" stroke-width="2"/>
+                            <text x="400" y="140" text-anchor="middle" font-weight="bold" font-size="14">Assessment</text>
+                            <text x="400" y="155" text-anchor="middle" font-weight="bold" font-size="14">Answers</text>
+                            <text x="400" y="175" text-anchor="middle" font-size="11">(Central)</text>
+                            
+                            <!-- Teams -->
+                            <rect x="50" y="40" width="120" height="60" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="110" y="65" text-anchor="middle" font-weight="bold" font-size="12">Teams</text>
+                            <text x="110" y="80" text-anchor="middle" font-size="10">id, name, code</text>
+                            
+                            <!-- Users -->
+                            <rect x="630" y="40" width="120" height="60" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="690" y="65" text-anchor="middle" font-weight="bold" font-size="12">Users</text>
+                            <text x="690" y="80" text-anchor="middle" font-size="10">id, name, email, role</text>
+                            
+                            <!-- Mentorins -->
+                            <rect x="50" y="240" width="120" height="60" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="110" y="265" text-anchor="middle" font-weight="bold" font-size="12">Mentorins</text>
+                            <text x="110" y="280" text-anchor="middle" font-size="10">(f_submissions)</text>
+                            
+                            <!-- Assessment Questions -->
+                            <rect x="250" y="280" width="140" height="80" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="320" y="300" text-anchor="middle" font-weight="bold" font-size="12">Assessment</text>
+                            <text x="320" y="315" text-anchor="middle" font-weight="bold" font-size="12">Questions</text>
+                            <text x="320" y="335" text-anchor="middle" font-size="10">(Habilidades)</text>
+                            
+                            <!-- Assessment Questions Survey -->
+                            <rect x="420" y="280" width="140" height="80" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="490" y="300" text-anchor="middle" font-weight="bold" font-size="12">Assessment</text>
+                            <text x="490" y="315" text-anchor="middle" font-weight="bold" font-size="12">Questions</text>
+                            <text x="490" y="335" text-anchor="middle" font-size="10">(Survey)</text>
+                            
+                            <!-- F Submissions -->
+                            <rect x="630" y="240" width="120" height="60" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="690" y="265" text-anchor="middle" font-weight="bold" font-size="12">F Submissions</text>
+                            <text x="690" y="280" text-anchor="middle" font-size="10">submission_id</text>
+                            
+                            <!-- Guilds -->
+                            <rect x="50" y="360" width="120" height="60" fill="#cce5ff" stroke="#007bff" stroke-width="2"/>
+                            <text x="110" y="385" text-anchor="middle" font-weight="bold" font-size="12">Guilds</text>
+                            <text x="110" y="400" text-anchor="middle" font-size="10">event_id, invite</text>
+                            
+                            <!-- Connecting Lines -->
+                            <!-- Teams to Assessment Answers -->
+                            <line x1="170" y1="70" x2="300" y2="140" stroke="#007bff" stroke-width="2"/>
+                            <text x="230" y="100" font-size="10" fill="#007bff">team_id</text>
+                            
+                            <!-- Users to Assessment Answers -->
+                            <line x1="630" y1="70" x2="500" y2="140" stroke="#007bff" stroke-width="2"/>
+                            <text x="560" y="100" font-size="10" fill="#007bff">user_id</text>
+                            
+                            <!-- Assessment Answers to Assessment Questions -->
+                            <line x1="360" y1="200" x2="320" y2="280" stroke="#007bff" stroke-width="2"/>
+                            <text x="340" y="240" font-size="10" fill="#007bff">question_id</text>
+                            
+                            <!-- Assessment Answers to Assessment Questions Survey -->
+                            <line x1="440" y1="200" x2="490" y2="280" stroke="#007bff" stroke-width="2"/>
+                            <text x="465" y="240" font-size="10" fill="#007bff">question_id</text>
+                            
+                            <!-- Assessment Answers to F Submissions -->
+                            <line x1="500" y1="160" x2="630" y2="250" stroke="#007bff" stroke-width="2"/>
+                            <text x="565" y="200" font-size="10" fill="#007bff">submission_id</text>
+                            
+                            <!-- Mentorins to Assessment Answers -->
+                            <line x1="170" y1="270" x2="300" y2="180" stroke="#007bff" stroke-width="2"/>
+                            <text x="230" y="225" font-size="10" fill="#007bff">evaluator_id</text>
+                            
+                            <!-- Mentorins to Guilds -->
+                            <line x1="110" y1="300" x2="110" y2="360" stroke="#007bff" stroke-width="2"/>
+                            <text x="125" y="330" font-size="10" fill="#007bff">related</text>
+                        </svg>
+                    </div>
+                    
+                    <h4>🔗 Relacionamentos Principais</h4>
+                    
+                    <div class="relationship-section">
+                        <h5>🎯 Assessment Answers (Tabela Central)</h5>
+                        <p>Esta é a tabela central que conecta todas as outras. Contém as respostas das avaliações e autoavaliações.</p>
+                        <ul>
+                            <li><strong>→ Users:</strong> <code>user_id</code> identifica quem respondeu</li>
+                            <li><strong>→ Teams:</strong> <code>team_id</code> identifica a equipe do respondente</li>
+                            <li><strong>→ Assessment Questions:</strong> <code>question_id</code> identifica qual competência foi avaliada</li>
+                            <li><strong>→ F Submissions:</strong> <code>submission_id</code> agrupa respostas por submissão</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="relationship-section">
+                        <h5>🤝 Mentorins (Avaliações 360°)</h5>
+                        <p>Registra todas as submissões de avaliações entre participantes, incluindo avaliações de mentores.</p>
+                        <ul>
+                            <li><code>evaluator_id → Users</code> - Quem fez a avaliação</li>
+                            <li><code>target_user_id → Users</code> - Quem foi avaliado (pode ser nulo para avaliações de equipe)</li>
+                            <li><code>target_team_id → Teams</code> - Equipe avaliada (pode ser nulo para avaliações pessoais)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="relationship-section">
+                        <h5>🏆 Fluxo de Dados para Gráficos</h5>
+                        <ol>
+                            <li><strong>Competências 21D:</strong> Assessment_Answers → Assessment_Questions (por category)</li>
+                            <li><strong>Avaliações 360°:</strong> Mentorins → Users (evaluator/target) → F_Answers (respostas)</li>
+                            <li><strong>Checkpoint:</strong> Mentorins (por checkpoint_id) → F_Answers (questões 16-19)</li>
+                            <li><strong>Mentores:</strong> Mentorins + Users (role='mentor') → F_Answers</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div id="doc-tab-api" class="doc-tab-content" style="display: none;">
+                    <h3>🔌 APIs e Endpoints</h3>
+                    
+                    <div class="api-section">
+                        <h4>📡 Fonte de Dados Principal</h4>
+                        <div class="code-block">
+                            <pre><code>const DATA_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker';</code></pre>
+                        </div>
+                        <p><strong>Método:</strong> GET</p>
+                        <p><strong>Formato:</strong> JSON Array com dados segregados automaticamente</p>
+                    </div>
+                    
+                    <div class="api-section">
+                        <h4>🛠️ Endpoints do Servidor Python</h4>
+                        <ul>
+                            <li><code>GET /</code> - Página principal (index.html)</li>
+                            <li><code>GET /api/supabase-url</code> - URL do Supabase</li>
+                            <li><code>GET /api/supabase-key</code> - Chave pública do Supabase</li>
+                            <li><code>GET /api/supabase-config</code> - Configuração completa do Supabase</li>
+                            <li><code>POST /api/configure-n8n-webhook</code> - Configurar webhook N8N</li>
+                            <li><code>GET /webhook/n8n-teams-data</code> - Testar webhook N8N</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="api-section">
+                        <h4>🔄 Fluxo de Processamento de Dados</h4>
+                        <ol>
+                            <li><strong>Carregamento:</strong> Fetch dos dados do webhook N8N</li>
+                            <li><strong>Segregação:</strong> Organização por tipo de tabela usando <code>segregateData()</code></li>
+                            <li><strong>Cache:</strong> Backup em <code>originalSegregatedData</code></li>
+                            <li><strong>Renderização:</strong> Criação de tabelas e gráficos</li>
+                            <li><strong>Interatividade:</strong> Filtros e seleções em tempo real</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="api-section">
+                        <h4>⚙️ Funções Principais para Frontend</h4>
+                        <ul>
+                            <li><code>segregateData(data)</code> - Organiza dados brutos por tabela</li>
+                            <li><code>renderAllTables(data, order)</code> - Renderiza todas as tabelas</li>
+                            <li><code>renderCharts(data)</code> - Cria todos os gráficos radar</li>
+                            <li><code>validateRelatedIds()</code> - Valida consistência entre IDs</li>
+                            <li><code>applyAdvancedFilter(selection)</code> - Aplica filtros avançados</li>
+                            <li><code>clearAdvancedFilter()</code> - Reset para dados originais</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="api-section">
+                        <h4>📊 Estrutura de Retorno do Webhook</h4>
+                        <p>O webhook retorna um array com objetos que são automaticamente classificados por:</p>
+                        <ul>
+                            <li><strong>Teams:</strong> <code>item.code && item.name && item.status</code></li>
+                            <li><strong>Users:</strong> <code>item.full_name && item.role</code></li>
+                            <li><strong>Mentorins:</strong> <code>item.evaluator_id</code></li>
+                            <li><strong>Assessment Answers:</strong> <code>item.question_id && item.answer !== undefined</code></li>
+                            <li><strong>Assessment Questions:</strong> <code>item.text && item.category</code></li>
+                            <li><strong>Survey Questions:</strong> <code>item.text && item.type && item.survey_id</code></li>
+                            <li><strong>Guilds:</strong> <code>item.name && item.invite</code></li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -535,7 +1120,10 @@
                 renderAllTables(segregatedData, currentTableOrder);
                 setupEventListeners();
             } catch (error) {
-                document.getElementById('loading-indicator').innerText = `Erro ao carregar os dados: ${error.message}`;
+                const loadingIndicator = document.getElementById('loading-indicator');
+                if (loadingIndicator) {
+                    loadingIndicator.innerText = `Erro ao carregar os dados: ${error.message}`;
+                }
                 console.error("Fetch error:", error);
             }
         };
@@ -1153,26 +1741,26 @@
                 const evaluatorUser = data.users.find(u => u.id === evaluatorId);
                 if (!evaluatorUser) return;
 
+                // Excluir avaliações de mentores
+                const isMentor = evaluatorUser.role === 'mentor';
+                if (isMentor) return;
+
                 const evaluatorEvaluations = evaluationsByEvaluator[evaluatorId];
                 const latestEvaluation = evaluatorEvaluations.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
                 const scores = getScoresForSubmission(latestEvaluation.id);
 
                 if (scores.some(s => s > 0)) {
-                    const isMentor = evaluatorUser.role === 'mentor';
-                    const borderColor = isMentor ? mentorColor : colors[memberColorIndex % colors.length];
+                    const borderColor = colors[memberColorIndex % colors.length];
                     
                     const dataset = {
-                        label: `${evaluatorUser.full_name.split(' ')[0]} ${isMentor ? '(Mentor)' : ''}`,
+                        label: `${evaluatorUser.full_name.split(' ')[0]}`,
                         data: scores,
                         borderColor: borderColor,
                         backgroundColor: borderColor.replace('1)', '0.2)'),
                         borderWidth: 2,
-                        borderDash: isMentor ? [5, 5] : [],
                     };
                     datasets.push(dataset);
-                    if (!isMentor) {
-                        memberColorIndex++;
-                    }
+                    memberColorIndex++;
                 }
             });
 
@@ -1611,8 +2199,7 @@
         function setupEventListeners() {
             document.getElementById('validate-btn').addEventListener('click', validatePrimaryTableIds);
             document.getElementById('clear-filter-btn').addEventListener('click', clearAdvancedFilter);
-            document.getElementById('webhook-config-btn').addEventListener('click', showWebhookConfigModal);
-            document.getElementById('test-webhook-btn').addEventListener('click', testWebhook);
+            document.getElementById('documentation-btn').addEventListener('click', showDocumentationModal);
             
             document.getElementById('primary-table-select').addEventListener('change', (event) => {
                 const selectedTableKey = event.target.value;
@@ -1683,17 +2270,10 @@
             
             const modal = document.getElementById('diagram-modal');
             const closeBtn = modal.querySelector('.close-btn');
-            const webhookModal = document.getElementById('webhook-config-modal');
 
             closeBtn.onclick = function() {
                 modal.style.display = "none";
             }
-
-            // Setup webhook modal
-            document.getElementById('save-webhook-btn').addEventListener('click', saveWebhookConfig);
-            document.getElementById('cancel-webhook-btn').addEventListener('click', () => {
-                webhookModal.style.display = "none";
-            });
 
             // Close modals when clicking close button
             document.querySelectorAll('.close-btn').forEach(btn => {
@@ -1999,53 +2579,34 @@
             document.getElementById('clear-filter-btn').style.display = 'none';
         }
 
-        function showWebhookConfigModal() {
-            const modal = document.getElementById('webhook-config-modal');
+        function showDocumentationModal() {
+            const modal = document.getElementById('documentation-modal');
             modal.style.display = 'block';
+            
+            // Setup tabs functionality
+            setupDocumentationTabs();
         }
 
-        async function saveWebhookConfig() {
-            const webhookUrl = document.getElementById('n8n-webhook-url').value;
-            if (!webhookUrl) {
-                alert('Por favor, insira uma URL válida para o webhook N8N');
-                return;
-            }
+        function setupDocumentationTabs() {
+            // Setup tab buttons
+            const tabButtons = document.querySelectorAll('.doc-tab-btn');
+            const tabContents = document.querySelectorAll('.doc-tab-content');
 
-            try {
-                const response = await fetch('/api/configure-n8n-webhook', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ webhook_url: webhookUrl })
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.dataset.tab;
+                    
+                    // Remove active class from all buttons and contents
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+                    
+                    // Add active class to clicked button and corresponding content
+                    button.classList.add('active');
+                    document.getElementById(`doc-tab-${targetTab}`).classList.add('active');
                 });
-
-                const result = await response.json();
-                if (result.status === 'success') {
-                    alert('Webhook N8N configurado com sucesso!');
-                    document.getElementById('webhook-config-modal').style.display = 'none';
-                } else {
-                    alert('Erro ao configurar webhook: ' + result.message);
-                }
-            } catch (error) {
-                alert('Erro ao salvar configuração: ' + error.message);
-            }
+            });
         }
 
-        async function testWebhook() {
-            try {
-                const response = await fetch('/webhook/n8n-teams-data');
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    alert(`Webhook testado com sucesso!\n\nEquipes processadas: ${data.teams_processed || data.data?.length || 0}\n\nResultado: ${data.message}`);
-                } else {
-                    alert('Erro no teste do webhook: ' + data.message);
-                }
-            } catch (error) {
-                alert('Erro ao testar webhook: ' + error.message);
-            }
-        }
     </script>
 </body>
 </html>
