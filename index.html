@@ -413,6 +413,8 @@
                 <div class="buttons-group">
                     <button id="validate-btn">Validar IDs</button>
                     <button id="clear-filter-btn" style="display: none;">Limpar Filtro</button>
+                    <button id="webhook-config-btn">Config N8N</button>
+                    <button id="test-webhook-btn">Testar Webhook</button>
                 </div>
             </div>
             <div class="controls-row checkbox-group">
@@ -423,6 +425,11 @@
         <div id="team-averages-summary" class="team-summary" style="display: none;">
             <h2 id="team-summary-title">Resumo das Médias da Equipe</h2>
             <div id="team-averages-content"></div>
+        </div>
+        
+        <div id="team-averages-summary-doubled" class="team-summary" style="display: none;">
+            <h2 id="team-summary-title-doubled">Resumo das Médias da Equipe (x2)</h2>
+            <div id="team-averages-content-doubled"></div>
         </div>
         
         <div id="tables-wrapper">
@@ -465,6 +472,25 @@
             <div class="modal-body">
                 <div id="diagram-container"></div>
                 <svg id="diagram-svg"></svg>
+            </div>
+        </div>
+    </div>
+
+    <div id="webhook-config-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Configurar Webhook N8N</h2>
+                <span class="close-btn">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div style="padding: 20px;">
+                    <label for="n8n-webhook-url" style="display: block; margin-bottom: 10px; font-weight: bold;">URL do Webhook N8N:</label>
+                    <input type="url" id="n8n-webhook-url" placeholder="https://seu-n8n.com/webhook/your-path" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 15px;">
+                    <div style="text-align: right;">
+                        <button id="save-webhook-btn" style="background-color: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">Salvar</button>
+                        <button id="cancel-webhook-btn" style="background-color: #6c757d; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1322,7 +1348,7 @@
                 tableContainer.appendChild(headerDiv);
 
                 const table = document.createElement('table');
-                const headers = (config.headers.includes('selecionar') && index === 0) ? config.headers : config.headers.filter(h => h !== 'selecionar');
+                const headers = config.headers;
                 
                 const thead = document.createElement('thead');
                 const headerRow = document.createElement('tr');
@@ -1413,6 +1439,8 @@
         function setupEventListeners() {
             document.getElementById('validate-btn').addEventListener('click', validatePrimaryTableIds);
             document.getElementById('clear-filter-btn').addEventListener('click', clearAdvancedFilter);
+            document.getElementById('webhook-config-btn').addEventListener('click', showWebhookConfigModal);
+            document.getElementById('test-webhook-btn').addEventListener('click', testWebhook);
             
             document.getElementById('primary-table-select').addEventListener('change', (event) => {
                 const selectedTableKey = event.target.value;
@@ -1483,14 +1511,28 @@
             
             const modal = document.getElementById('diagram-modal');
             const closeBtn = modal.querySelector('.close-btn');
+            const webhookModal = document.getElementById('webhook-config-modal');
 
             closeBtn.onclick = function() {
                 modal.style.display = "none";
             }
 
+            // Setup webhook modal
+            document.getElementById('save-webhook-btn').addEventListener('click', saveWebhookConfig);
+            document.getElementById('cancel-webhook-btn').addEventListener('click', () => {
+                webhookModal.style.display = "none";
+            });
+
+            // Close modals when clicking close button
+            document.querySelectorAll('.close-btn').forEach(btn => {
+                btn.onclick = function() {
+                    btn.closest('.modal').style.display = "none";
+                }
+            });
+
             window.onclick = function(event) {
-                if (event.target == modal) {
-                    modal.style.display = "none";
+                if (event.target.classList.contains('modal')) {
+                    event.target.style.display = "none";
                 }
             }
         }
@@ -1608,11 +1650,16 @@
             const summaryContainer = document.getElementById('team-averages-summary');
             const summaryContent = document.getElementById('team-averages-content');
             const summaryTitle = document.getElementById('team-summary-title');
+            const summaryContainerDoubled = document.getElementById('team-averages-summary-doubled');
+            const summaryContentDoubled = document.getElementById('team-averages-content-doubled');
+            const summaryTitleDoubled = document.getElementById('team-summary-title-doubled');
             
             if (sourceTableKey === 'teams') {
                 const teamId = itemId;
                 summaryContainer.style.display = 'block';
+                summaryContainerDoubled.style.display = 'block';
                 summaryTitle.textContent = `Resumo das Médias da Equipe: ${sourceItem.name}`;
+                summaryTitleDoubled.textContent = `Resumo das Médias da Equipe (x2): ${sourceItem.name}`;
 
                 const teamMemberIds = new Set(
                     originalSegregatedData.assessment_answers
@@ -1661,6 +1708,16 @@
                         <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverage}</p> </div>
                     `;
 
+                    const peerAverageDoubled = peerAverage !== 'N/A' ? (parseFloat(peerAverage) * 2).toFixed(2) : 'N/A';
+                    const mentorAverageDoubled = mentorAverage !== 'N/A' ? (parseFloat(mentorAverage) * 2).toFixed(2) : 'N/A';
+                    const checkpointAverageDoubled = checkpointAverage !== 'N/A' ? (parseFloat(checkpointAverage) * 2).toFixed(2) : 'N/A';
+
+                    summaryContentDoubled.innerHTML = `
+                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverageDoubled}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAverageDoubled}</p> </div>
+                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverageDoubled}</p> </div>
+                    `;
+
                     renderCharts(filteredDataForCharts);
                     renderEvaluation360Chart(originalSegregatedData, { teamId: teamId, isTeamAverage: true });
                     renderMentorEvaluationChart(originalSegregatedData, { teamId: teamId });
@@ -1668,10 +1725,12 @@
                     renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
                 } else {
                     summaryContent.innerHTML = '<p>Time não possui membros com respostas para gerar o resumo.</p>';
+                    summaryContentDoubled.innerHTML = '<p>Time não possui membros com respostas para gerar o resumo.</p>';
                 }
 
             } else if (sourceTableKey === 'users') {
                 summaryContainer.style.display = 'none';
+                summaryContainerDoubled.style.display = 'none';
                 const userId = itemId;
                 const filteredDataForUserCharts = JSON.parse(JSON.stringify(originalSegregatedData));
                 filteredDataForUserCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => a.user_id === userId);
@@ -1683,6 +1742,7 @@
                 renderMentorEvaluationChart(originalSegregatedData, { userId: userId });
             } else {
                 summaryContainer.style.display = 'none';
+                summaryContainerDoubled.style.display = 'none';
             }
 
             let relevantAnswers = [];
@@ -1752,6 +1812,7 @@
             sortStates = {};
             
             document.getElementById('team-averages-summary').style.display = 'none';
+            document.getElementById('team-averages-summary-doubled').style.display = 'none';
             
             renderAllTables(segregatedData, currentTableOrder);
             renderCharts(originalSegregatedData);
@@ -1762,6 +1823,54 @@
 
             document.getElementById('validate-btn').style.display = 'inline-block';
             document.getElementById('clear-filter-btn').style.display = 'none';
+        }
+
+        function showWebhookConfigModal() {
+            const modal = document.getElementById('webhook-config-modal');
+            modal.style.display = 'block';
+        }
+
+        async function saveWebhookConfig() {
+            const webhookUrl = document.getElementById('n8n-webhook-url').value;
+            if (!webhookUrl) {
+                alert('Por favor, insira uma URL válida para o webhook N8N');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/configure-n8n-webhook', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ webhook_url: webhookUrl })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    alert('Webhook N8N configurado com sucesso!');
+                    document.getElementById('webhook-config-modal').style.display = 'none';
+                } else {
+                    alert('Erro ao configurar webhook: ' + result.message);
+                }
+            } catch (error) {
+                alert('Erro ao salvar configuração: ' + error.message);
+            }
+        }
+
+        async function testWebhook() {
+            try {
+                const response = await fetch('/webhook/n8n-teams-data');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    alert(`Webhook testado com sucesso!\n\nEquipes processadas: ${data.teams_processed || data.data?.length || 0}\n\nResultado: ${data.message}`);
+                } else {
+                    alert('Erro no teste do webhook: ' + data.message);
+                }
+            } catch (error) {
+                alert('Erro ao testar webhook: ' + error.message);
+            }
         }
     </script>
 </body>
