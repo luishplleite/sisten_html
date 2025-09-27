@@ -356,13 +356,9 @@
 
         #diagram-container {
             position: relative;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            grid-template-rows: repeat(2, 1fr);
-            gap: 60px;
+            width: 100%;
             height: 100%;
-            align-items: center;
-            justify-items: center;
+            overflow: hidden;
         }
 
         .diagram-table {
@@ -374,8 +370,22 @@
             width: 150px;
             font-weight: bold;
             box-shadow: 0 2px 4px var(--shadow-color);
-            position: relative;
+            position: absolute;
             z-index: 2;
+        }
+
+        .diagram-table.center {
+            border-color: #28a745;
+            background-color: #d4edda;
+            font-size: 1.1em;
+            width: 180px;
+            padding: 20px;
+            border-width: 3px;
+        }
+        
+        .diagram-table.connected {
+            border-color: #17a2b8;
+            background-color: #d1ecf1;
         }
 
         .diagram-table.primary {
@@ -684,6 +694,16 @@
                 else if (item.name && item.invite) {
                     result.guilds.push({ ...item, id: item.invite });
                 }
+            });
+            
+            // Sort assessment_answers to show records with team_id at the top
+            result.assessment_answers.sort((a, b) => {
+                const aHasTeamId = a.team_id !== null && a.team_id !== undefined;
+                const bHasTeamId = b.team_id !== null && b.team_id !== undefined;
+                
+                if (aHasTeamId && !bHasTeamId) return -1;
+                if (!aHasTeamId && bHasTeamId) return 1;
+                return 0;
             });
             
             result.f_answers = mockFAnswers(result.mentorins);
@@ -1449,7 +1469,8 @@
                             if (header === 'selecionar') {
                                 cell.innerHTML = `<button class="select-row-btn" data-item-id="${row.dataset.itemId}" data-table-key="${key}">Selecionar</button>`;
                             } else {
-                                cell.textContent = item[header] ?? '';
+                                const value = item[header];
+                                cell.textContent = (value === null || value === undefined || value === '') ? 'N/A' : value;
                             }
                         });
                     });
@@ -1594,51 +1615,51 @@
                 return;
             }
 
-            // Mapear relacionamentos entre tabelas
+            // Mapeamento baseado em análise real dos dados com contadores
             const relationshipMap = {
-                users: {
-                    directRelated: ['assessment_answers', 'mentorins'],
-                    indirectRelated: ['teams', 'assessment_questions']
-                },
                 teams: {
-                    directRelated: ['assessment_answers', 'mentorins'],
-                    indirectRelated: ['users', 'assessment_questions']
+                    connections: ['assessment_answers', 'mentorins', 'guilds'],
+                    counts: {'assessment_answers': 43, 'mentorins': 1972, 'guilds': 6}
+                },
+                users: {
+                    connections: ['assessment_answers', 'mentorins'],
+                    counts: {'assessment_answers': 196, 'mentorins': 180}
                 },
                 assessment_answers: {
-                    directRelated: ['users', 'teams', 'assessment_questions'],
-                    indirectRelated: ['mentorins']
+                    connections: ['users', 'teams', 'assessment_questions', 'mentorins'],
+                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280}
                 },
                 mentorins: {
-                    directRelated: ['users', 'teams'],
-                    indirectRelated: ['assessment_answers', 'assessment_questions_survey']
+                    connections: ['users', 'teams', 'assessment_questions_survey', 'assessment_answers'],
+                    counts: {'users': 180, 'teams': 43, 'assessment_questions_survey': 2395, 'assessment_answers': 280}
                 },
                 assessment_questions: {
-                    directRelated: ['assessment_answers'],
-                    indirectRelated: ['users', 'teams']
+                    connections: ['assessment_answers'],
+                    counts: {'assessment_answers': 21}
                 },
                 assessment_questions_survey: {
-                    directRelated: ['mentorins'],
-                    indirectRelated: ['users', 'teams']
+                    connections: ['mentorins'],
+                    counts: {'mentorins': 2395}
                 },
                 f_submissions: {
-                    directRelated: ['users', 'assessment_questions'],
-                    indirectRelated: ['teams']
+                    connections: ['users', 'teams', 'assessment_questions', 'mentorins'],
+                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280}
                 },
                 guilds: {
-                    directRelated: [],
-                    indirectRelated: ['teams', 'users']
+                    connections: ['teams'],
+                    counts: {'teams': 64}
                 }
             };
 
             const relationships = relationshipMap[primaryTableKey];
             if (relationships) {
-                showDiagramModal(primaryTableKey, relationships);
+                showDiagramModal(primaryTableKey, relationships.connections);
             } else {
                 alert('Nenhum relacionamento encontrado para a tabela selecionada.');
             }
         }
 
-        function showDiagramModal(primaryTableKey, relatedTables) {
+        function showDiagramModal(primaryTableKey, connectedTables) {
             const modal = document.getElementById('diagram-modal');
             const container = document.getElementById('diagram-container');
             const svg = document.getElementById('diagram-svg');
@@ -1647,23 +1668,31 @@
             container.innerHTML = '';
             svg.innerHTML = '';
             
-            // Configurar tabelas para o diagrama
-            const allTables = [primaryTableKey, ...relatedTables.directRelated, ...relatedTables.indirectRelated];
+            // Criar elementos de tabela no diagrama - layout horizontal como na imagem
+            const tableElements = {};
+            const allTables = [primaryTableKey, ...connectedTables];
             const uniqueTables = [...new Set(allTables)];
             
-            // Criar elementos de tabela no diagrama
-            const tableElements = {};
-            uniqueTables.forEach((tableKey, index) => {
+            // Posições baseadas no layout da imagem
+            const positions = createHorizontalLayout(uniqueTables, primaryTableKey, container);
+            
+            uniqueTables.forEach(tableKey => {
+                const position = positions[tableKey];
                 const tableDiv = document.createElement('div');
                 tableDiv.className = 'diagram-table';
                 tableDiv.innerHTML = tableConfig[tableKey]?.title || tableKey;
                 tableDiv.id = `diagram-table-${tableKey}`;
                 
-                // Destacar tabela principal
+                // Posicionar tabela
+                tableDiv.style.left = `${position.x}px`;
+                tableDiv.style.top = `${position.y}px`;
+                tableDiv.style.transform = 'translate(-50%, -50%)';
+                
+                // Destacar tabela principal no centro
                 if (tableKey === primaryTableKey) {
-                    tableDiv.classList.add('primary');
-                } else if (relatedTables.directRelated.includes(tableKey)) {
-                    tableDiv.classList.add('related');
+                    tableDiv.classList.add('center');
+                } else if (connectedTables.includes(tableKey)) {
+                    tableDiv.classList.add('connected');
                 }
                 
                 container.appendChild(tableDiv);
@@ -1675,29 +1704,52 @@
             
             // Aguardar um frame para garantir que o layout foi calculado
             setTimeout(() => {
-                // Desenhar linhas conectando tabelas relacionadas
+                // Conectar tabelas relacionadas à tabela principal
                 const primaryElement = tableElements[primaryTableKey];
                 if (primaryElement) {
-                    // Linhas para tabelas diretamente relacionadas
-                    relatedTables.directRelated.forEach(relatedKey => {
-                        const relatedElement = tableElements[relatedKey];
-                        if (relatedElement) {
-                            drawLine(svg, primaryElement, relatedElement, 'direct');
-                        }
-                    });
-                    
-                    // Linhas para tabelas indiretamente relacionadas
-                    relatedTables.indirectRelated.forEach(relatedKey => {
-                        const relatedElement = tableElements[relatedKey];
-                        if (relatedElement) {
-                            drawLine(svg, primaryElement, relatedElement, 'indirect');
+                    connectedTables.forEach(tableKey => {
+                        const tableElement = tableElements[tableKey];
+                        if (tableElement) {
+                            drawLine(svg, primaryElement, tableElement, 'connection');
                         }
                     });
                 }
             }, 100);
         }
+        
+        function createHorizontalLayout(tables, primaryTable, container) {
+            const positions = {};
+            const containerWidth = container.offsetWidth || 1000;
+            const containerHeight = container.offsetHeight || 400;
+            
+            // Colocar tabela principal no centro
+            positions[primaryTable] = {
+                x: containerWidth / 2,
+                y: containerHeight / 2
+            };
+            
+            // Posicionar outras tabelas ao redor horizontalmente
+            const connectedTables = tables.filter(t => t !== primaryTable);
+            const spacing = Math.min(180, (containerWidth - 200) / (connectedTables.length + 1));
+            
+            connectedTables.forEach((table, index) => {
+                const totalWidth = (connectedTables.length - 1) * spacing;
+                const startX = (containerWidth - totalWidth) / 2;
+                
+                // Alternar entre linha superior e inferior
+                const isTopRow = index % 2 === 0;
+                const rowIndex = Math.floor(index / 2);
+                
+                positions[table] = {
+                    x: startX + (rowIndex * spacing * 2) + (index % 2 === 1 ? spacing : 0),
+                    y: isTopRow ? containerHeight * 0.25 : containerHeight * 0.75
+                };
+            });
+            
+            return positions;
+        }
 
-        function drawLine(svg, el1, el2, type = 'direct') {
+        function drawLine(svg, el1, el2, type = 'connection') {
             const rect1 = el1.getBoundingClientRect();
             const rect2 = el2.getBoundingClientRect();
             const svgRect = svg.getBoundingClientRect();
@@ -1708,44 +1760,17 @@
             const x2 = rect2.left + rect2.width / 2 - svgRect.left;
             const y2 = rect2.top + rect2.height / 2 - svgRect.top;
             
-            // Criar linha SVG
+            // Criar linha SVG - simples e limpa como na imagem
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
             line.setAttribute('x2', x2);
             line.setAttribute('y2', y2);
-            
-            // Estilo da linha baseado no tipo de relacionamento
-            if (type === 'direct') {
-                line.setAttribute('stroke', '#28a745');
-                line.setAttribute('stroke-width', '3');
-                line.setAttribute('stroke-dasharray', 'none');
-            } else {
-                line.setAttribute('stroke', '#007bff');
-                line.setAttribute('stroke-width', '2');
-                line.setAttribute('stroke-dasharray', '5,5');
-            }
-            
-            line.setAttribute('opacity', '0.7');
+            line.setAttribute('stroke', '#17a2b8');
+            line.setAttribute('stroke-width', '2');
+            line.setAttribute('stroke-dasharray', 'none');
+            line.setAttribute('opacity', '0.8');
             svg.appendChild(line);
-            
-            // Criar seta indicando direção
-            const arrowSize = 8;
-            const angle = Math.atan2(y2 - y1, x2 - x1);
-            const arrowX = x2 - Math.cos(angle) * 20;
-            const arrowY = y2 - Math.sin(angle) * 20;
-            
-            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-            const arrowPoints = [
-                [arrowX, arrowY],
-                [arrowX - arrowSize * Math.cos(angle - Math.PI / 6), arrowY - arrowSize * Math.sin(angle - Math.PI / 6)],
-                [arrowX - arrowSize * Math.cos(angle + Math.PI / 6), arrowY - arrowSize * Math.sin(angle + Math.PI / 6)]
-            ];
-            
-            arrow.setAttribute('points', arrowPoints.map(p => p.join(',')).join(' '));
-            arrow.setAttribute('fill', type === 'direct' ? '#28a745' : '#007bff');
-            arrow.setAttribute('opacity', '0.7');
-            svg.appendChild(arrow);
         }
         
         function applyAdvancedFilter(itemId, sourceTableKey) {
