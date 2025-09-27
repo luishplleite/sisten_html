@@ -659,20 +659,35 @@
                 teams: [], users: [], mentorins: [], assessment_answers: [],
                 assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
             };
-            data.forEach(item => {
-                if (item.code && item.name && item.status) result.teams.push(item);
-                else if (item.full_name && item.role) result.users.push(item);
-                else if (item.evaluator_id) result.mentorins.push(item);
+            
+            data.forEach((item, index) => {
+                if (item.code && item.name && item.status) {
+                    result.teams.push(item);
+                }
+                else if (item.full_name && item.role) {
+                    result.users.push(item);
+                }
+                else if (item.evaluator_id) {
+                    result.mentorins.push(item);
+                }
                 else if (item.question_id && typeof item.answer !== 'undefined') {
                     result.assessment_answers.push(item);
                     if (!item.f_submission_id) item.f_submission_id = item.id;
                     result.f_submissions.push(item);
-                } else if (item.text && item.category) result.assessment_questions.push(item);
-                else if (item.text && item.type && item.survey_id) result.assessment_questions_survey.push(item);
-                else if (item.name && item.invite) result.guilds.push({ ...item, id: item.invite });
+                }
+                else if (item.text && item.category) {
+                    result.assessment_questions.push(item);
+                }
+                else if (item.text && item.type && item.survey_id) {
+                    result.assessment_questions_survey.push(item);
+                }
+                else if (item.name && item.invite) {
+                    result.guilds.push({ ...item, id: item.invite });
+                }
             });
             
             result.f_answers = mockFAnswers(result.mentorins);
+            
             return result;
         }
 
@@ -1375,6 +1390,11 @@
 
         function renderAllTables(data, renderOrder) {
             const wrapper = document.getElementById('tables-wrapper');
+            if (!wrapper) {
+                console.error('Elemento tables-wrapper não encontrado');
+                return;
+            }
+            
             wrapper.innerHTML = '';
             renderControls(renderOrder);
 
@@ -1568,15 +1588,164 @@
         }
         
         function validatePrimaryTableIds() {
-             // Functionality remains the same as provided
+            const primaryTableKey = document.getElementById('primary-table-select').value;
+            if (!primaryTableKey) {
+                alert('Selecione uma tabela principal primeiro.');
+                return;
+            }
+
+            // Mapear relacionamentos entre tabelas
+            const relationshipMap = {
+                users: {
+                    directRelated: ['assessment_answers', 'mentorins'],
+                    indirectRelated: ['teams', 'assessment_questions']
+                },
+                teams: {
+                    directRelated: ['assessment_answers', 'mentorins'],
+                    indirectRelated: ['users', 'assessment_questions']
+                },
+                assessment_answers: {
+                    directRelated: ['users', 'teams', 'assessment_questions'],
+                    indirectRelated: ['mentorins']
+                },
+                mentorins: {
+                    directRelated: ['users', 'teams'],
+                    indirectRelated: ['assessment_answers', 'assessment_questions_survey']
+                },
+                assessment_questions: {
+                    directRelated: ['assessment_answers'],
+                    indirectRelated: ['users', 'teams']
+                },
+                assessment_questions_survey: {
+                    directRelated: ['mentorins'],
+                    indirectRelated: ['users', 'teams']
+                },
+                f_submissions: {
+                    directRelated: ['users', 'assessment_questions'],
+                    indirectRelated: ['teams']
+                },
+                guilds: {
+                    directRelated: [],
+                    indirectRelated: ['teams', 'users']
+                }
+            };
+
+            const relationships = relationshipMap[primaryTableKey];
+            if (relationships) {
+                showDiagramModal(primaryTableKey, relationships);
+            } else {
+                alert('Nenhum relacionamento encontrado para a tabela selecionada.');
+            }
         }
 
         function showDiagramModal(primaryTableKey, relatedTables) {
-             // Functionality remains the same as provided
+            const modal = document.getElementById('diagram-modal');
+            const container = document.getElementById('diagram-container');
+            const svg = document.getElementById('diagram-svg');
+            
+            // Limpar container e SVG
+            container.innerHTML = '';
+            svg.innerHTML = '';
+            
+            // Configurar tabelas para o diagrama
+            const allTables = [primaryTableKey, ...relatedTables.directRelated, ...relatedTables.indirectRelated];
+            const uniqueTables = [...new Set(allTables)];
+            
+            // Criar elementos de tabela no diagrama
+            const tableElements = {};
+            uniqueTables.forEach((tableKey, index) => {
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'diagram-table';
+                tableDiv.innerHTML = tableConfig[tableKey]?.title || tableKey;
+                tableDiv.id = `diagram-table-${tableKey}`;
+                
+                // Destacar tabela principal
+                if (tableKey === primaryTableKey) {
+                    tableDiv.classList.add('primary');
+                } else if (relatedTables.directRelated.includes(tableKey)) {
+                    tableDiv.classList.add('related');
+                }
+                
+                container.appendChild(tableDiv);
+                tableElements[tableKey] = tableDiv;
+            });
+            
+            // Mostrar modal
+            modal.style.display = 'block';
+            
+            // Aguardar um frame para garantir que o layout foi calculado
+            setTimeout(() => {
+                // Desenhar linhas conectando tabelas relacionadas
+                const primaryElement = tableElements[primaryTableKey];
+                if (primaryElement) {
+                    // Linhas para tabelas diretamente relacionadas
+                    relatedTables.directRelated.forEach(relatedKey => {
+                        const relatedElement = tableElements[relatedKey];
+                        if (relatedElement) {
+                            drawLine(svg, primaryElement, relatedElement, 'direct');
+                        }
+                    });
+                    
+                    // Linhas para tabelas indiretamente relacionadas
+                    relatedTables.indirectRelated.forEach(relatedKey => {
+                        const relatedElement = tableElements[relatedKey];
+                        if (relatedElement) {
+                            drawLine(svg, primaryElement, relatedElement, 'indirect');
+                        }
+                    });
+                }
+            }, 100);
         }
 
-        function drawLine(svg, el1, el2) {
-             // Functionality remains the same as provided
+        function drawLine(svg, el1, el2, type = 'direct') {
+            const rect1 = el1.getBoundingClientRect();
+            const rect2 = el2.getBoundingClientRect();
+            const svgRect = svg.getBoundingClientRect();
+            
+            // Calcular posições relativas ao SVG
+            const x1 = rect1.left + rect1.width / 2 - svgRect.left;
+            const y1 = rect1.top + rect1.height / 2 - svgRect.top;
+            const x2 = rect2.left + rect2.width / 2 - svgRect.left;
+            const y2 = rect2.top + rect2.height / 2 - svgRect.top;
+            
+            // Criar linha SVG
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1);
+            line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2);
+            line.setAttribute('y2', y2);
+            
+            // Estilo da linha baseado no tipo de relacionamento
+            if (type === 'direct') {
+                line.setAttribute('stroke', '#28a745');
+                line.setAttribute('stroke-width', '3');
+                line.setAttribute('stroke-dasharray', 'none');
+            } else {
+                line.setAttribute('stroke', '#007bff');
+                line.setAttribute('stroke-width', '2');
+                line.setAttribute('stroke-dasharray', '5,5');
+            }
+            
+            line.setAttribute('opacity', '0.7');
+            svg.appendChild(line);
+            
+            // Criar seta indicando direção
+            const arrowSize = 8;
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const arrowX = x2 - Math.cos(angle) * 20;
+            const arrowY = y2 - Math.sin(angle) * 20;
+            
+            const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            const arrowPoints = [
+                [arrowX, arrowY],
+                [arrowX - arrowSize * Math.cos(angle - Math.PI / 6), arrowY - arrowSize * Math.sin(angle - Math.PI / 6)],
+                [arrowX - arrowSize * Math.cos(angle + Math.PI / 6), arrowY - arrowSize * Math.sin(angle + Math.PI / 6)]
+            ];
+            
+            arrow.setAttribute('points', arrowPoints.map(p => p.join(',')).join(' '));
+            arrow.setAttribute('fill', type === 'direct' ? '#28a745' : '#007bff');
+            arrow.setAttribute('opacity', '0.7');
+            svg.appendChild(arrow);
         }
         
         function applyAdvancedFilter(itemId, sourceTableKey) {
@@ -1766,9 +1935,9 @@
             document.getElementById('clear-filter-btn').style.display = 'none';
         }
 
-        // =================== SISTEMA DE BUSCA POR FILTROS ===================
+        // =================== SISTEMA DE BUSCA POR FILTROS (DATA FILTERING) ===================
         
-        function applySearchFilters() {
+        function applyDataFilters() {
             const filterNoInitial21 = document.getElementById('filter-no-initial-21').checked;
             const filterNoFinal21 = document.getElementById('filter-no-final-21').checked;
             const filterNo360Self = document.getElementById('filter-no-360-self').checked;
@@ -1980,6 +2149,13 @@
             // Aplicar filtros coloridos para teams
             applyColorFiltersToTeams(filters);
 
+            // Validação - contar usuários que completaram TODAS as avaliações selecionadas
+            setTimeout(() => {
+                const highlightedRows = document.querySelectorAll('tbody tr[class*="filter-"]').length;
+                const totalUsers = originalSegregatedData.users.length;
+                console.log(`Usuários destacados: ${highlightedRows} de ${totalUsers} (apenas quem completou TODAS as avaliações selecionadas)`);
+            }, 100);
+
             // Mostrar/esconder botões
             document.getElementById('apply-search-filters-btn').style.display = 'none';
             document.getElementById('clear-search-filters-btn').style.display = 'inline-block';
@@ -2012,10 +2188,10 @@
                 const user = originalSegregatedData.users.find(u => u.id === userId);
                 if (!user) return;
 
-                const userIssues = checkUserIssues(userId, filters);
+                const userHighlights = checkUserIssues(userId, filters);
                 
-                if (userIssues.length > 0) {
-                    applyColorToRow(row, userIssues);
+                if (userHighlights.length > 0) {
+                    applyColorToRow(row, userHighlights);
                 }
             });
         }
@@ -2042,49 +2218,65 @@
         }
 
         function checkUserIssues(userId, filters) {
-            const issues = [];
+            const activeFilters = [];
+            const completedEvaluations = [];
             
             // Verificar auto avaliação 21D inicial
             if (filters.noInitial21) {
+                activeFilters.push('initial21');
                 const hasInitial21 = originalSegregatedData.assessment_answers.some(answer => 
-                    answer.user_id === userId && answer.moment === 'initial'
+                    answer.user_id === userId && answer.moment === 'INITIAL'
                 );
                 if (hasInitial21) {
-                    issues.push('no-initial-21');
+                    completedEvaluations.push('initial21');
                 }
             }
 
-            // Verificar auto avaliação 21D final
+            // Verificar auto avaliação 21D final  
             if (filters.noFinal21) {
+                activeFilters.push('final21');
                 const hasFinal21 = originalSegregatedData.assessment_answers.some(answer => 
-                    answer.user_id === userId && answer.moment === 'final'
+                    answer.user_id === userId && answer.moment === 'FINAL'
                 );
                 if (hasFinal21) {
-                    issues.push('no-final-21');
+                    completedEvaluations.push('final21');
                 }
             }
 
             // Verificar auto avaliação 360°
             if (filters.no360Self) {
+                activeFilters.push('360self');
                 const has360Self = originalSegregatedData.mentorins.some(submission => 
                     submission.evaluator_id === userId && submission.target_user_id === userId
                 );
                 if (has360Self) {
-                    issues.push('no-360-self');
+                    completedEvaluations.push('360self');
                 }
             }
 
             // Verificar avaliação 360° de outros participantes
             if (filters.no360Others) {
+                activeFilters.push('360others');
                 const has360Others = originalSegregatedData.mentorins.some(submission => 
                     submission.evaluator_id === userId && submission.target_user_id !== userId
                 );
                 if (has360Others) {
-                    issues.push('no-360-others');
+                    completedEvaluations.push('360others');
                 }
             }
 
-            return issues;
+            // Só destacar se completou TODAS as avaliações selecionadas
+            if (activeFilters.length === completedEvaluations.length && activeFilters.length > 0) {
+                // Mapear de volta para as classes CSS correspondentes
+                const highlights = [];
+                if (filters.noInitial21) highlights.push('no-initial-21');
+                if (filters.noFinal21) highlights.push('no-final-21');
+                if (filters.no360Self) highlights.push('no-360-self');
+                if (filters.no360Others) highlights.push('no-360-others');
+                return highlights;
+            }
+
+            return []; // Não destacar se não completou todas as avaliações selecionadas
         }
 
         function checkTeamIssues(teamId, filters) {
@@ -2098,10 +2290,10 @@
             const teamIssues = [];
 
             teamMembers.forEach(member => {
-                const memberIssues = checkUserIssues(member.id, filters);
-                memberIssues.forEach(issue => {
-                    if (!teamIssues.includes(issue)) {
-                        teamIssues.push(issue);
+                const memberHighlights = checkUserIssues(member.id, filters);
+                memberHighlights.forEach(highlight => {
+                    if (!teamIssues.includes(highlight)) {
+                        teamIssues.push(highlight);
                     }
                 });
             });
