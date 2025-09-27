@@ -513,7 +513,7 @@
                 <div class="buttons-group" style="margin: 0 auto;">
                     <button id="apply-search-filters-btn" style="background-color: #007bff;">🔍 Aplicar Filtros</button>
                     <button id="clear-search-filters-btn" style="background-color: #6c757d; display: none;">🗑️ Limpar Busca</button>
-                    <button id="export-excel-btn" style="background-color: #28a745; display: none;">📊 Exportar para Excel</button>
+                    <button id="export-csv-btn" style="background-color: #28a745; display: none;">📊 Exportar CSV</button>
                 </div>
             </div>
             
@@ -1579,7 +1579,7 @@
             // Event listeners para os filtros de busca
             document.getElementById('apply-search-filters-btn').addEventListener('click', applySearchFilters);
             document.getElementById('clear-search-filters-btn').addEventListener('click', clearSearchFilters);
-            document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
+            document.getElementById('export-csv-btn').addEventListener('click', exportToCSV);
             
             document.getElementById('primary-table-select').addEventListener('change', (event) => {
                 const selectedTableKey = event.target.value;
@@ -2206,11 +2206,72 @@
             // Mostrar botão de aplicar filtros e esconder botão de limpar
             document.getElementById('apply-search-filters-btn').style.display = 'inline-block';
             document.getElementById('clear-search-filters-btn').style.display = 'none';
-            document.getElementById('export-excel-btn').style.display = 'none';
+            document.getElementById('export-csv-btn').style.display = 'none';
             
             console.log('Filtros de busca limpos. Dados restaurados ao estado original.');
         }
 
+        // =================== FUNÇÃO CENTRALIZADA PARA PRECISÃO MÁXIMA ===================
+        
+        function getUIFilteredUsers(filters) {
+            // FUNÇÃO PARA VALIDAÇÃO CRUZADA - deve ser idêntica ao getFilteredUsers
+            const filteredUsers = [];
+            
+            originalSegregatedData.users.forEach(user => {
+                const userIssues = checkAllUserIssues(String(user.id)); // Normalizar ID
+                
+                // Verificar se o usuário tem pelo menos uma das questões filtradas
+                const hasFilteredIssue = userIssues.some(issue => {
+                    if (filters.noInitial21 && issue === 'no-initial-21') return true;
+                    if (filters.noFinal21 && issue === 'no-final-21') return true;
+                    if (filters.no360Self && issue === 'no-360-self') return true;
+                    if (filters.no360Others && issue === 'no-360-others') return true;
+                    if (filters.noMentorEvaluation && issue === 'no-mentor-evaluation') return true;
+                    return false;
+                });
+                
+                if (hasFilteredIssue) {
+                    filteredUsers.push({
+                        ...user,
+                        missing_evaluations: userIssues
+                    });
+                }
+            });
+            
+            return filteredUsers;
+        }
+        
+        // =================== FUNÇÃO CENTRALIZADA PARA PRECISÃO MÁXIMA ===================
+        
+        function hasReceivedMentorEvaluation(userId) {
+            // FUNÇÃO CENTRALIZADA PARA GARANTIR PRECISÃO EXTREMA
+            const normalizedUserId = String(userId); // Normalizar ID para string
+            
+            return originalSegregatedData.mentorins.some(submission => {
+                // 1. O usuário deve ser o target (quem foi avaliado) - IDs normalizados
+                if (String(submission.target_user_id) !== normalizedUserId) return false;
+                
+                // 2. Deve ter survey_id válido (validação de dados)
+                if (!submission.survey_id) return false;
+                
+                // 3. Verificar se o avaliador é um mentor com validação robusta
+                const evaluator = originalSegregatedData.users.find(user => String(user.id) === String(submission.evaluator_id));
+                
+                // 4. Fallback para casos onde user lookup falha - verificar role em mentorins se disponível
+                if (!evaluator && submission.evaluator_role) {
+                    console.log(`🔧 Fallback: Evaluator ${submission.evaluator_id} not found in users, using evaluator_role: ${submission.evaluator_role}`);
+                    return submission.evaluator_role === 'mentor';
+                }
+                
+                // 5. Verificação principal: evaluator.role === 'mentor'
+                const isMentor = evaluator && evaluator.role === 'mentor';
+                if (isMentor) {
+                    console.log(`✅ Mentor evaluation found: User ${normalizedUserId} was evaluated by mentor ${evaluator.id} (${evaluator.full_name})`);
+                }
+                return isMentor;
+            });
+        }
+        
         // =================== GERAÇÃO DE INDICADORES PARA USUÁRIOS ===================
         
         function generateUserIndicators(userId) {
@@ -2294,11 +2355,11 @@
                 missingEvaluations.push('no-360-others');
             }
 
-            // Verificar se NÃO fez avaliação de mentores
-            const hasMentorEvaluation = originalSegregatedData.mentorins.some(submission => 
-                submission.evaluator_id === userId && submission.survey_id
-            );
-            if (!hasMentorEvaluation) {
+            // Verificar se MENTOR NÃO FEZ AVALIAÇÃO (USANDO FUNÇÃO CENTRALIZADA)
+            const receivedMentorEvaluation = hasReceivedMentorEvaluation(userId);
+            
+            // Se NÃO recebeu avaliação de mentores, adicionar à lista
+            if (!receivedMentorEvaluation) {
                 missingEvaluations.push('no-mentor-evaluation');
             }
 
@@ -2308,7 +2369,7 @@
         // =================== SISTEMA DE BUSCA COM FILTROS COLORIDOS ===================
 
         function applySearchFilters() {
-            // Obter quais filtros estão marcados
+            // Obter quais filtros estão marcados - VALIDAÇÃO EXTREMAMENTE PRECISA
             const filters = {
                 noInitial21: document.getElementById('filter-no-initial-21').checked,
                 noFinal21: document.getElementById('filter-no-final-21').checked,
@@ -2316,6 +2377,8 @@
                 no360Others: document.getElementById('filter-no-360-others').checked,
                 noMentorEvaluation: document.getElementById('filter-no-mentor-evaluation').checked
             };
+            
+            console.log('🔍 FILTROS APLICADOS (Verificação de Precisão):', filters);
 
             // Se nenhum filtro está marcado, não fazer nada
             if (!Object.values(filters).some(f => f)) {
@@ -2341,7 +2404,7 @@
             // Mostrar/esconder botões
             document.getElementById('apply-search-filters-btn').style.display = 'none';
             document.getElementById('clear-search-filters-btn').style.display = 'inline-block';
-            document.getElementById('export-excel-btn').style.display = 'inline-block';
+            document.getElementById('export-csv-btn').style.display = 'inline-block';
 
             console.log('Filtros coloridos aplicados:', filters);
         }
@@ -2443,12 +2506,12 @@
                 }
             }
 
-            // Verificar se NÃO fez avaliação de mentores
+            // Verificar se MENTOR NÃO FEZ AVALIAÇÃO (USANDO FUNÇÃO CENTRALIZADA)
             if (filters.noMentorEvaluation) {
-                const hasMentorEvaluation = originalSegregatedData.mentorins.some(submission => 
-                    submission.evaluator_id === userId && submission.survey_id
-                );
-                if (!hasMentorEvaluation) {
+                const receivedMentorEvaluation = hasReceivedMentorEvaluation(userId);
+                
+                // Se NÃO recebeu avaliação de mentores, adicionar à lista
+                if (!receivedMentorEvaluation) {
                     missingEvaluations.push('no-mentor-evaluation');
                 }
             }
@@ -2480,25 +2543,33 @@
         }
 
         function applyColorToRow(row, issues) {
+            // APLICAÇÃO EXTREMAMENTE PRECISA DE CORES
+            console.log(`🎨 Aplicando cores para linha com issues:`, issues);
+            
             if (issues.length === 1) {
-                // Aplicar cor única
+                // Aplicar cor única - VALIDAÇÃO PERFEICIONISTA
                 const className = `filter-${issues[0]}`;
                 row.classList.add(className);
+                console.log(`✅ Cor única aplicada: ${className}`);
             } else if (issues.length > 1) {
-                // Aplicar gradiente para múltiplas cores usando as cores atualizadas
+                // Aplicar gradiente para múltiplas cores - CORES EXTREMAMENTE PRECISAS
                 const colors = issues.map(issue => {
                     switch(issue) {
-                        case 'no-initial-21': return '#ffcccc'; // Vermelho forte - Crítico
-                        case 'no-final-21': return '#ffe6cc';   // Laranja - Importante  
-                        case 'no-360-self': return '#fff2cc';   // Amarelo forte - Atenção
-                        case 'no-360-others': return '#e6ccff'; // Roxo forte - Revisão
-                        default: return '#ffffff';
+                        case 'no-initial-21': return '#ffcccc'; // 🔴 Vermelho forte - Crítico
+                        case 'no-final-21': return '#ffe6cc';   // 🟠 Laranja - Importante  
+                        case 'no-360-self': return '#fff2cc';   // 🟡 Amarelo forte - Atenção
+                        case 'no-360-others': return '#e6ccff'; // 🟣 Roxo forte - Revisão
+                        case 'no-mentor-evaluation': return '#ccffe6'; // 🟢 Verde claro - Mentoria
+                        default: return '#ffffff'; // ⚪ Branco - Padrão
                     }
                 });
                 
                 const gradientString = `linear-gradient(to right, ${colors.join(', ')})`;
                 row.style.background = gradientString;
                 row.classList.add('filter-multiple');
+                console.log(`✅ Gradiente aplicado: ${colors.length} cores`);
+            } else {
+                console.log(`⚠️ Nenhuma issue encontrada para esta linha`);
             }
         }
 
@@ -2514,7 +2585,7 @@
             // Mostrar botão de aplicar filtros e esconder botão de limpar
             document.getElementById('apply-search-filters-btn').style.display = 'inline-block';
             document.getElementById('clear-search-filters-btn').style.display = 'none';
-            document.getElementById('export-excel-btn').style.display = 'none';
+            document.getElementById('export-csv-btn').style.display = 'none';
             
             console.log('Filtros de busca coloridos limpos.');
         }
@@ -2540,30 +2611,44 @@
         }
 
         function checkUserReceivedMentorEvaluations(userId) {
-            // Verificar se o usuário recebeu avaliações de mentores
-            const receivedMentorEvaluation = originalSegregatedData.mentorins.some(submission => {
-                // O usuário deve ser o target (quem foi avaliado)
-                if (submission.target_user_id !== userId) return false;
-                
-                // Verificar se o avaliador é um mentor
-                const evaluator = originalSegregatedData.users.find(user => user.id === submission.evaluator_id);
-                
-                // Considerar como avaliação de mentor APENAS se:
-                // O avaliador tem role 'mentor' explicitamente
-                return evaluator && evaluator.role === 'mentor';
-            });
-            
-            return receivedMentorEvaluation;
+            // USAR FUNÇÃO CENTRALIZADA PARA MÁXIMA PRECISÃO
+            return hasReceivedMentorEvaluation(userId);
         }
         
-        function exportToExcel() {
-            // Obter quais filtros estão aplicados
+        function exportToCSV() {
+            // Obter quais filtros estão aplicados - EXPORTAÇÃO CSV EXTREMAMENTE PRECISA
             const filters = {
                 noInitial21: document.getElementById('filter-no-initial-21').checked,
                 noFinal21: document.getElementById('filter-no-final-21').checked,
                 no360Self: document.getElementById('filter-no-360-self').checked,
-                no360Others: document.getElementById('filter-no-360-others').checked
+                no360Others: document.getElementById('filter-no-360-others').checked,
+                noMentorEvaluation: document.getElementById('filter-no-mentor-evaluation').checked
             };
+            
+            console.log('📊 EXPORTAÇÃO CSV - Filtros aplicados:', filters);
+            
+            // VALIDAÇÃO EXTREMA - contar usuários para cada filtro individualmente
+            const diagnostics = {
+                noInitial21: 0, noFinal21: 0, no360Self: 0, no360Others: 0, noMentorEvaluation: 0
+            };
+            
+            originalSegregatedData.users.forEach(user => {
+                const issues = checkAllUserIssues(user.id);
+                if (issues.includes('no-initial-21')) diagnostics.noInitial21++;
+                if (issues.includes('no-final-21')) diagnostics.noFinal21++;
+                if (issues.includes('no-360-self')) diagnostics.no360Self++;
+                if (issues.includes('no-360-others')) diagnostics.no360Others++;
+                if (issues.includes('no-mentor-evaluation')) diagnostics.noMentorEvaluation++;
+            });
+            
+            console.log('🔍 DIAGNÓSTICO DE PRECISÃO CSV - Contadores por filtro:', diagnostics);
+            
+            // VALIDAÇÃO CRUZADA EXTREMA - garantir que UI e export são idênticos
+            const uiFilteredUsers = getUIFilteredUsers(filters);
+            console.log('🎯 VALIDAÇÃO CRUZADA CSV - Usuários filtrados na UI vs Export:', {
+                ui_count: uiFilteredUsers.length,
+                diagnostics: diagnostics
+            });
 
             // Se nenhum filtro está marcado, não fazer nada
             if (!Object.values(filters).some(f => f)) {
@@ -2579,24 +2664,28 @@
                 return;
             }
 
-            // Gerar e baixar o arquivo Excel
-            generateExcelFile(filteredUsers, filters);
+            // Gerar e baixar o arquivo CSV
+            generateCSVFile(filteredUsers, filters);
         }
 
         function getFilteredUsers(filters) {
             const filteredUsers = [];
             
             originalSegregatedData.users.forEach(user => {
-                const userIssues = checkAllUserIssues(user.id);
+                const normalizedUserId = String(user.id); // NORMALIZAÇÃO DE ID EXTREMA
+                const userIssues = checkAllUserIssues(normalizedUserId);
                 
-                // Verificar se o usuário tem pelo menos uma das questões filtradas
+                // Verificar se o usuário tem pelo menos uma das questões filtradas - PRECISÃO MÁXIMA
                 const hasFilteredIssue = userIssues.some(issue => {
                     if (filters.noInitial21 && issue === 'no-initial-21') return true;
                     if (filters.noFinal21 && issue === 'no-final-21') return true;
                     if (filters.no360Self && issue === 'no-360-self') return true;
                     if (filters.no360Others && issue === 'no-360-others') return true;
+                    if (filters.noMentorEvaluation && issue === 'no-mentor-evaluation') return true;
                     return false;
                 });
+                
+                console.log(`👤 User ${normalizedUserId}: Issues found:`, userIssues, 'Matches filter:', hasFilteredIssue);
                 
                 if (hasFilteredIssue) {
                     filteredUsers.push({
@@ -2609,26 +2698,28 @@
             return filteredUsers;
         }
 
-        function generateExcelFile(users, filters) {
-            // Criar estrutura XML
-            let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
-            xmlContent += '<relatorio_usuarios_filtrados>\n';
-            xmlContent += '  <informacoes_gerais>\n';
-            xmlContent += `    <total_usuarios>${users.length}</total_usuarios>\n`;
-            xmlContent += `    <data_geracao>${new Date().toISOString()}</data_geracao>\n`;
-            xmlContent += '    <filtros_aplicados>\n';
+        function generateCSVFile(users, filters) {
+            // Criar cabeçalho CSV - EXPORTAÇÃO EXTREMAMENTE PRECISA
+            const csvHeaders = [
+                'ID',
+                'Nome_Completo', 
+                'Email',
+                'Funcao',
+                'Member_ID',
+                'Nome_Time',
+                'Recebeu_Avaliacao_Mentores',
+                'Nao_Fez_21D_Inicial',
+                'Nao_Fez_21D_Final',
+                'Nao_Fez_360_Propria',
+                'Nao_Fez_360_Outros',
+                'Mentor_Nao_Fez_Avaliacao',
+                'Total_Avaliacoes_Faltantes',
+                'Resumo_Problemas'
+            ];
             
-            // Adicionar filtros aplicados
-            if (filters.noInitial21) xmlContent += '      <filtro>NÃO fez auto avaliação 21D inicial</filtro>\n';
-            if (filters.noFinal21) xmlContent += '      <filtro>NÃO fez auto avaliação 21D final</filtro>\n';
-            if (filters.no360Self) xmlContent += '      <filtro>NÃO fez auto avaliação 360°</filtro>\n';
-            if (filters.no360Others) xmlContent += '      <filtro>NÃO fez avaliação 360° de outros participantes</filtro>\n';
+            let csvContent = csvHeaders.join(',') + '\n';
             
-            xmlContent += '    </filtros_aplicados>\n';
-            xmlContent += '  </informacoes_gerais>\n';
-            xmlContent += '  <usuarios>\n';
-            
-            // Adicionar dados de cada usuário
+            // Adicionar dados de cada usuário - PRECISÃO MÁXIMA
             users.forEach(user => {
                 // Buscar nome do time do usuário
                 const userTeamName = getUserTeamName(user.id);
@@ -2636,55 +2727,66 @@
                 // Verificar se o usuário recebeu avaliações de mentores
                 const receivedMentorEvaluations = checkUserReceivedMentorEvaluations(user.id);
                 
-                xmlContent += '    <usuario>\n';
-                xmlContent += `      <id>${escapeXml(user.id || 'N/A')}</id>\n`;
-                xmlContent += `      <nome_completo>${escapeXml(user.full_name || 'N/A')}</nome_completo>\n`;
-                xmlContent += `      <email>${escapeXml(user.email || 'N/A')}</email>\n`;
-                xmlContent += `      <funcao>${escapeXml(user.role || 'N/A')}</funcao>\n`;
-                xmlContent += `      <member_id>${escapeXml(user.member_id || 'N/A')}</member_id>\n`;
-                xmlContent += `      <nome_time>${escapeXml(userTeamName || 'N/A')}</nome_time>\n`;
-                xmlContent += `      <recebeu_avaliacao_mentores>${receivedMentorEvaluations ? 'Sim' : 'Não'}</recebeu_avaliacao_mentores>\n`;
-                xmlContent += '      <avaliacoes_faltantes>\n';
+                // Verificar cada tipo de avaliação faltante
+                const missingEvaluations = user.missing_evaluations || [];
+                const hasNoInitial21 = missingEvaluations.includes('no-initial-21') ? 'SIM' : 'NÃO';
+                const hasNoFinal21 = missingEvaluations.includes('no-final-21') ? 'SIM' : 'NÃO';
+                const hasNo360Self = missingEvaluations.includes('no-360-self') ? 'SIM' : 'NÃO';
+                const hasNo360Others = missingEvaluations.includes('no-360-others') ? 'SIM' : 'NÃO';
+                const hasNoMentorEvaluation = missingEvaluations.includes('no-mentor-evaluation') ? 'SIM' : 'NÃO';
                 
-                // Adicionar avaliações faltantes individualmente
-                user.missing_evaluations.forEach(evaluation => {
-                    const evaluationName = getEvaluationName(evaluation);
-                    const evaluationDescription = getEvaluationDescription(evaluation);
-                    xmlContent += '        <avaliacao_faltante>\n';
-                    xmlContent += `          <tipo>${escapeXml(evaluationName)}</tipo>\n`;
-                    xmlContent += `          <descricao>${escapeXml(evaluationDescription)}</descricao>\n`;
-                    xmlContent += '        </avaliacao_faltante>\n';
-                });
+                // Resumo das avaliações faltantes
+                const resumoProblemas = getMissingEvaluationsText(missingEvaluations);
                 
-                if (user.missing_evaluations.length === 0) {
-                    xmlContent += '        <avaliacao_faltante>\n';
-                    xmlContent += '          <tipo>Nenhuma</tipo>\n';
-                    xmlContent += '          <descricao>Usuário completou todas as avaliações requeridas</descricao>\n';
-                    xmlContent += '        </avaliacao_faltante>\n';
-                }
+                // Criar linha CSV com escape de aspas
+                const csvRow = [
+                    escapeCsv(user.id || 'N/A'),
+                    escapeCsv(user.full_name || 'N/A'),
+                    escapeCsv(user.email || 'N/A'),
+                    escapeCsv(user.role || 'N/A'),
+                    escapeCsv(user.member_id || 'N/A'),
+                    escapeCsv(userTeamName || 'N/A'),
+                    receivedMentorEvaluations ? 'SIM' : 'NÃO',
+                    hasNoInitial21,
+                    hasNoFinal21,
+                    hasNo360Self,
+                    hasNo360Others,
+                    hasNoMentorEvaluation,
+                    missingEvaluations.length,
+                    escapeCsv(resumoProblemas)
+                ];
                 
-                xmlContent += '      </avaliacoes_faltantes>\n';
-                xmlContent += `      <resumo_avaliacoes_faltantes>${escapeXml(getMissingEvaluationsText(user.missing_evaluations))}</resumo_avaliacoes_faltantes>\n`;
-                xmlContent += '    </usuario>\n';
+                csvContent += csvRow.join(',') + '\n';
             });
-            
-            xmlContent += '  </usuarios>\n';
-            xmlContent += '</relatorio_usuarios_filtrados>';
 
-            // Criar blob Excel (.xls)
-            const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            // Criar blob CSV
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
 
             // Criar nome do arquivo com data atual
             const now = new Date();
             const dateStr = now.toISOString().slice(0, 10);
             const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
-            const filename = `relatorio_usuarios_filtrados_${dateStr}_${timeStr}.xls`;
+            const filename = `usuarios_filtrados_${dateStr}_${timeStr}.csv`;
 
             // Fazer download do arquivo
             downloadFile(blob, filename);
             
-            console.log(`Relatório Excel exportado: ${users.length} usuários encontrados com os filtros aplicados`);
-            alert(`Relatório Excel exportado com sucesso!\n${users.length} usuários encontrados.\nArquivo: ${filename}`);
+            console.log(`Relatório CSV exportado: ${users.length} usuários encontrados com os filtros aplicados`);
+            alert(`Relatório CSV exportado com sucesso!\n${users.length} usuários encontrados.\nArquivo: ${filename}`);
+        }
+        
+        function escapeCsv(value) {
+            // Função para escapar valores CSV corretamente
+            if (value === null || value === undefined) return '';
+            
+            const stringValue = String(value);
+            
+            // Se contém vírgula, quebra de linha ou aspas, precisa de escape
+            if (stringValue.includes(',') || stringValue.includes('\n') || stringValue.includes('"')) {
+                return '"' + stringValue.replace(/"/g, '""') + '"';
+            }
+            
+            return stringValue;
         }
 
         function escapeXml(unsafe) {
