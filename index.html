@@ -408,21 +408,25 @@
             z-index: 1;
         }
 
-        /* Cores para os filtros de busca */
+        /* Cores para os filtros de busca - NÃO fizeram avaliações */
         .filter-no-initial-21 {
-            background-color: #ffdddd !important; /* Vermelho claro */
+            background-color: #ffcccc !important; /* Vermelho mais forte - Crítico */
+            border-left: 4px solid #cc0000 !important;
         }
         
         .filter-no-final-21 {
-            background-color: #ddffdd !important; /* Verde claro */
+            background-color: #ffe6cc !important; /* Laranja - Importante */
+            border-left: 4px solid #ff6600 !important;
         }
         
         .filter-no-360-self {
-            background-color: #e6ddff !important; /* Roxo claro */
+            background-color: #fff2cc !important; /* Amarelo forte - Atenção */
+            border-left: 4px solid #ffcc00 !important;
         }
         
         .filter-no-360-others {
-            background-color: #ffffdd !important; /* Amarelo claro */
+            background-color: #e6ccff !important; /* Roxo mais forte - Revisão */
+            border-left: 4px solid #9900cc !important;
         }
 
         /* Para linhas com múltiplos filtros - gradiente */
@@ -481,25 +485,38 @@
             <div class="controls-row checkbox-group">
                 <label>
                     <input type="checkbox" id="filter-no-initial-21" class="search-filter-checkbox">
-                    <span>fizeram auto avaliação 21D inicial</span>
+                    <span>NÃO fizeram auto avaliação 21D inicial</span>
                 </label>
                 <label>
                     <input type="checkbox" id="filter-no-final-21" class="search-filter-checkbox">
-                    <span>fizeram auto avaliação 21D final</span>
+                    <span>NÃO fizeram auto avaliação 21D final</span>
                 </label>
                 <label>
                     <input type="checkbox" id="filter-no-360-self" class="search-filter-checkbox">
-                    <span>fizeram auto avaliação 360°</span>
+                    <span>NÃO fizeram auto avaliação 360°</span>
                 </label>
                 <label>
                     <input type="checkbox" id="filter-no-360-others" class="search-filter-checkbox">
-                    <span>fizeram avaliação 360° de outros participantes</span>
+                    <span>NÃO fizeram avaliação 360° de outros participantes</span>
                 </label>
             </div>
             <div class="controls-row">
                 <div class="buttons-group" style="margin: 0 auto;">
                     <button id="apply-search-filters-btn" style="background-color: #007bff;">🔍 Aplicar Filtros</button>
                     <button id="clear-search-filters-btn" style="background-color: #6c757d; display: none;">🗑️ Limpar Busca</button>
+                </div>
+            </div>
+            
+            <!-- Legenda das Cores -->
+            <div class="controls-row" style="margin-top: 15px; font-size: 0.9em;">
+                <div style="text-align: center; width: 100%;">
+                    <strong>📋 Legenda das Cores:</strong><br>
+                    <div style="display: flex; justify-content: center; gap: 15px; margin-top: 8px; flex-wrap: wrap;">
+                        <span style="background-color: #ffcccc; padding: 3px 8px; border-left: 4px solid #cc0000; border-radius: 3px;">🔴 NÃO fez 21D Inicial</span>
+                        <span style="background-color: #ffe6cc; padding: 3px 8px; border-left: 4px solid #ff6600; border-radius: 3px;">🟠 NÃO fez 21D Final</span>
+                        <span style="background-color: #fff2cc; padding: 3px 8px; border-left: 4px solid #ffcc00; border-radius: 3px;">🟡 NÃO fez 360° Própria</span>
+                        <span style="background-color: #e6ccff; padding: 3px 8px; border-left: 4px solid #9900cc; border-radius: 3px;">🟣 NÃO fez 360° de Outros</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -587,6 +604,7 @@
         
         window.onload = async () => {
             try {
+                console.log("Iniciando carregamento dos dados...");
                 // Dados vindos do nó anterior no n8n
                 // Se estiver rodando em n8n, os dados virão automaticamente
                 // Se estiver rodando standalone, fará fetch dos dados
@@ -594,12 +612,15 @@
                 
                 if (Array.isArray(window.n8nData) && window.n8nData.length > 0) {
                     // Executando em n8n - usar dados do nó anterior
+                    console.log("Usando dados do n8n");
                     allData = window.n8nData;
                 } else {
                     // Executando standalone - fazer fetch dos dados
+                    console.log("Fazendo fetch dos dados do webhook...");
                     const response = await fetch('https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker');
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     allData = await response.json();
+                    console.log("Dados recebidos:", allData.length, "seções");
                 }
                 
                 if (!allData || !Array.isArray(allData) || allData.length === 0) {
@@ -610,13 +631,18 @@
                     throw new Error("Dados não foram injetados ou estão vazios.");
                 }
                 
+                console.log("Segregando dados...");
                 segregatedData = segregateData(allData);
+                console.log("Dados segregados:", Object.keys(segregatedData).map(k => `${k}: ${segregatedData[k].length}`));
                 originalSegregatedData = JSON.parse(JSON.stringify(segregatedData));
                 
+                console.log("Atualizando visualizações...");
                 updateAllVisualizations(segregatedData);
 
+                console.log("Renderizando tabelas...");
                 renderAllTables(segregatedData, currentTableOrder);
                 setupEventListeners();
+                console.log("Carregamento concluído com sucesso!");
             } catch (error) {
                 const loadingIndicator = document.getElementById('loading-indicator');
                 if (loadingIndicator) {
@@ -670,30 +696,46 @@
                 assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
             };
             
-            data.forEach((item, index) => {
-                if (item.code && item.name && item.status) {
-                    result.teams.push(item);
-                }
-                else if (item.full_name && item.role) {
-                    result.users.push(item);
-                }
-                else if (item.evaluator_id) {
-                    result.mentorins.push(item);
-                }
-                else if (item.question_id && typeof item.answer !== 'undefined') {
-                    result.assessment_answers.push(item);
-                    if (!item.f_submission_id) item.f_submission_id = item.id;
-                    result.f_submissions.push(item);
-                }
-                else if (item.text && item.category) {
-                    result.assessment_questions.push(item);
-                }
-                else if (item.text && item.type && item.survey_id) {
-                    result.assessment_questions_survey.push(item);
-                }
-                else if (item.name && item.invite) {
-                    result.guilds.push({ ...item, id: item.invite });
-                }
+            // Processar a estrutura correta dos dados do webhook
+            data.forEach((dataSection) => {
+                // Cada seção tem uma chave (teams, user, etc.) com um array aninhado
+                Object.keys(dataSection).forEach(key => {
+                    const items = dataSection[key];
+                    
+                    // Extrair itens do array aninhado (primeiro nível é sempre um array)
+                    if (Array.isArray(items) && items.length > 0) {
+                        const flatItems = Array.isArray(items[0]) ? items[0] : items;
+                        
+                        flatItems.forEach(item => {
+                            if (key === 'teams' || (item.code && item.name && item.status)) {
+                                result.teams.push(item);
+                            }
+                            else if (key === 'user' || (item.full_name && item.role)) {
+                                result.users.push(item);
+                            }
+                            else if (key === 'mentorins' || item.evaluator_id) {
+                                result.mentorins.push(item);
+                            }
+                            else if (key === 'assessment_answers' || (item.question_id && typeof item.answer !== 'undefined')) {
+                                result.assessment_answers.push(item);
+                                if (!item.f_submission_id) item.f_submission_id = item.id;
+                                result.f_submissions.push(item);
+                            }
+                            else if (key === 'assessment_questions' || (item.text && item.category)) {
+                                result.assessment_questions.push(item);
+                            }
+                            else if (key === 'assessment_questions_survey' || (item.text && item.type && item.survey_id)) {
+                                result.assessment_questions_survey.push(item);
+                            }
+                            else if (key === 'guilds' || (item.name && item.invite)) {
+                                result.guilds.push({ ...item, id: item.invite || item.id });
+                            }
+                            else if (key === 'f_submissions') {
+                                result.f_submissions.push(item);
+                            }
+                        });
+                    }
+                });
             });
             
             // Sort assessment_answers to show records with team_id at the top
@@ -2243,65 +2285,50 @@
         }
 
         function checkUserIssues(userId, filters) {
-            const activeFilters = [];
-            const completedEvaluations = [];
+            const missingEvaluations = [];
             
-            // Verificar auto avaliação 21D inicial
+            // Verificar se NÃO fez auto avaliação 21D inicial
             if (filters.noInitial21) {
-                activeFilters.push('initial21');
                 const hasInitial21 = originalSegregatedData.assessment_answers.some(answer => 
                     answer.user_id === userId && answer.moment === 'INITIAL'
                 );
-                if (hasInitial21) {
-                    completedEvaluations.push('initial21');
+                if (!hasInitial21) {
+                    missingEvaluations.push('no-initial-21');
                 }
             }
 
-            // Verificar auto avaliação 21D final  
+            // Verificar se NÃO fez auto avaliação 21D final  
             if (filters.noFinal21) {
-                activeFilters.push('final21');
                 const hasFinal21 = originalSegregatedData.assessment_answers.some(answer => 
                     answer.user_id === userId && answer.moment === 'FINAL'
                 );
-                if (hasFinal21) {
-                    completedEvaluations.push('final21');
+                if (!hasFinal21) {
+                    missingEvaluations.push('no-final-21');
                 }
             }
 
-            // Verificar auto avaliação 360°
+            // Verificar se NÃO fez auto avaliação 360°
             if (filters.no360Self) {
-                activeFilters.push('360self');
                 const has360Self = originalSegregatedData.mentorins.some(submission => 
                     submission.evaluator_id === userId && submission.target_user_id === userId
                 );
-                if (has360Self) {
-                    completedEvaluations.push('360self');
+                if (!has360Self) {
+                    missingEvaluations.push('no-360-self');
                 }
             }
 
-            // Verificar avaliação 360° de outros participantes
+            // Verificar se NÃO fez avaliação 360° de outros participantes
             if (filters.no360Others) {
-                activeFilters.push('360others');
                 const has360Others = originalSegregatedData.mentorins.some(submission => 
                     submission.evaluator_id === userId && submission.target_user_id !== userId
                 );
-                if (has360Others) {
-                    completedEvaluations.push('360others');
+                if (!has360Others) {
+                    missingEvaluations.push('no-360-others');
                 }
             }
 
-            // Só destacar se completou TODAS as avaliações selecionadas
-            if (activeFilters.length === completedEvaluations.length && activeFilters.length > 0) {
-                // Mapear de volta para as classes CSS correspondentes
-                const highlights = [];
-                if (filters.noInitial21) highlights.push('no-initial-21');
-                if (filters.noFinal21) highlights.push('no-final-21');
-                if (filters.no360Self) highlights.push('no-360-self');
-                if (filters.no360Others) highlights.push('no-360-others');
-                return highlights;
-            }
-
-            return []; // Não destacar se não completou todas as avaliações selecionadas
+            // Retornar apenas as avaliações que estão faltando
+            return missingEvaluations;
         }
 
         function checkTeamIssues(teamId, filters) {
@@ -2332,19 +2359,20 @@
                 const className = `filter-${issues[0]}`;
                 row.classList.add(className);
             } else if (issues.length > 1) {
-                // Aplicar gradiente para múltiplas cores
+                // Aplicar gradiente para múltiplas cores usando as cores atualizadas
                 const colors = issues.map(issue => {
                     switch(issue) {
-                        case 'no-initial-21': return '#ffdddd';
-                        case 'no-final-21': return '#ddffdd';
-                        case 'no-360-self': return '#e6ddff';
-                        case 'no-360-others': return '#ffffdd';
+                        case 'no-initial-21': return '#ffcccc'; // Vermelho forte - Crítico
+                        case 'no-final-21': return '#ffe6cc';   // Laranja - Importante  
+                        case 'no-360-self': return '#fff2cc';   // Amarelo forte - Atenção
+                        case 'no-360-others': return '#e6ccff'; // Roxo forte - Revisão
                         default: return '#ffffff';
                     }
                 });
                 
                 const gradientString = `linear-gradient(to right, ${colors.join(', ')})`;
                 row.style.background = gradientString;
+                row.classList.add('filter-multiple');
             }
         }
 
