@@ -504,6 +504,7 @@
                 <div class="buttons-group" style="margin: 0 auto;">
                     <button id="apply-search-filters-btn" style="background-color: #007bff;">🔍 Aplicar Filtros</button>
                     <button id="clear-search-filters-btn" style="background-color: #6c757d; display: none;">🗑️ Limpar Busca</button>
+                    <button id="export-excel-btn" style="background-color: #28a745; display: none;">📊 Exportar para Excel</button>
                 </div>
             </div>
             
@@ -588,7 +589,7 @@
         let sortStates = {};
 
         const tableConfig = {
-            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id'] },
+            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id', 'indicadores'] },
             assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
             teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
             mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] },
@@ -1481,7 +1482,7 @@
                 const headerRow = document.createElement('tr');
                 headers.forEach(header => {
                     const th = document.createElement('th');
-                    if (header !== 'selecionar') {
+                    if (header !== 'selecionar' && header !== 'indicadores') {
                         th.dataset.column = header;
                         th.dataset.tableKey = key;
                         th.innerHTML = `${header} <span class="sort-arrow"></span>`;
@@ -1491,6 +1492,9 @@
                         }
                     } else {
                         th.textContent = header;
+                        if (header === 'indicadores') {
+                            th.style.textAlign = 'center';
+                        }
                     }
                     headerRow.appendChild(th);
                 });
@@ -1510,6 +1514,10 @@
                             const cell = row.insertCell();
                             if (header === 'selecionar') {
                                 cell.innerHTML = `<button class="select-row-btn" data-item-id="${row.dataset.itemId}" data-table-key="${key}">Selecionar</button>`;
+                            } else if (header === 'indicadores' && key === 'users') {
+                                // Nova coluna para indicadores de avaliações faltantes
+                                cell.innerHTML = generateUserIndicators(item.id);
+                                cell.style.textAlign = 'center';
                             } else {
                                 const value = item[header];
                                 cell.textContent = (value === null || value === undefined || value === '') ? 'N/A' : value;
@@ -1561,6 +1569,7 @@
             // Event listeners para os filtros de busca
             document.getElementById('apply-search-filters-btn').addEventListener('click', applySearchFilters);
             document.getElementById('clear-search-filters-btn').addEventListener('click', clearSearchFilters);
+            document.getElementById('export-excel-btn').addEventListener('click', exportToExcel);
             
             document.getElementById('primary-table-select').addEventListener('change', (event) => {
                 const selectedTableKey = event.target.value;
@@ -2187,8 +2196,91 @@
             // Mostrar botão de aplicar filtros e esconder botão de limpar
             document.getElementById('apply-search-filters-btn').style.display = 'inline-block';
             document.getElementById('clear-search-filters-btn').style.display = 'none';
+            document.getElementById('export-excel-btn').style.display = 'none';
             
             console.log('Filtros de busca limpos. Dados restaurados ao estado original.');
+        }
+
+        // =================== GERAÇÃO DE INDICADORES PARA USUÁRIOS ===================
+        
+        function generateUserIndicators(userId) {
+            // Verifica todas as avaliações que o usuário pode estar perdendo
+            const missingEvaluations = checkAllUserIssues(userId);
+            
+            if (missingEvaluations.length === 0) {
+                return '-'; // Nenhuma avaliação faltando
+            }
+            
+            // Gerar bolinhas coloridas para cada tipo de avaliação faltante
+            let indicators = '';
+            
+            missingEvaluations.forEach(missingType => {
+                let color = '';
+                let title = '';
+                
+                switch(missingType) {
+                    case 'no-initial-21':
+                        color = '#cc0000'; // Vermelho
+                        title = 'NÃO fez 21D Inicial';
+                        break;
+                    case 'no-final-21':
+                        color = '#ff6600'; // Laranja
+                        title = 'NÃO fez 21D Final';
+                        break;
+                    case 'no-360-self':
+                        color = '#ffcc00'; // Amarelo
+                        title = 'NÃO fez 360° Própria';
+                        break;
+                    case 'no-360-others':
+                        color = '#9900cc'; // Roxo
+                        title = 'NÃO fez 360° de Outros';
+                        break;
+                }
+                
+                if (color) {
+                    indicators += `<span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: ${color}; margin: 0 2px; border: 1px solid #333;" title="${title}">●</span>`;
+                }
+            });
+            
+            return indicators;
+        }
+        
+        function checkAllUserIssues(userId) {
+            const missingEvaluations = [];
+            
+            // Verificar se NÃO fez auto avaliação 21D inicial
+            const hasInitial21 = originalSegregatedData.assessment_answers.some(answer => 
+                answer.user_id === userId && answer.moment === 'INITIAL'
+            );
+            if (!hasInitial21) {
+                missingEvaluations.push('no-initial-21');
+            }
+
+            // Verificar se NÃO fez auto avaliação 21D final  
+            const hasFinal21 = originalSegregatedData.assessment_answers.some(answer => 
+                answer.user_id === userId && answer.moment === 'FINAL'
+            );
+            if (!hasFinal21) {
+                missingEvaluations.push('no-final-21');
+            }
+
+            // Verificar se NÃO fez auto avaliação 360°
+            const has360Self = originalSegregatedData.mentorins.some(submission => 
+                submission.evaluator_id === userId && submission.target_user_id === userId
+            );
+            if (!has360Self) {
+                missingEvaluations.push('no-360-self');
+            }
+
+            // Verificar se NÃO fez avaliação 360° de outros participantes
+            const has360Others = originalSegregatedData.mentorins.some(submission => 
+                submission.evaluator_id === userId && submission.target_user_id !== userId
+            );
+            if (!has360Others) {
+                missingEvaluations.push('no-360-others');
+            }
+
+            return missingEvaluations;
         }
 
         // =================== SISTEMA DE BUSCA COM FILTROS COLORIDOS ===================
@@ -2226,6 +2318,7 @@
             // Mostrar/esconder botões
             document.getElementById('apply-search-filters-btn').style.display = 'none';
             document.getElementById('clear-search-filters-btn').style.display = 'inline-block';
+            document.getElementById('export-excel-btn').style.display = 'inline-block';
 
             console.log('Filtros coloridos aplicados:', filters);
         }
@@ -2388,9 +2481,216 @@
             // Mostrar botão de aplicar filtros e esconder botão de limpar
             document.getElementById('apply-search-filters-btn').style.display = 'inline-block';
             document.getElementById('clear-search-filters-btn').style.display = 'none';
+            document.getElementById('export-excel-btn').style.display = 'none';
             
             console.log('Filtros de busca coloridos limpos.');
         }
+
+        // =================== EXPORTAÇÃO PARA EXCEL ===================
+        
+        function exportToExcel() {
+            // Obter quais filtros estão aplicados
+            const filters = {
+                noInitial21: document.getElementById('filter-no-initial-21').checked,
+                noFinal21: document.getElementById('filter-no-final-21').checked,
+                no360Self: document.getElementById('filter-no-360-self').checked,
+                no360Others: document.getElementById('filter-no-360-others').checked
+            };
+
+            // Se nenhum filtro está marcado, não fazer nada
+            if (!Object.values(filters).some(f => f)) {
+                alert('Aplique pelo menos um filtro antes de exportar.');
+                return;
+            }
+
+            // Coletar usuários filtrados
+            const filteredUsers = getFilteredUsers(filters);
+            
+            if (filteredUsers.length === 0) {
+                alert('Nenhum usuário encontrado com os filtros aplicados.');
+                return;
+            }
+
+            // Gerar e baixar o arquivo Excel
+            generateExcelFile(filteredUsers, filters);
+        }
+
+        function getFilteredUsers(filters) {
+            const filteredUsers = [];
+            
+            originalSegregatedData.users.forEach(user => {
+                const userIssues = checkAllUserIssues(user.id);
+                
+                // Verificar se o usuário tem pelo menos uma das questões filtradas
+                const hasFilteredIssue = userIssues.some(issue => {
+                    if (filters.noInitial21 && issue === 'no-initial-21') return true;
+                    if (filters.noFinal21 && issue === 'no-final-21') return true;
+                    if (filters.no360Self && issue === 'no-360-self') return true;
+                    if (filters.no360Others && issue === 'no-360-others') return true;
+                    return false;
+                });
+                
+                if (hasFilteredIssue) {
+                    filteredUsers.push({
+                        ...user,
+                        missing_evaluations: userIssues
+                    });
+                }
+            });
+            
+            return filteredUsers;
+        }
+
+        function generateExcelFile(users, filters) {
+            // Criar estrutura XML
+            let xmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            xmlContent += '<relatorio_usuarios_filtrados>\n';
+            xmlContent += '  <informacoes_gerais>\n';
+            xmlContent += `    <total_usuarios>${users.length}</total_usuarios>\n`;
+            xmlContent += `    <data_geracao>${new Date().toISOString()}</data_geracao>\n`;
+            xmlContent += '    <filtros_aplicados>\n';
+            
+            // Adicionar filtros aplicados
+            if (filters.noInitial21) xmlContent += '      <filtro>NÃO fez auto avaliação 21D inicial</filtro>\n';
+            if (filters.noFinal21) xmlContent += '      <filtro>NÃO fez auto avaliação 21D final</filtro>\n';
+            if (filters.no360Self) xmlContent += '      <filtro>NÃO fez auto avaliação 360°</filtro>\n';
+            if (filters.no360Others) xmlContent += '      <filtro>NÃO fez avaliação 360° de outros participantes</filtro>\n';
+            
+            xmlContent += '    </filtros_aplicados>\n';
+            xmlContent += '  </informacoes_gerais>\n';
+            xmlContent += '  <usuarios>\n';
+            
+            // Adicionar dados de cada usuário
+            users.forEach(user => {
+                xmlContent += '    <usuario>\n';
+                xmlContent += `      <id>${escapeXml(user.id || 'N/A')}</id>\n`;
+                xmlContent += `      <nome_completo>${escapeXml(user.full_name || 'N/A')}</nome_completo>\n`;
+                xmlContent += `      <email>${escapeXml(user.email || 'N/A')}</email>\n`;
+                xmlContent += `      <funcao>${escapeXml(user.role || 'N/A')}</funcao>\n`;
+                xmlContent += `      <member_id>${escapeXml(user.member_id || 'N/A')}</member_id>\n`;
+                xmlContent += '      <avaliacoes_faltantes>\n';
+                
+                // Adicionar avaliações faltantes individualmente
+                user.missing_evaluations.forEach(evaluation => {
+                    const evaluationName = getEvaluationName(evaluation);
+                    const evaluationDescription = getEvaluationDescription(evaluation);
+                    xmlContent += '        <avaliacao_faltante>\n';
+                    xmlContent += `          <tipo>${escapeXml(evaluationName)}</tipo>\n`;
+                    xmlContent += `          <descricao>${escapeXml(evaluationDescription)}</descricao>\n`;
+                    xmlContent += '        </avaliacao_faltante>\n';
+                });
+                
+                if (user.missing_evaluations.length === 0) {
+                    xmlContent += '        <avaliacao_faltante>\n';
+                    xmlContent += '          <tipo>Nenhuma</tipo>\n';
+                    xmlContent += '          <descricao>Usuário completou todas as avaliações requeridas</descricao>\n';
+                    xmlContent += '        </avaliacao_faltante>\n';
+                }
+                
+                xmlContent += '      </avaliacoes_faltantes>\n';
+                xmlContent += `      <resumo_avaliacoes_faltantes>${escapeXml(getMissingEvaluationsText(user.missing_evaluations))}</resumo_avaliacoes_faltantes>\n`;
+                xmlContent += '    </usuario>\n';
+            });
+            
+            xmlContent += '  </usuarios>\n';
+            xmlContent += '</relatorio_usuarios_filtrados>';
+
+            // Criar blob XML
+            const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8;' });
+
+            // Criar nome do arquivo com data atual
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10);
+            const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
+            const filename = `relatorio_usuarios_filtrados_${dateStr}_${timeStr}.xml`;
+
+            // Fazer download do arquivo
+            downloadFile(blob, filename);
+            
+            console.log(`Relatório XML exportado: ${users.length} usuários encontrados com os filtros aplicados`);
+            alert(`Relatório XML exportado com sucesso!\n${users.length} usuários encontrados.\nArquivo: ${filename}`);
+        }
+
+        function escapeXml(unsafe) {
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function getEvaluationName(evaluation) {
+            switch(evaluation) {
+                case 'no-initial-21': return '21D Inicial';
+                case 'no-final-21': return '21D Final';
+                case 'no-360-self': return '360° Própria';
+                case 'no-360-others': return '360° de Outros';
+                default: return evaluation;
+            }
+        }
+
+        function getEvaluationDescription(evaluation) {
+            switch(evaluation) {
+                case 'no-initial-21': return 'NÃO fez auto avaliação 21D inicial';
+                case 'no-final-21': return 'NÃO fez auto avaliação 21D final';
+                case 'no-360-self': return 'NÃO fez auto avaliação 360°';
+                case 'no-360-others': return 'NÃO fez avaliação 360° de outros participantes';
+                default: return evaluation;
+            }
+        }
+
+        function getMissingEvaluationsText(missingEvaluations) {
+            if (missingEvaluations.length === 0) return 'Todas as avaliações completas';
+            
+            const descriptions = missingEvaluations.map(issue => {
+                switch(issue) {
+                    case 'no-initial-21': return '21D Inicial';
+                    case 'no-final-21': return '21D Final';
+                    case 'no-360-self': return '360° Própria';
+                    case 'no-360-others': return '360° de Outros';
+                    default: return issue;
+                }
+            });
+            
+            return descriptions.join(', ');
+        }
+
+        function getMissingEvaluationsDetails(missingEvaluations) {
+            if (missingEvaluations.length === 0) return 'Usuário completou todas as avaliações requeridas.';
+            
+            const details = missingEvaluations.map(issue => {
+                switch(issue) {
+                    case 'no-initial-21': return 'NÃO fez auto avaliação 21D inicial';
+                    case 'no-final-21': return 'NÃO fez auto avaliação 21D final';
+                    case 'no-360-self': return 'NÃO fez auto avaliação 360°';
+                    case 'no-360-others': return 'NÃO fez avaliação 360° de outros participantes';
+                    default: return issue;
+                }
+            });
+            
+            return details.join('; ');
+        }
+
+        function downloadFile(blob, filename) {
+            const link = document.createElement('a');
+            
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            } else {
+                // Fallback para navegadores mais antigos
+                alert('Seu navegador não suporta download automático. Por favor, use um navegador mais recente.');
+            }
+        }
+
+        // =================== FIM DA EXPORTAÇÃO PARA EXCEL ===================
 
         // =================== FIM DO SISTEMA DE BUSCA COM FILTROS COLORIDOS ===================
 
