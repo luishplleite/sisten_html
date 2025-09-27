@@ -428,6 +428,11 @@
             background-color: #e6ccff !important; /* Roxo mais forte - Revisão */
             border-left: 4px solid #9900cc !important;
         }
+        
+        .filter-no-mentor-evaluation {
+            background-color: #ccffe6 !important; /* Verde claro - Mentoria */
+            border-left: 4px solid #00cc66 !important;
+        }
 
         /* Para linhas com múltiplos filtros - gradiente */
         .filter-multiple {
@@ -499,6 +504,10 @@
                     <input type="checkbox" id="filter-no-360-others" class="search-filter-checkbox">
                     <span>NÃO fizeram avaliação 360° de outros participantes</span>
                 </label>
+                <label>
+                    <input type="checkbox" id="filter-no-mentor-evaluation" class="search-filter-checkbox">
+                    <span>Mentor Nao fez Avaliação</span>
+                </label>
             </div>
             <div class="controls-row">
                 <div class="buttons-group" style="margin: 0 auto;">
@@ -517,6 +526,7 @@
                         <span style="background-color: #ffe6cc; padding: 3px 8px; border-left: 4px solid #ff6600; border-radius: 3px;">🟠 NÃO fez 21D Final</span>
                         <span style="background-color: #fff2cc; padding: 3px 8px; border-left: 4px solid #ffcc00; border-radius: 3px;">🟡 NÃO fez 360° Própria</span>
                         <span style="background-color: #e6ccff; padding: 3px 8px; border-left: 4px solid #9900cc; border-radius: 3px;">🟣 NÃO fez 360° de Outros</span>
+                        <span style="background-color: #ccffe6; padding: 3px 8px; border-left: 4px solid #00cc66; border-radius: 3px;">🟢 Mentor Nao fez Avaliação</span>
                     </div>
                 </div>
             </div>
@@ -2235,6 +2245,10 @@
                         color = '#9900cc'; // Roxo
                         title = 'NÃO fez 360° de Outros';
                         break;
+                    case 'no-mentor-evaluation':
+                        color = '#00cc66'; // Verde
+                        title = 'Mentor Nao fez Avaliação';
+                        break;
                 }
                 
                 if (color) {
@@ -2280,6 +2294,14 @@
                 missingEvaluations.push('no-360-others');
             }
 
+            // Verificar se NÃO fez avaliação de mentores
+            const hasMentorEvaluation = originalSegregatedData.mentorins.some(submission => 
+                submission.evaluator_id === userId && submission.survey_id
+            );
+            if (!hasMentorEvaluation) {
+                missingEvaluations.push('no-mentor-evaluation');
+            }
+
             return missingEvaluations;
         }
 
@@ -2291,7 +2313,8 @@
                 noInitial21: document.getElementById('filter-no-initial-21').checked,
                 noFinal21: document.getElementById('filter-no-final-21').checked,
                 no360Self: document.getElementById('filter-no-360-self').checked,
-                no360Others: document.getElementById('filter-no-360-others').checked
+                no360Others: document.getElementById('filter-no-360-others').checked,
+                noMentorEvaluation: document.getElementById('filter-no-mentor-evaluation').checked
             };
 
             // Se nenhum filtro está marcado, não fazer nada
@@ -2325,7 +2348,7 @@
 
         function clearColorFilters() {
             // Remover todas as classes de filtro de todas as linhas
-            const filterClasses = ['filter-no-initial-21', 'filter-no-final-21', 'filter-no-360-self', 'filter-no-360-others', 'filter-multiple'];
+            const filterClasses = ['filter-no-initial-21', 'filter-no-final-21', 'filter-no-360-self', 'filter-no-360-others', 'filter-no-mentor-evaluation', 'filter-multiple'];
             
             document.querySelectorAll('tbody tr').forEach(row => {
                 filterClasses.forEach(className => {
@@ -2420,6 +2443,16 @@
                 }
             }
 
+            // Verificar se NÃO fez avaliação de mentores
+            if (filters.noMentorEvaluation) {
+                const hasMentorEvaluation = originalSegregatedData.mentorins.some(submission => 
+                    submission.evaluator_id === userId && submission.survey_id
+                );
+                if (!hasMentorEvaluation) {
+                    missingEvaluations.push('no-mentor-evaluation');
+                }
+            }
+
             // Retornar apenas as avaliações que estão faltando
             return missingEvaluations;
         }
@@ -2487,6 +2520,41 @@
         }
 
         // =================== EXPORTAÇÃO PARA EXCEL ===================
+        
+        function getUserTeamName(userId) {
+            // Buscar team_id do usuário através das assessment_answers
+            const userAnswer = originalSegregatedData.assessment_answers.find(answer => 
+                answer.user_id === userId
+            );
+            
+            if (!userAnswer || !userAnswer.team_id) {
+                return 'N/A';
+            }
+            
+            // Buscar nome do time
+            const team = originalSegregatedData.teams.find(team => 
+                team.id === userAnswer.team_id
+            );
+            
+            return team ? team.name : 'N/A';
+        }
+
+        function checkUserReceivedMentorEvaluations(userId) {
+            // Verificar se o usuário recebeu avaliações de mentores
+            const receivedMentorEvaluation = originalSegregatedData.mentorins.some(submission => {
+                // O usuário deve ser o target (quem foi avaliado)
+                if (submission.target_user_id !== userId) return false;
+                
+                // Verificar se o avaliador é um mentor
+                const evaluator = originalSegregatedData.users.find(user => user.id === submission.evaluator_id);
+                
+                // Considerar como avaliação de mentor APENAS se:
+                // O avaliador tem role 'mentor' explicitamente
+                return evaluator && evaluator.role === 'mentor';
+            });
+            
+            return receivedMentorEvaluation;
+        }
         
         function exportToExcel() {
             // Obter quais filtros estão aplicados
@@ -2562,12 +2630,20 @@
             
             // Adicionar dados de cada usuário
             users.forEach(user => {
+                // Buscar nome do time do usuário
+                const userTeamName = getUserTeamName(user.id);
+                
+                // Verificar se o usuário recebeu avaliações de mentores
+                const receivedMentorEvaluations = checkUserReceivedMentorEvaluations(user.id);
+                
                 xmlContent += '    <usuario>\n';
                 xmlContent += `      <id>${escapeXml(user.id || 'N/A')}</id>\n`;
                 xmlContent += `      <nome_completo>${escapeXml(user.full_name || 'N/A')}</nome_completo>\n`;
                 xmlContent += `      <email>${escapeXml(user.email || 'N/A')}</email>\n`;
                 xmlContent += `      <funcao>${escapeXml(user.role || 'N/A')}</funcao>\n`;
                 xmlContent += `      <member_id>${escapeXml(user.member_id || 'N/A')}</member_id>\n`;
+                xmlContent += `      <nome_time>${escapeXml(userTeamName || 'N/A')}</nome_time>\n`;
+                xmlContent += `      <recebeu_avaliacao_mentores>${receivedMentorEvaluations ? 'Sim' : 'Não'}</recebeu_avaliacao_mentores>\n`;
                 xmlContent += '      <avaliacoes_faltantes>\n';
                 
                 // Adicionar avaliações faltantes individualmente
@@ -2595,20 +2671,20 @@
             xmlContent += '  </usuarios>\n';
             xmlContent += '</relatorio_usuarios_filtrados>';
 
-            // Criar blob XML
-            const blob = new Blob([xmlContent], { type: 'application/xml;charset=utf-8;' });
+            // Criar blob Excel (.xls)
+            const blob = new Blob([xmlContent], { type: 'application/vnd.ms-excel;charset=utf-8;' });
 
             // Criar nome do arquivo com data atual
             const now = new Date();
             const dateStr = now.toISOString().slice(0, 10);
             const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
-            const filename = `relatorio_usuarios_filtrados_${dateStr}_${timeStr}.xml`;
+            const filename = `relatorio_usuarios_filtrados_${dateStr}_${timeStr}.xls`;
 
             // Fazer download do arquivo
             downloadFile(blob, filename);
             
-            console.log(`Relatório XML exportado: ${users.length} usuários encontrados com os filtros aplicados`);
-            alert(`Relatório XML exportado com sucesso!\n${users.length} usuários encontrados.\nArquivo: ${filename}`);
+            console.log(`Relatório Excel exportado: ${users.length} usuários encontrados com os filtros aplicados`);
+            alert(`Relatório Excel exportado com sucesso!\n${users.length} usuários encontrados.\nArquivo: ${filename}`);
         }
 
         function escapeXml(unsafe) {
@@ -2626,6 +2702,7 @@
                 case 'no-final-21': return '21D Final';
                 case 'no-360-self': return '360° Própria';
                 case 'no-360-others': return '360° de Outros';
+                case 'no-mentor-evaluation': return 'Mentor Nao fez Avaliação';
                 default: return evaluation;
             }
         }
@@ -2636,6 +2713,7 @@
                 case 'no-final-21': return 'NÃO fez auto avaliação 21D final';
                 case 'no-360-self': return 'NÃO fez auto avaliação 360°';
                 case 'no-360-others': return 'NÃO fez avaliação 360° de outros participantes';
+                case 'no-mentor-evaluation': return 'Mentor Nao fez Avaliação';
                 default: return evaluation;
             }
         }
@@ -2649,6 +2727,7 @@
                     case 'no-final-21': return '21D Final';
                     case 'no-360-self': return '360° Própria';
                     case 'no-360-others': return '360° de Outros';
+                    case 'no-mentor-evaluation': return 'Mentor Nao fez Avaliação';
                     default: return issue;
                 }
             });
@@ -2665,6 +2744,7 @@
                     case 'no-final-21': return 'NÃO fez auto avaliação 21D final';
                     case 'no-360-self': return 'NÃO fez auto avaliação 360°';
                     case 'no-360-others': return 'NÃO fez avaliação 360° de outros participantes';
+                    case 'no-mentor-evaluation': return 'Mentor Nao fez Avaliação';
                     default: return issue;
                 }
             });
