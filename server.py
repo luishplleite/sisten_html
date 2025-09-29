@@ -37,10 +37,7 @@ class CustomHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         
         # Handle file routing
         if self.path == '/':
-            # Default to task manager dashboard
-            self.path = '/teste.html'
-        elif self.path == '/portfolio':
-            # Portfolio page
+            # Default to main dashboard
             self.path = '/index.html'
         
         return super().do_GET()
