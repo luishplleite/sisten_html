@@ -887,7 +887,7 @@
                 evaluation360Ctx.clearRect(0, 0, evaluation360Ctx.canvas.width, evaluation360Ctx.canvas.height);
                 evaluation360Ctx.textAlign = "center";
                 evaluation360Ctx.fillText(message, evaluation360Ctx.canvas.width / 2, 50);
-                evaluation360Title.textContent = "Avaliação 360°";
+                evaluation360Title.textContent = "Avaliações Feitas pela Equipe";
             };
             
             if (selection.isTeamAverage && selection.teamId) {
@@ -898,7 +898,7 @@
                     return;
                 }
 
-                evaluation360Title.textContent = `Avaliação 360° - Média da Equipe ${team.name}`;
+                evaluation360Title.textContent = `Avaliações Feitas pela Equipe ${team.name}`;
 
                 const teamMemberIds = new Set(
                     data.assessment_answers
@@ -929,11 +929,10 @@
                     return;
                 }
 
-                const scoresByRole = { self: {}, member: {}, mentor: {} };
+                const scoresByRole = { self: {}, member: {} };
                 questionIds.forEach(qId => {
                     scoresByRole.self[qId] = [];
                     scoresByRole.member[qId] = [];
-                    scoresByRole.mentor[qId] = [];
                 });
 
                 teamEvaluationsReceived.forEach(sub => {
@@ -943,8 +942,10 @@
                     let role = 'member';
                     if (evaluator.id === sub.target_user_id) {
                         role = 'self';
-                    } else if (evaluator.role === 'mentor') {
-                        role = 'mentor';
+                    }
+                    // Pular avaliações de mentores
+                    if (evaluator.role === 'mentor') {
+                        return;
                     }
 
                     allAnswers.filter(a => a.submission_id === sub.id).forEach(answer => {
@@ -979,16 +980,10 @@
                     });
                 }
 
-                const mentorAverageScores = calculateAverage(scoresByRole.mentor);
-                if (mentorAverageScores.some(s => s > 0)) {
-                    datasets.push({
-                        label: 'Média dos Mentores', data: mentorAverageScores,
-                        borderColor: 'rgba(100, 100, 100, 1)', backgroundColor: 'rgba(100, 100, 100, 0.2)', borderWidth: 2, borderDash: [5, 5],
-                    });
-                }
+                // Removida a seção de avaliações de mentores conforme solicitado
                 
                 if (datasets.length === 0) { 
-                    renderEmptyChart("Dados insuficientes para montar a média 360° do time."); 
+                    renderEmptyChart("Dados insuficientes para montar as avaliações da equipe."); 
                     return; 
                 }
 
@@ -1029,7 +1024,7 @@
             const targetUser = data.users.find(u => u.id === targetUserId);
             const targetUserName = targetUser ? targetUser.full_name.split(' ')[0] : 'Participante';
             const team = targetTeamId ? data.teams.find(t => t.id === targetTeamId) : null;
-            evaluation360Title.textContent = `Avaliação 360° - ${targetUserName} ${team ? `(${team.name})` : ''}`;
+            evaluation360Title.textContent = `Avaliações Feitas por ${targetUserName} ${team ? `(${team.name})` : ''}`;
 
             const targetSubmissions = data.mentorins.filter(s => s.target_user_id === targetUserId);
             if (targetSubmissions.length === 0) { renderEmptyChart(`Nenhuma avaliação encontrada para ${targetUserName}.`); return; }
@@ -1055,8 +1050,7 @@
             const datasets = [];
             const memberScoresByQuestion = {};
             questionIds.forEach(qId => memberScoresByQuestion[qId] = []);
-            const mentorScoresByQuestion = {};
-            questionIds.forEach(qId => mentorScoresByQuestion[qId] = []);
+            // Removida a lógica de mentores conforme solicitado
 
             targetSubmissions.forEach(sub => {
                 const evaluator = data.users.find(u => u.id === sub.evaluator_id);
@@ -1074,9 +1068,8 @@
                       });
                 } else if (evaluator.role === 'member') {
                     questionIds.forEach((qId, index) => { if(submissionScores[index] > 0) memberScoresByQuestion[qId].push(submissionScores[index]); });
-                } else if (evaluator.role === 'mentor') {
-                     questionIds.forEach((qId, index) => { if(submissionScores[index] > 0) mentorScoresByQuestion[qId].push(submissionScores[index]); });
                 }
+                // Removida a lógica de avaliações de mentores conforme solicitado
             });
             
             const calculateAverage = (scoresByQuestion) => questionIds.map(qId => {
@@ -1093,15 +1086,9 @@
                 });
             }
 
-            const mentorAverageScores = calculateAverage(mentorScoresByQuestion);
-            if (mentorAverageScores.some(s => s > 0)) {
-                datasets.push({
-                    label: 'Visão do Mentor', data: mentorAverageScores,
-                    borderColor: 'rgba(100, 100, 100, 1)', backgroundColor: 'rgba(100, 100, 100, 0.2)', borderWidth: 2, borderDash: [5, 5],
-                });
-            }
+            // Removida a seção de visão do mentor conforme solicitado
 
-            if (datasets.length === 0) { renderEmptyChart("Dados insuficientes para montar o comparativo 360°."); return; }
+            if (datasets.length === 0) { renderEmptyChart("Dados insuficientes para montar as avaliações da equipe."); return; }
 
             evaluation360ChartInstance = new Chart(evaluation360Ctx, {
                 type: 'radar',
