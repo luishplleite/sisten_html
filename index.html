@@ -1026,12 +1026,19 @@
             const team = targetTeamId ? data.teams.find(t => t.id === targetTeamId) : null;
             evaluation360Title.textContent = `Avaliações Feitas por ${targetUserName} ${team ? `(${team.name})` : ''}`;
 
-            const targetSubmissions = data.mentorins.filter(s => s.target_user_id === targetUserId);
-            if (targetSubmissions.length === 0) { renderEmptyChart(`Nenhuma avaliação encontrada para ${targetUserName}.`); return; }
+            // Buscar avaliações FEITAS pelo usuário (ele é o evaluator_id) - incluindo autoavaliação
+            const evaluationsMade = data.mentorins.filter(s => s.evaluator_id === targetUserId);
+            if (evaluationsMade.length === 0) { renderEmptyChart(`${targetUserName} não fez avaliações.`); return; }
             
-            const targetSubmissionIds = new Set(targetSubmissions.map(s => s.id));
-            const relevantAnswers = data.assessment_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
-            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.f_answers.filter(answer => targetSubmissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
+            // Filtrar apenas avaliações feitas para membros da mesma equipe (usando target_team_id) ou autoavaliação
+            const teamEvaluations = evaluationsMade.filter(eval => 
+                eval.target_team_id === targetTeamId || eval.target_user_id === targetUserId
+            );
+            if (teamEvaluations.length === 0) { renderEmptyChart(`${targetUserName} não fez avaliações para sua equipe.`); return; }
+            
+            const submissionIds = new Set(teamEvaluations.map(s => s.id));
+            const relevantAnswers = data.assessment_answers.filter(answer => submissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
+            const sourceOfAnswers = relevantAnswers.length > 0 ? relevantAnswers : data.f_answers.filter(answer => submissionIds.has(answer.submission_id) && questionIds.includes(answer.question_id));
             if (sourceOfAnswers.length === 0) { renderEmptyChart("Não há dados de respostas para estas avaliações."); return; }
             
             const scoresBySubmission = {};
@@ -1048,45 +1055,49 @@
             const getScoresForSubmission = (submissionId) => questionIds.map(qId => (scoresBySubmission[submissionId] && scoresBySubmission[submissionId][qId]) || 0);
 
             const datasets = [];
-            const memberScoresByQuestion = {};
-            questionIds.forEach(qId => memberScoresByQuestion[qId] = []);
-            // Removida a lógica de mentores conforme solicitado
+            const colors = ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)'];
+            let colorIndex = 0;
 
-            targetSubmissions.forEach(sub => {
-                const evaluator = data.users.find(u => u.id === sub.evaluator_id);
-                if (!evaluator) return;
-                
-                const submissionScores = getScoresForSubmission(sub.id);
-
-                if (evaluator.id === targetUserId) {
-                       datasets.push({
-                           label: `Autoavaliação - ${targetUserName}`,
-                           data: submissionScores,
-                           borderColor: 'rgba(59, 130, 246, 1)',
-                           backgroundColor: 'rgba(59, 130, 246, 0.2)',
-                           borderWidth: 2.5,
-                      });
-                } else if (evaluator.role === 'member') {
-                    questionIds.forEach((qId, index) => { if(submissionScores[index] > 0) memberScoresByQuestion[qId].push(submissionScores[index]); });
+            // Agrupar avaliações por pessoa avaliada para evitar duplicatas
+            const evaluationsByTarget = {};
+            teamEvaluations.forEach(evaluation => {
+                const targetId = evaluation.target_user_id;
+                if (!evaluationsByTarget[targetId]) {
+                    evaluationsByTarget[targetId] = [];
                 }
-                // Removida a lógica de avaliações de mentores conforme solicitado
-            });
-            
-            const calculateAverage = (scoresByQuestion) => questionIds.map(qId => {
-                const scores = scoresByQuestion[qId];
-                if (!scores || scores.length === 0) return 0;
-                return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2);
+                evaluationsByTarget[targetId].push(evaluation);
             });
 
-            const memberAverageScores = calculateAverage(memberScoresByQuestion);
-            if (memberAverageScores.some(s => s > 0)) {
-                datasets.push({
-                    label: 'Média da Equipe', data: memberAverageScores,
-                    borderColor: 'rgba(48, 209, 88, 1)', backgroundColor: 'rgba(48, 209, 88, 0.2)', borderWidth: 2,
-                });
-            }
-
-            // Removida a seção de visão do mentor conforme solicitado
+            // Para cada pessoa avaliada, criar uma única linha no gráfico
+            Object.keys(evaluationsByTarget).forEach(targetId => {
+                const targetUser = data.users.find(u => u.id === targetId);
+                if (!targetUser) return;
+                
+                const evaluationsForTarget = evaluationsByTarget[targetId];
+                // Pegar a avaliação mais recente ou a primeira disponível
+                const latestEvaluation = evaluationsForTarget.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                
+                const submissionScores = getScoresForSubmission(latestEvaluation.id);
+                if (submissionScores.some(score => score > 0)) {
+                    // Verificar se é autoavaliação para usar label e cor especiais
+                    const isSelfEvaluation = targetId === targetUserId;
+                    const color = isSelfEvaluation ? 'rgba(59, 130, 246, 1)' : colors[colorIndex % colors.length];
+                    const label = isSelfEvaluation ? `Autoavaliação - ${targetUserName}` : targetUser.full_name.split(' ')[0];
+                    const borderWidth = isSelfEvaluation ? 2.5 : 2;
+                    
+                    datasets.push({
+                        label: label,
+                        data: submissionScores,
+                        borderColor: color,
+                        backgroundColor: color.replace('1)', '0.2)'),
+                        borderWidth: borderWidth,
+                    });
+                    
+                    if (!isSelfEvaluation) {
+                        colorIndex++;
+                    }
+                }
+            });
 
             if (datasets.length === 0) { renderEmptyChart("Dados insuficientes para montar as avaliações da equipe."); return; }
 
