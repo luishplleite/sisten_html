@@ -579,6 +579,77 @@
             border-color: #28a745;
             box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
         }
+
+        /* Estilos para membros individuais */
+        .members-container {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 3px solid #007bff;
+        }
+
+        .members-container h3 {
+            text-align: center;
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }
+
+        .members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .member-card {
+            background-color: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .member-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .member-card h4 {
+            margin: 0 0 15px 0;
+            color: #007bff;
+            text-align: center;
+            font-size: 1.1em;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #007bff;
+        }
+
+        .member-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .member-metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        .member-metric-label {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .member-metric-value {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
@@ -3150,14 +3221,151 @@
                     teamsGrid.appendChild(teamData.card);
                 });
             } else {
-                // Mostrar apenas o time selecionado
-                const selectedTeamData = allTeamsData.find(t => t.id === selectedTeamId);
+                // Mostrar apenas o time selecionado com membros individuais
+                const selectedTeamData = allTeamsData.find(t => String(t.id) === String(selectedTeamId));
                 if (selectedTeamData) {
-                    teamsGrid.appendChild(selectedTeamData.card);
+                    // Criar container para o time selecionado
+                    const teamContainer = document.createElement('div');
+                    teamContainer.style.gridColumn = '1/-1';
+                    
+                    // Adicionar o card do time
+                    teamContainer.appendChild(selectedTeamData.card);
+                    
+                    // Adicionar membros individuais
+                    const membersSection = createTeamMembersSection(selectedTeamId, selectedTeamData.name);
+                    if (membersSection) {
+                        teamContainer.appendChild(membersSection);
+                    }
+                    
+                    teamsGrid.appendChild(teamContainer);
                 } else {
                     teamsGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">Time não encontrado.</p>';
                 }
             }
+        }
+
+        function createTeamMembersSection(teamId, teamName) {
+            const data = originalSegregatedData;
+            
+            // Obter membros do time
+            const teamMemberIds = new Set();
+            
+            if (data.assessment_answers && Array.isArray(data.assessment_answers)) {
+                data.assessment_answers.forEach(answer => {
+                    if (String(answer.team_id) === String(teamId) && answer.user_id) {
+                        teamMemberIds.add(answer.user_id);
+                    }
+                });
+            }
+            
+            if (teamMemberIds.size === 0 && data.mentorins && Array.isArray(data.mentorins)) {
+                data.mentorins.forEach(sub => {
+                    if (String(sub.target_team_id) === String(teamId) && sub.target_user_id) {
+                        teamMemberIds.add(sub.target_user_id);
+                    }
+                });
+            }
+            
+            if (teamMemberIds.size === 0) {
+                return null;
+            }
+            
+            // Criar container para os membros
+            const membersContainer = document.createElement('div');
+            membersContainer.className = 'members-container';
+            
+            const title = document.createElement('h3');
+            title.textContent = `👥 Membros do Time: ${teamName}`;
+            membersContainer.appendChild(title);
+            
+            const membersGrid = document.createElement('div');
+            membersGrid.className = 'members-grid';
+            
+            // Calcular médias do time primeiro
+            const teamAverages = calculateTeamAverages(teamId, data);
+            
+            // Calcular e criar card para cada membro
+            const membersList = Array.from(teamMemberIds).map(userId => {
+                const user = (data.users || []).find(u => u.id === userId);
+                const userName = user ? (user.full_name || user.name || `Usuário ${userId}`) : `Usuário ${userId}`;
+                const memberAverages = calculateMemberAverages(teamId, userId, data, teamAverages);
+                
+                return {
+                    userId,
+                    userName,
+                    averages: memberAverages
+                };
+            });
+            
+            // Ordenar por nome
+            membersList.sort((a, b) => a.userName.localeCompare(b.userName));
+            
+            // Criar cards dos membros
+            membersList.forEach(member => {
+                const memberCard = createMemberCard(member.userName, member.averages);
+                membersGrid.appendChild(memberCard);
+            });
+            
+            membersContainer.appendChild(membersGrid);
+            return membersContainer;
+        }
+
+        function calculateMemberAverages(teamId, userId, data, teamAverages) {
+            // =================== MÉDIA 21D INDIVIDUAL (BRUTA - SEM AJUSTES) ===================
+            // Esta é a média individual que aparece na coluna F do Excel
+            const checkpointAnswers = (data.assessment_answers || []).filter(answer => 
+                answer.user_id === userId && 
+                answer.moment && 
+                (answer.moment === 'INITIAL' || answer.moment === 'FINAL')
+            );
+
+            const checkpointScoresMap = new Map();
+            checkpointAnswers.forEach(answer => {
+                const score = parseFloat(answer.answer);
+                if (!isNaN(score) && score >= 0 && score <= 5) {
+                    const key = `${answer.question_id}_${answer.moment}`;
+                    if (!checkpointScoresMap.has(key)) {
+                        checkpointScoresMap.set(key, score);
+                    }
+                }
+            });
+
+            const checkpointScores = Array.from(checkpointScoresMap.values());
+            const individual21DAverage = checkpointScores.length > 0 ? 
+                checkpointScores.reduce((a, b) => a + b, 0) / checkpointScores.length : 0;
+
+            // As colunas G e H do Excel mostram valores DO TIME INTEIRO (não individuais)
+            // Usamos os valores já calculados para o time
+            return {
+                individual21D: Math.round(individual21DAverage * 100) / 100,
+                teamMentorAverage: teamAverages.mentorAverage || 0,
+                teamCheckpointAverage: teamAverages.checkpointAverage || 0
+            };
+        }
+
+        function createMemberCard(memberName, averages) {
+            const card = document.createElement('div');
+            card.className = 'member-card';
+            
+            card.innerHTML = `
+                <h4>${memberName}</h4>
+                <div class="member-metrics">
+                    <div class="member-metric-item">
+                        <span class="member-metric-label">Média da Avaliação da equipe</span>
+                        <span class="member-metric-value">${averages.individual21D.toFixed(2)}</span>
+                    </div>
+                    <div class="member-metric-item">
+                        <span class="member-metric-label">Média dos Mentores (time)</span>
+                        <span class="member-metric-value">${averages.teamMentorAverage.toFixed(2)}</span>
+                    </div>
+                    <div class="member-metric-item">
+                        <span class="member-metric-label">Média dos Check Points (time)</span>
+                        <span class="member-metric-value">${averages.teamCheckpointAverage.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+            
+            return card;
         }
 
         function calculateTeamAverages(teamId, data) {
