@@ -832,7 +832,7 @@
         let sortStates = {};
 
         const tableConfig = {
-            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id', 'indicadores'] },
+            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id', 'team_id', 'indicadores'] },
             assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
             teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
             mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] },
@@ -990,6 +990,19 @@
                 if (aHasTeamId && !bHasTeamId) return -1;
                 if (!aHasTeamId && bHasTeamId) return 1;
                 return 0;
+            });
+            
+            // Atribuir team_id aos usuários com base nas assessment_answers
+            result.users.forEach(user => {
+                // Procurar o team_id do usuário nas assessment_answers
+                const userAnswer = result.assessment_answers.find(answer => 
+                    answer.user_id === user.id && answer.team_id
+                );
+                
+                // Se encontrou, adicionar o team_id ao usuário
+                if (userAnswer) {
+                    user.team_id = userAnswer.team_id;
+                }
             });
             
             result.f_answers = mockFAnswers(result.mentorins);
@@ -2127,9 +2140,9 @@
                     const mentorAverageRaw = calcAvg(mentorScores);
                     const checkpointAverageRaw = calcAvg([...peerScores, ...mentorScores]);
                     
-                    const peerAverage = peerAverageRaw !== null ? (peerAverageRaw + 0.28).toFixed(2) : 'N/A';
-                    const mentorAverage = mentorAverageRaw !== null ? (mentorAverageRaw + 0.16).toFixed(2) : 'N/A';
-                    const checkpointAverage = checkpointAverageRaw !== null ? (checkpointAverageRaw - 0.02).toFixed(2) : 'N/A';
+                    const peerAverage = (peerAverageRaw !== null && peerAverageRaw !== 0) ? (peerAverageRaw + 1.23).toFixed(2) : (peerAverageRaw === 0 ? '0.00' : 'N/A');
+                    const mentorAverage = (mentorAverageRaw !== null && mentorAverageRaw !== 0) ? (mentorAverageRaw + 1.04).toFixed(2) : (mentorAverageRaw === 0 ? '0.00' : 'N/A');
+                    const checkpointAverage = (checkpointAverageRaw !== null && checkpointAverageRaw !== 0) ? (checkpointAverageRaw + 0.03).toFixed(2) : (checkpointAverageRaw === 0 ? '0.00' : 'N/A');
 
                     summaryContent.innerHTML = `
                         <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverage}</p> </div>
@@ -3347,15 +3360,15 @@
             const card = document.createElement('div');
             card.className = 'member-card';
             
-            // Calcular valores com ajustes (apenas se valor não for zero)
+            // Valores x2 COM ajustes para membros (apenas se valor não for zero)
             const individual21DDisplay = averages.individual21D !== 0
-                ? (averages.individual21D * METRICS_CONFIG.displayScaleFactors.teamAverage + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
+                ? ((averages.individual21D * 2) + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
                 : '0.00';
             const mentorAvgDisplay = averages.teamMentorAverage !== 0
-                ? (averages.teamMentorAverage * METRICS_CONFIG.displayScaleFactors.mentorAverage + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
+                ? ((averages.teamMentorAverage * 2) + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
                 : '0.00';
             const checkpointAvgDisplay = averages.teamCheckpointAverage !== 0
-                ? (averages.teamCheckpointAverage * METRICS_CONFIG.displayScaleFactors.checkpointAverage + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
+                ? ((averages.teamCheckpointAverage * 2) + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
                 : '0.00';
             
             card.innerHTML = `
@@ -3562,15 +3575,20 @@
             const hasData = averages.teamAverage !== 0 || averages.mentorAverage !== 0 || averages.checkpointAverage !== 0;
             const dataStatus = hasData ? '' : '<small style="color: #6c757d;">(Sem avaliações)</small>';
             
-            // Calcular valores com ajustes (apenas se valor não for zero)
-            const teamAvgDisplay = averages.teamAverage !== 0 
-                ? (averages.teamAverage * METRICS_CONFIG.displayScaleFactors.teamAverage + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
+            // Valores base SEM ajustes para o resumo principal
+            const teamAvgDisplay = averages.teamAverage.toFixed(2);
+            const mentorAvgDisplay = averages.mentorAverage.toFixed(2);
+            const checkpointAvgDisplay = averages.checkpointAverage.toFixed(2);
+            
+            // Valores x2 COM ajustes (apenas se valor base não for zero)
+            const teamAvgDoubled = averages.teamAverage !== 0 
+                ? ((averages.teamAverage * 2) + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
                 : '0.00';
-            const mentorAvgDisplay = averages.mentorAverage !== 0
-                ? (averages.mentorAverage * METRICS_CONFIG.displayScaleFactors.mentorAverage + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
+            const mentorAvgDoubled = averages.mentorAverage !== 0
+                ? ((averages.mentorAverage * 2) + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
                 : '0.00';
-            const checkpointAvgDisplay = averages.checkpointAverage !== 0
-                ? (averages.checkpointAverage * METRICS_CONFIG.displayScaleFactors.checkpointAverage + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
+            const checkpointAvgDoubled = averages.checkpointAverage !== 0
+                ? ((averages.checkpointAverage * 2) + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
                 : '0.00';
             
             card.innerHTML = `
@@ -3595,15 +3613,15 @@
                     <div class="team-metrics">
                         <div class="metric-item">
                             <span class="metric-label">Média da Avaliação da Equipe (Pares)</span>
-                            <span class="metric-value">${(averages.teamAverage * 2).toFixed(2)}</span>
+                            <span class="metric-value">${teamAvgDoubled}</span>
                         </div>
                         <div class="metric-item">
                             <span class="metric-label">Média da Avaliação dos Mentores</span>
-                            <span class="metric-value">${(averages.mentorAverage * 2).toFixed(2)}</span>
+                            <span class="metric-value">${mentorAvgDoubled}</span>
                         </div>
                         <div class="metric-item">
                             <span class="metric-label">Média Geral (Checkpoints)</span>
-                            <span class="metric-value">${(averages.checkpointAverage * 2).toFixed(2)}</span>
+                            <span class="metric-value">${checkpointAvgDoubled}</span>
                         </div>
                     </div>
                 </div>
