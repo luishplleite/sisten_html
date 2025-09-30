@@ -3356,11 +3356,11 @@
                     </div>
                     <div class="member-metric-item">
                         <span class="member-metric-label">Média dos Mentores (time)</span>
-                        <span class="member-metric-value">${averages.teamMentorAverage.toFixed(2)}</span>
+                        <span class="member-metric-value">${(averages.teamMentorAverage * 2).toFixed(2)}</span>
                     </div>
                     <div class="member-metric-item">
                         <span class="member-metric-label">Média dos Check Points (time)</span>
-                        <span class="member-metric-value">${averages.teamCheckpointAverage.toFixed(2)}</span>
+                        <span class="member-metric-value">${(averages.teamCheckpointAverage * 2).toFixed(2)}</span>
                     </div>
                 </div>
             `;
@@ -3502,15 +3502,11 @@
             const checkpointAverage = checkpointScores.length > 0 ? 
                 checkpointScores.reduce((a, b) => a + b, 0) / checkpointScores.length : 0;
 
-            // Aplicar ajustes e retornar médias arredondadas para 2 casas decimais, garantindo nunca NaN
-            const adjustedTeamAverage = isNaN(teamAverage) ? 0 : teamAverage + 0.325;
-            const adjustedMentorAverage = isNaN(mentorAverage) ? 0 : mentorAverage + 0.15;
-            const adjustedCheckpointAverage = isNaN(checkpointAverage) ? 0 : checkpointAverage - 0.315;
-            
+            // Retornar médias sem ajustes arbitrários, garantindo nunca NaN
             return {
-                teamAverage: Math.round(adjustedTeamAverage * 100) / 100,
-                mentorAverage: Math.round(adjustedMentorAverage * 100) / 100,
-                checkpointAverage: Math.round(adjustedCheckpointAverage * 100) / 100
+                teamAverage: isNaN(teamAverage) ? 0 : Math.round(teamAverage * 100) / 100,
+                mentorAverage: isNaN(mentorAverage) ? 0 : Math.round(mentorAverage * 100) / 100,
+                checkpointAverage: isNaN(checkpointAverage) ? 0 : Math.round(checkpointAverage * 100) / 100
             };
         }
 
@@ -3520,8 +3516,8 @@
             
             const teamName = team.name || `Time ${team.id}`;
             
-            // Verificar se o time tem dados
-            const hasData = averages.teamAverage > 0 || averages.mentorAverage > 0 || averages.checkpointAverage > 0;
+            // Verificar se o time tem dados (considerando valores negativos como dados válidos)
+            const hasData = averages.teamAverage !== 0 || averages.mentorAverage !== 0 || averages.checkpointAverage !== 0;
             const dataStatus = hasData ? '' : '<small style="color: #6c757d;">(Sem avaliações)</small>';
             
             card.innerHTML = `
@@ -3533,11 +3529,11 @@
                     </div>
                     <div class="metric-item">
                         <span class="metric-label">Média da Avaliação dos Mentores</span>
-                        <span class="metric-value">${averages.mentorAverage.toFixed(2)}</span>
+                        <span class="metric-value">${(averages.mentorAverage * 2).toFixed(2)}</span>
                     </div>
                     <div class="metric-item">
                         <span class="metric-label">Média Geral (Checkpoints)</span>
-                        <span class="metric-value">${averages.checkpointAverage.toFixed(2)}</span>
+                        <span class="metric-value">${(averages.checkpointAverage * 2).toFixed(2)}</span>
                     </div>
                 </div>
                 
