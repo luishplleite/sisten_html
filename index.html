@@ -832,7 +832,7 @@
         let sortStates = {};
 
         const tableConfig = {
-            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id', 'team_id', 'indicadores'] },
+            users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'role', 'team_id', 'indicadores'] },
             assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
             teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
             mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] },
@@ -2109,55 +2109,41 @@
                     const filteredDataForCharts = JSON.parse(JSON.stringify(originalSegregatedData));
                     filteredDataForCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => teamMemberIds.has(a.user_id));
                     
-                    const questionIds360 = ["16", "17", "18", "19"];
-                    const evaluationsReceived = originalSegregatedData.mentorins.filter(sub => teamMemberIds.has(sub.target_user_id));
-                    const submissionIds = new Set(evaluationsReceived.map(s => s.id));
+                    // Usar a função calculateTeamAverages para obter valores consistentes com o modal
+                    const averages = calculateTeamAverages(teamId, originalSegregatedData);
                     
-                    let allAnswers = [...originalSegregatedData.assessment_answers, ...originalSegregatedData.f_answers]
-                        .filter(a => submissionIds.has(a.submission_id) && questionIds360.includes(a.question_id));
-
-                    const peerScores = [];
-                    const mentorScores = [];
-
-                    evaluationsReceived.forEach(sub => {
-                        const evaluator = originalSegregatedData.users.find(u => u.id === sub.evaluator_id);
-                        if (!evaluator) return;
-
-                        const scores = allAnswers
-                            .filter(a => a.submission_id === sub.id)
-                            .map(a => parseFloat(a.answer || a.answer_numeric));
-
-                        if (evaluator.role === 'mentor') {
-                            mentorScores.push(...scores);
-                        } else if (teamMemberIds.has(evaluator.id) && evaluator.id !== sub.target_user_id) {
-                            peerScores.push(...scores);
-                        }
-                    });
-
-                    const calcAvg = (scores) => scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : null;
+                    // Helper para formatar valores com proteção
+                    const formatValue = (value) => {
+                        if (value === null || value === undefined || isNaN(value)) return 'N/A';
+                        return value === 0 ? '0.00' : value.toFixed(2);
+                    };
                     
-                    const peerAverageRaw = calcAvg(peerScores);
-                    const mentorAverageRaw = calcAvg(mentorScores);
-                    const checkpointAverageRaw = calcAvg([...peerScores, ...mentorScores]);
+                    // Valores base SEM ajustes para o resumo principal
+                    const teamAvgDisplay = formatValue(averages.teamAverage);
+                    const mentorAvgDisplay = formatValue(averages.mentorAverage);
+                    const checkpointAvgDisplay = formatValue(averages.checkpointAverage);
                     
-                    const peerAverage = (peerAverageRaw !== null && peerAverageRaw !== 0) ? (peerAverageRaw + 1.23).toFixed(2) : (peerAverageRaw === 0 ? '0.00' : 'N/A');
-                    const mentorAverage = (mentorAverageRaw !== null && mentorAverageRaw !== 0) ? (mentorAverageRaw + 1.04).toFixed(2) : (mentorAverageRaw === 0 ? '0.00' : 'N/A');
-                    const checkpointAverage = (checkpointAverageRaw !== null && checkpointAverageRaw !== 0) ? (checkpointAverageRaw + 0.03).toFixed(2) : (checkpointAverageRaw === 0 ? '0.00' : 'N/A');
+                    // Valores x2 COM ajustes (mesma lógica do modal)
+                    const teamAvgDoubled = (averages.teamAverage && averages.teamAverage !== 0)
+                        ? ((averages.teamAverage * 2) + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
+                        : formatValue(averages.teamAverage);
+                    const mentorAvgDoubled = (averages.mentorAverage && averages.mentorAverage !== 0)
+                        ? ((averages.mentorAverage * 2) + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
+                        : formatValue(averages.mentorAverage);
+                    const checkpointAvgDoubled = (averages.checkpointAverage && averages.checkpointAverage !== 0)
+                        ? ((averages.checkpointAverage * 2) + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
+                        : formatValue(averages.checkpointAverage);
 
                     summaryContent.innerHTML = `
-                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverage}</p> </div>
-                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAverage}</p> </div>
-                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverage}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${teamAvgDisplay}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAvgDisplay}</p> </div>
+                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAvgDisplay}</p> </div>
                     `;
 
-                    const peerAverageDoubled = peerAverage !== 'N/A' ? (parseFloat(peerAverage) * 2).toFixed(2) : 'N/A';
-                    const mentorAverageDoubled = mentorAverage !== 'N/A' ? (parseFloat(mentorAverage) * 2).toFixed(2) : 'N/A';
-                    const checkpointAverageDoubled = checkpointAverage !== 'N/A' ? (parseFloat(checkpointAverage) * 2).toFixed(2) : 'N/A';
-
                     summaryContentDoubled.innerHTML = `
-                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverageDoubled}</p> </div>
-                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAverageDoubled}</p> </div>
-                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverageDoubled}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${teamAvgDoubled}</p> </div>
+                        <div class="average-item"> <h4>Média da Avaliação dos Mentores</h4> <p>${mentorAvgDoubled}</p> </div>
+                        <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAvgDoubled}</p> </div>
                     `;
 
                     renderCharts(filteredDataForCharts);
