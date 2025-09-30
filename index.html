@@ -449,6 +449,136 @@
         .search-filter-checkbox {
             accent-color: #007bff;
         }
+
+        /* Estilo para o botão MEDIA DE TODOS OS TIMES */
+        #all-teams-average-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: background-color 0.3s ease;
+        }
+
+        #all-teams-average-btn:hover {
+            background-color: #218838;
+        }
+
+        /* Estilo para o modal de médias de todos os times */
+        #all-teams-modal .modal-content {
+            max-width: 1400px;
+            width: 95%;
+        }
+
+        #all-teams-modal .modal-body {
+            height: 70vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .teams-averages-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .team-average-card {
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .team-average-card h3 {
+            margin: 0 0 15px 0;
+            color: #495057;
+            text-align: center;
+            font-size: 1.2em;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 8px;
+        }
+
+        .team-metrics {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background-color: white;
+            border-radius: 6px;
+            border-left: 4px solid #007bff;
+        }
+
+        .metric-label {
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .metric-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .doubled-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #6c757d;
+        }
+
+        .doubled-section .metric-item {
+            border-left-color: #dc3545;
+        }
+
+        .doubled-section .metric-value {
+            color: #dc3545;
+        }
+
+        /* Estilo para o filtro de times no modal */
+        .team-filter-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .team-filter-container label {
+            font-weight: bold;
+            color: #495057;
+            font-size: 1.1em;
+        }
+
+        .team-filter-container select {
+            flex: 1;
+            padding: 10px;
+            font-size: 1em;
+            border: 2px solid #007bff;
+            border-radius: 6px;
+            background-color: white;
+            cursor: pointer;
+        }
+
+        .team-filter-container select:focus {
+            outline: none;
+            border-color: #28a745;
+            box-shadow: 0 0 5px rgba(40, 167, 69, 0.3);
+        }
     </style>
 </head>
 <body>
@@ -465,6 +595,11 @@
 
     <div class="container">
         <h1>Painel de Validação de Dados</h1>
+        
+        <!-- Botão para abrir o modal de médias de todos os times -->
+        <button id="all-teams-average-btn" onclick="openAllTeamsAverageModal()">
+            📊 MEDIA DE TODOS OS TIMES
+        </button>
 
         <div class="controls">
             <div class="controls-row">
@@ -586,6 +721,33 @@
             <div class="modal-body">
                 <div id="diagram-container"></div>
                 <svg id="diagram-svg"></svg>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Médias de Todos os Times -->
+    <div id="all-teams-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📊 Relatório de Médias de Todos os Times</h2>
+                <span class="close-btn" onclick="closeAllTeamsAverageModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="all-teams-loading" style="text-align: center; padding: 40px; font-size: 1.2em;">
+                    Calculando médias dos times...
+                </div>
+                <div id="all-teams-content" style="display: none;">
+                    <div class="team-filter-container">
+                        <label for="team-filter-select">🔍 Filtrar por Time:</label>
+                        <select id="team-filter-select" onchange="filterTeamAverages()">
+                            <option value="all">Todos os Times</option>
+                            <!-- Opções serão preenchidas dinamicamente -->
+                        </select>
+                    </div>
+                    <div class="teams-averages-grid" id="teams-averages-grid">
+                        <!-- Conteúdo será gerado dinamicamente pelo JavaScript -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -2873,6 +3035,327 @@
         // =================== FIM DA EXPORTAÇÃO PARA EXCEL ===================
 
         // =================== FIM DO SISTEMA DE BUSCA COM FILTROS COLORIDOS ===================
+
+        // =================== MODAL DE MÉDIAS DE TODOS OS TIMES ===================
+
+        function openAllTeamsAverageModal() {
+            const modal = document.getElementById('all-teams-modal');
+            const loadingDiv = document.getElementById('all-teams-loading');
+            const contentDiv = document.getElementById('all-teams-content');
+            
+            // Mostrar modal e loading
+            modal.style.display = 'block';
+            loadingDiv.style.display = 'block';
+            contentDiv.style.display = 'none';
+            
+            // Calcular médias com um pequeno delay para mostrar o loading
+            setTimeout(() => {
+                calculateAllTeamsAverages();
+            }, 100);
+        }
+
+        function closeAllTeamsAverageModal() {
+            const modal = document.getElementById('all-teams-modal');
+            modal.style.display = 'none';
+        }
+
+        let allTeamsData = [];
+
+        function calculateAllTeamsAverages() {
+            try {
+                const data = originalSegregatedData;
+                const teamsGrid = document.getElementById('teams-averages-grid');
+                const loadingDiv = document.getElementById('all-teams-loading');
+                const contentDiv = document.getElementById('all-teams-content');
+                const teamFilterSelect = document.getElementById('team-filter-select');
+                
+                // Limpar conteúdo anterior
+                teamsGrid.innerHTML = '';
+                allTeamsData = [];
+                
+                if (!data.teams || data.teams.length === 0) {
+                    teamsGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">Nenhum time encontrado.</p>';
+                    loadingDiv.style.display = 'none';
+                    contentDiv.style.display = 'block';
+                    return;
+                }
+
+                console.log(`Calculando médias para ${data.teams.length} times (TODOS os times serão exibidos)...`);
+
+                // Ordenar times por nome
+                const sortedTeams = [...data.teams].sort((a, b) => {
+                    const nameA = a.name || '';
+                    const nameB = b.name || '';
+                    return nameA.localeCompare(nameB);
+                });
+
+                // Preencher o dropdown de filtro
+                teamFilterSelect.innerHTML = '<option value="all">Todos os Times (' + sortedTeams.length + ')</option>';
+                sortedTeams.forEach(team => {
+                    const option = document.createElement('option');
+                    option.value = team.id;
+                    option.textContent = team.name || `Time ${team.id}`;
+                    teamFilterSelect.appendChild(option);
+                });
+
+                // Para cada time, calcular as médias (TODOS os times, com ou sem dados)
+                sortedTeams.forEach((team, index) => {
+                    const teamAverages = calculateTeamAverages(team.id, data);
+                    const teamCard = createTeamAverageCard(team, teamAverages);
+                    teamCard.dataset.teamId = team.id;
+                    teamsGrid.appendChild(teamCard);
+                    
+                    // Armazenar dados para filtro
+                    allTeamsData.push({
+                        id: team.id,
+                        name: team.name,
+                        card: teamCard
+                    });
+                });
+                
+                console.log(`✅ ${sortedTeams.length} times processados e exibidos no relatório`);
+
+                // Esconder loading e mostrar conteúdo
+                loadingDiv.style.display = 'none';
+                contentDiv.style.display = 'block';
+                
+                console.log('Cálculo de médias dos times concluído.');
+            } catch (error) {
+                console.error('Erro ao calcular médias dos times:', error);
+                const teamsGrid = document.getElementById('teams-averages-grid');
+                teamsGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1; color: red;">Erro ao calcular médias dos times.</p>';
+                
+                const loadingDiv = document.getElementById('all-teams-loading');
+                const contentDiv = document.getElementById('all-teams-content');
+                loadingDiv.style.display = 'none';
+                contentDiv.style.display = 'block';
+            }
+        }
+
+        function filterTeamAverages() {
+            const teamFilterSelect = document.getElementById('team-filter-select');
+            const selectedTeamId = teamFilterSelect.value;
+            const teamsGrid = document.getElementById('teams-averages-grid');
+            
+            // Limpar grid
+            teamsGrid.innerHTML = '';
+            
+            if (selectedTeamId === 'all') {
+                // Mostrar todos os times
+                allTeamsData.forEach(teamData => {
+                    teamsGrid.appendChild(teamData.card);
+                });
+            } else {
+                // Mostrar apenas o time selecionado
+                const selectedTeamData = allTeamsData.find(t => t.id === selectedTeamId);
+                if (selectedTeamData) {
+                    teamsGrid.appendChild(selectedTeamData.card);
+                } else {
+                    teamsGrid.innerHTML = '<p style="text-align: center; grid-column: 1/-1;">Time não encontrado.</p>';
+                }
+            }
+        }
+
+        function calculateTeamAverages(teamId, data) {
+            // Validar entrada
+            if (!teamId || !data || !data.teams) {
+                console.error('calculateTeamAverages: dados inválidos', teamId, data);
+                return { teamAverage: 0, mentorAverage: 0, checkpointAverage: 0 };
+            }
+
+            // Obter IDs dos membros do time - buscar em múltiplas fontes
+            const teamMemberIds = new Set();
+            
+            // Buscar membros em assessment_answers
+            if (data.assessment_answers && Array.isArray(data.assessment_answers)) {
+                data.assessment_answers.forEach(answer => {
+                    if (String(answer.team_id) === String(teamId) && answer.user_id) {
+                        teamMemberIds.add(answer.user_id);
+                    }
+                });
+            }
+            
+            // Buscar membros em mentorins (fallback)
+            if (teamMemberIds.size === 0 && data.mentorins && Array.isArray(data.mentorins)) {
+                data.mentorins.forEach(sub => {
+                    if (String(sub.target_team_id) === String(teamId) && sub.target_user_id) {
+                        teamMemberIds.add(sub.target_user_id);
+                    }
+                });
+            }
+            
+            // Garantir que time sem membros retorne 0.00 e apareça no relatório
+            const questionIds360 = ["16", "17", "18", "19"];
+
+            // =================== 1. MÉDIA DA AVALIAÇÃO DA EQUIPE (PARES) ===================
+            // Avaliações entre membros do mesmo time (excluindo autoavaliação)
+            const teamEvaluations = (data.mentorins || []).filter(sub => 
+                teamMemberIds.has(sub.target_user_id) && 
+                teamMemberIds.has(sub.evaluator_id) &&
+                sub.evaluator_id !== sub.target_user_id
+            );
+
+            // Deduplicar por (evaluator_id, target_user_id, question_id) para evitar contagem dupla
+            const teamScoresMap = new Map();
+            teamEvaluations.forEach(evaluation => {
+                // Buscar respostas primeiro em assessment_answers
+                let answers = (data.assessment_answers || []).filter(answer => 
+                    answer.submission_id === evaluation.id && 
+                    questionIds360.includes(String(answer.question_id))
+                );
+                
+                // Fallback para f_answers apenas se não houver em assessment_answers
+                if (answers.length === 0 && data.f_answers) {
+                    answers = (data.f_answers || []).filter(answer => 
+                        answer.submission_id === evaluation.id && 
+                        questionIds360.includes(String(answer.question_id))
+                    );
+                }
+
+                answers.forEach(answer => {
+                    const score = parseFloat(answer.answer || answer.answer_numeric);
+                    if (!isNaN(score) && score >= 0 && score <= 5) {
+                        // Chave única para deduplicar: evaluator + target + question
+                        const key = `${evaluation.evaluator_id}_${evaluation.target_user_id}_${answer.question_id}`;
+                        if (!teamScoresMap.has(key)) {
+                            teamScoresMap.set(key, score);
+                        }
+                    }
+                });
+            });
+
+            const teamScores = Array.from(teamScoresMap.values());
+            const teamAverage = teamScores.length > 0 ? 
+                teamScores.reduce((a, b) => a + b, 0) / teamScores.length : 0;
+
+            // =================== 2. MÉDIA DA AVALIAÇÃO DOS MENTORES ===================
+            // Avaliações feitas por mentores para membros do time
+            const mentorEvaluations = (data.mentorins || []).filter(sub => {
+                if (!teamMemberIds.has(sub.target_user_id)) return false;
+                const evaluator = (data.users || []).find(user => user.id === sub.evaluator_id);
+                return evaluator && evaluator.role && evaluator.role.toLowerCase() === 'mentor';
+            });
+
+            // Deduplicar por (mentor_id, target_user_id, question_id)
+            const mentorScoresMap = new Map();
+            mentorEvaluations.forEach(evaluation => {
+                let answers = (data.assessment_answers || []).filter(answer => 
+                    answer.submission_id === evaluation.id && 
+                    questionIds360.includes(String(answer.question_id))
+                );
+                
+                if (answers.length === 0 && data.f_answers) {
+                    answers = (data.f_answers || []).filter(answer => 
+                        answer.submission_id === evaluation.id && 
+                        questionIds360.includes(String(answer.question_id))
+                    );
+                }
+
+                answers.forEach(answer => {
+                    const score = parseFloat(answer.answer || answer.answer_numeric);
+                    if (!isNaN(score) && score >= 0 && score <= 5) {
+                        const key = `${evaluation.evaluator_id}_${evaluation.target_user_id}_${answer.question_id}`;
+                        if (!mentorScoresMap.has(key)) {
+                            mentorScoresMap.set(key, score);
+                        }
+                    }
+                });
+            });
+
+            const mentorScores = Array.from(mentorScoresMap.values());
+            const mentorAverage = mentorScores.length > 0 ? 
+                mentorScores.reduce((a, b) => a + b, 0) / mentorScores.length : 0;
+
+            // =================== 3. MÉDIA GERAL (CHECKPOINTS - 21D) ===================
+            // Avaliações 21D (INITIAL e FINAL) dos membros do time
+            const checkpointAnswers = (data.assessment_answers || []).filter(answer => 
+                teamMemberIds.has(answer.user_id) && 
+                answer.moment && 
+                (answer.moment === 'INITIAL' || answer.moment === 'FINAL')
+            );
+
+            // Deduplicar por (user_id, question_id, moment) para evitar contar a mesma resposta múltiplas vezes
+            const checkpointScoresMap = new Map();
+            checkpointAnswers.forEach(answer => {
+                const score = parseFloat(answer.answer);
+                if (!isNaN(score) && score >= 0 && score <= 5) {
+                    const key = `${answer.user_id}_${answer.question_id}_${answer.moment}`;
+                    if (!checkpointScoresMap.has(key)) {
+                        checkpointScoresMap.set(key, score);
+                    }
+                }
+            });
+
+            const checkpointScores = Array.from(checkpointScoresMap.values());
+            const checkpointAverage = checkpointScores.length > 0 ? 
+                checkpointScores.reduce((a, b) => a + b, 0) / checkpointScores.length : 0;
+
+            // Retornar médias arredondadas para 2 casas decimais, garantindo nunca NaN
+            return {
+                teamAverage: isNaN(teamAverage) ? 0 : Math.round(teamAverage * 100) / 100,
+                mentorAverage: isNaN(mentorAverage) ? 0 : Math.round(mentorAverage * 100) / 100,
+                checkpointAverage: isNaN(checkpointAverage) ? 0 : Math.round(checkpointAverage * 100) / 100
+            };
+        }
+
+        function createTeamAverageCard(team, averages) {
+            const card = document.createElement('div');
+            card.className = 'team-average-card';
+            
+            const teamName = team.name || `Time ${team.id}`;
+            
+            // Verificar se o time tem dados
+            const hasData = averages.teamAverage > 0 || averages.mentorAverage > 0 || averages.checkpointAverage > 0;
+            const dataStatus = hasData ? '' : '<small style="color: #6c757d;">(Sem avaliações)</small>';
+            
+            card.innerHTML = `
+                <h3>Resumo das Médias da Equipe: ${teamName} ${dataStatus}</h3>
+                <div class="team-metrics">
+                    <div class="metric-item">
+                        <span class="metric-label">Média da Avaliação da Equipe (Pares)</span>
+                        <span class="metric-value">${averages.teamAverage.toFixed(2)}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Média da Avaliação dos Mentores</span>
+                        <span class="metric-value">${averages.mentorAverage.toFixed(2)}</span>
+                    </div>
+                    <div class="metric-item">
+                        <span class="metric-label">Média Geral (Checkpoints)</span>
+                        <span class="metric-value">${averages.checkpointAverage.toFixed(2)}</span>
+                    </div>
+                </div>
+                
+                <div class="doubled-section">
+                    <h4 style="text-align: center; margin: 0 0 10px 0; color: #6c757d;">Resumo das Médias da Equipe (x2): ${teamName}</h4>
+                    <div class="team-metrics">
+                        <div class="metric-item">
+                            <span class="metric-label">Média da Avaliação da Equipe (Pares)</span>
+                            <span class="metric-value">${(averages.teamAverage * 2).toFixed(2)}</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Média da Avaliação dos Mentores</span>
+                            <span class="metric-value">${(averages.mentorAverage * 2).toFixed(2)}</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Média Geral (Checkpoints)</span>
+                            <span class="metric-value">${(averages.checkpointAverage * 2).toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        // Fechar modal ao clicar fora dele
+        window.onclick = function(event) {
+            const modal = document.getElementById('all-teams-modal');
+            if (event.target == modal) {
+                closeAllTeamsAverageModal();
+            }
+        }
+
+        // =================== FIM DO MODAL DE MÉDIAS DE TODOS OS TIMES ===================
 
     </script>
 </body>
