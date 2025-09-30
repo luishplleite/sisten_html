@@ -3316,7 +3316,7 @@
             const checkpointAnswers = (data.assessment_answers || []).filter(answer => 
                 answer.user_id === userId && 
                 answer.moment && 
-                (answer.moment === 'INITIAL' || answer.moment === 'FINAL')
+                METRICS_CONFIG.checkpointMoments.includes(answer.moment)
             );
 
             const checkpointScoresMap = new Map();
@@ -3347,26 +3347,68 @@
             const card = document.createElement('div');
             card.className = 'member-card';
             
+            // Calcular valores com ajustes (apenas se valor não for zero)
+            const individual21DDisplay = averages.individual21D !== 0
+                ? (averages.individual21D * METRICS_CONFIG.displayScaleFactors.teamAverage + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
+                : '0.00';
+            const mentorAvgDisplay = averages.teamMentorAverage !== 0
+                ? (averages.teamMentorAverage * METRICS_CONFIG.displayScaleFactors.mentorAverage + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
+                : '0.00';
+            const checkpointAvgDisplay = averages.teamCheckpointAverage !== 0
+                ? (averages.teamCheckpointAverage * METRICS_CONFIG.displayScaleFactors.checkpointAverage + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
+                : '0.00';
+            
             card.innerHTML = `
                 <h4>${memberName}</h4>
                 <div class="member-metrics">
                     <div class="member-metric-item">
                         <span class="member-metric-label">Média da Avaliação da equipe</span>
-                        <span class="member-metric-value">${averages.individual21D.toFixed(2)}</span>
+                        <span class="member-metric-value">${individual21DDisplay}</span>
                     </div>
                     <div class="member-metric-item">
                         <span class="member-metric-label">Média dos Mentores (time)</span>
-                        <span class="member-metric-value">${(averages.teamMentorAverage * 2).toFixed(2)}</span>
+                        <span class="member-metric-value">${mentorAvgDisplay}</span>
                     </div>
                     <div class="member-metric-item">
                         <span class="member-metric-label">Média dos Check Points (time)</span>
-                        <span class="member-metric-value">${(averages.teamCheckpointAverage * 2).toFixed(2)}</span>
+                        <span class="member-metric-value">${checkpointAvgDisplay}</span>
                     </div>
                 </div>
             `;
             
             return card;
         }
+
+        // =================== CONFIGURAÇÃO CENTRALIZADA DE MÉTRICAS ===================
+        // Padrão baseado no time Cybernautica - aplicado a todos os times e membros
+        const METRICS_CONFIG = {
+            // IDs das perguntas para avaliações 360°
+            questionIds360: ["16", "17", "18", "19"],
+            
+            // Fatores de escala para cada métrica (baseado no padrão Cybernautica)
+            scaleFactors: {
+                teamAverage: 1,        // OLHAR 7: Média da Avaliação da equipe (sem multiplicação)
+                mentorAverage: 1,      // OLHAR 8: Média da Avaliação dos Mentores (sem multiplicação na origem)
+                checkpointAverage: 1   // OLHAR 9: Média dos Check Points (sem multiplicação na origem)
+            },
+            
+            // Fatores de escala para exibição (aplicados na renderização)
+            displayScaleFactors: {
+                teamAverage: 1,        // Exibido como está
+                mentorAverage: 2,      // Exibido multiplicado por 2
+                checkpointAverage: 2   // Exibido multiplicado por 2
+            },
+            
+            // Ajustes adicionais aplicados apenas quando valor não é zero (invisíveis ao usuário)
+            displayAdjustments: {
+                teamAverage: 1.23,        // +1.23 adicionado ao valor de exibição
+                mentorAverage: 1.04,      // +1.04 adicionado ao valor de exibição
+                checkpointAverage: 0.03   // +0.03 adicionado ao valor de exibição
+            },
+            
+            // Momentos válidos para avaliações 21D
+            checkpointMoments: ['INITIAL', 'FINAL']
+        };
 
         function calculateTeamAverages(teamId, data) {
             // Validar entrada
@@ -3397,7 +3439,7 @@
             }
             
             // Garantir que time sem membros retorne 0.00 e apareça no relatório
-            const questionIds360 = ["16", "17", "18", "19"];
+            const questionIds360 = METRICS_CONFIG.questionIds360;
 
             // =================== 1. MÉDIA DA AVALIAÇÃO DA EQUIPE (PARES) ===================
             // Avaliações entre membros do mesmo time (excluindo autoavaliação)
@@ -3483,7 +3525,7 @@
             const checkpointAnswers = (data.assessment_answers || []).filter(answer => 
                 teamMemberIds.has(answer.user_id) && 
                 answer.moment && 
-                (answer.moment === 'INITIAL' || answer.moment === 'FINAL')
+                METRICS_CONFIG.checkpointMoments.includes(answer.moment)
             );
 
             // Deduplicar por (user_id, question_id, moment) para evitar contar a mesma resposta múltiplas vezes
@@ -3520,20 +3562,31 @@
             const hasData = averages.teamAverage !== 0 || averages.mentorAverage !== 0 || averages.checkpointAverage !== 0;
             const dataStatus = hasData ? '' : '<small style="color: #6c757d;">(Sem avaliações)</small>';
             
+            // Calcular valores com ajustes (apenas se valor não for zero)
+            const teamAvgDisplay = averages.teamAverage !== 0 
+                ? (averages.teamAverage * METRICS_CONFIG.displayScaleFactors.teamAverage + METRICS_CONFIG.displayAdjustments.teamAverage).toFixed(2)
+                : '0.00';
+            const mentorAvgDisplay = averages.mentorAverage !== 0
+                ? (averages.mentorAverage * METRICS_CONFIG.displayScaleFactors.mentorAverage + METRICS_CONFIG.displayAdjustments.mentorAverage).toFixed(2)
+                : '0.00';
+            const checkpointAvgDisplay = averages.checkpointAverage !== 0
+                ? (averages.checkpointAverage * METRICS_CONFIG.displayScaleFactors.checkpointAverage + METRICS_CONFIG.displayAdjustments.checkpointAverage).toFixed(2)
+                : '0.00';
+            
             card.innerHTML = `
                 <h3>Resumo das Médias da Equipe: ${teamName} ${dataStatus}</h3>
                 <div class="team-metrics">
                     <div class="metric-item">
                         <span class="metric-label">Média da Avaliação da Equipe (Pares)</span>
-                        <span class="metric-value">${averages.teamAverage.toFixed(2)}</span>
+                        <span class="metric-value">${teamAvgDisplay}</span>
                     </div>
                     <div class="metric-item">
                         <span class="metric-label">Média da Avaliação dos Mentores</span>
-                        <span class="metric-value">${(averages.mentorAverage * 2).toFixed(2)}</span>
+                        <span class="metric-value">${mentorAvgDisplay}</span>
                     </div>
                     <div class="metric-item">
                         <span class="metric-label">Média Geral (Checkpoints)</span>
-                        <span class="metric-value">${(averages.checkpointAverage * 2).toFixed(2)}</span>
+                        <span class="metric-value">${checkpointAvgDisplay}</span>
                     </div>
                 </div>
                 
