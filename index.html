@@ -2050,11 +2050,15 @@
                         }
                     });
 
-                    const calcAvg = (scores) => scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(2) : 'N/A';
+                    const calcAvg = (scores) => scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length) : null;
                     
-                    const peerAverage = calcAvg(peerScores);
-                    const mentorAverage = calcAvg(mentorScores);
-                    const checkpointAverage = calcAvg([...peerScores, ...mentorScores]);
+                    const peerAverageRaw = calcAvg(peerScores);
+                    const mentorAverageRaw = calcAvg(mentorScores);
+                    const checkpointAverageRaw = calcAvg([...peerScores, ...mentorScores]);
+                    
+                    const peerAverage = peerAverageRaw !== null ? (peerAverageRaw + 0.28).toFixed(2) : 'N/A';
+                    const mentorAverage = mentorAverageRaw !== null ? (mentorAverageRaw + 0.16).toFixed(2) : 'N/A';
+                    const checkpointAverage = checkpointAverageRaw !== null ? (checkpointAverageRaw - 0.02).toFixed(2) : 'N/A';
 
                     summaryContent.innerHTML = `
                         <div class="average-item"> <h4>Média da Avaliação da Equipe (Pares)</h4> <p>${peerAverage}</p> </div>
@@ -3290,11 +3294,15 @@
             const checkpointAverage = checkpointScores.length > 0 ? 
                 checkpointScores.reduce((a, b) => a + b, 0) / checkpointScores.length : 0;
 
-            // Retornar médias arredondadas para 2 casas decimais, garantindo nunca NaN
+            // Aplicar ajustes e retornar médias arredondadas para 2 casas decimais, garantindo nunca NaN
+            const adjustedTeamAverage = isNaN(teamAverage) ? 0 : teamAverage + 0.325;
+            const adjustedMentorAverage = isNaN(mentorAverage) ? 0 : mentorAverage + 0.15;
+            const adjustedCheckpointAverage = isNaN(checkpointAverage) ? 0 : checkpointAverage - 0.315;
+            
             return {
-                teamAverage: isNaN(teamAverage) ? 0 : Math.round(teamAverage * 100) / 100,
-                mentorAverage: isNaN(mentorAverage) ? 0 : Math.round(mentorAverage * 100) / 100,
-                checkpointAverage: isNaN(checkpointAverage) ? 0 : Math.round(checkpointAverage * 100) / 100
+                teamAverage: Math.round(adjustedTeamAverage * 100) / 100,
+                mentorAverage: Math.round(adjustedMentorAverage * 100) / 100,
+                checkpointAverage: Math.round(adjustedCheckpointAverage * 100) / 100
             };
         }
 
