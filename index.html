@@ -408,6 +408,21 @@
             z-index: 1;
         }
 
+        .connection-label {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: bold;
+            color: #17a2b8;
+            border: 1px solid #17a2b8;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            white-space: nowrap;
+            z-index: 3;
+            pointer-events: none;
+        }
+
         /* Cores para os filtros de busca - NÃO fizeram avaliações */
         .filter-no-initial-21 {
             background-color: #ffcccc !important; /* Vermelho mais forte - Crítico */
@@ -1920,51 +1935,90 @@
                 return;
             }
 
-            // Mapeamento baseado em análise real dos dados com contadores
+            // Mapeamento baseado em análise real dos dados com contadores e IDs de conexão
             const relationshipMap = {
                 teams: {
                     connections: ['assessment_answers', 'mentorins', 'guilds'],
-                    counts: {'assessment_answers': 43, 'mentorins': 1972, 'guilds': 6}
+                    counts: {'assessment_answers': 43, 'mentorins': 1972, 'guilds': 6},
+                    foreignKeys: {
+                        'assessment_answers': 'team_id',
+                        'mentorins': 'team_id',
+                        'guilds': 'id ↔ teams.invite'
+                    }
                 },
                 users: {
                     connections: ['assessment_answers', 'mentorins'],
-                    counts: {'assessment_answers': 196, 'mentorins': 180}
+                    counts: {'assessment_answers': 196, 'mentorins': 180},
+                    foreignKeys: {
+                        'assessment_answers': 'user_id',
+                        'mentorins': 'evaluator_id, target_user_id'
+                    }
                 },
                 assessment_answers: {
-                    connections: ['users', 'teams', 'assessment_questions', 'mentorins'],
-                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280}
+                    connections: ['users', 'teams', 'assessment_questions', 'mentorins', 'mentorins_left', 'assessment_questions_survey', 'guilds'],
+                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280},
+                    foreignKeys: {
+                        'users': 'user_id',
+                        'teams': 'team_id',
+                        'assessment_questions': 'question_id',
+                        'mentorins': 'submission_id',
+                        'mentorins_left': 'evaluator_id, target_user_id',
+                        'assessment_questions_survey': '(via Mentorins)',
+                        'guilds': '(via Teams)'
+                    }
                 },
                 mentorins: {
                     connections: ['users', 'teams', 'assessment_questions_survey', 'assessment_answers'],
-                    counts: {'users': 180, 'teams': 43, 'assessment_questions_survey': 2395, 'assessment_answers': 280}
+                    counts: {'users': 180, 'teams': 43, 'assessment_questions_survey': 2395, 'assessment_answers': 280},
+                    foreignKeys: {
+                        'users': 'evaluator_id, target_user_id',
+                        'teams': 'team_id',
+                        'assessment_questions_survey': 'id (f_submissions)',
+                        'assessment_answers': 'id ↔ submission_id'
+                    }
                 },
                 assessment_questions: {
                     connections: ['assessment_answers'],
-                    counts: {'assessment_answers': 21}
+                    counts: {'assessment_answers': 21},
+                    foreignKeys: {
+                        'assessment_answers': 'question_id'
+                    }
                 },
                 assessment_questions_survey: {
                     connections: ['mentorins'],
-                    counts: {'mentorins': 2395}
+                    counts: {'mentorins': 2395},
+                    foreignKeys: {
+                        'mentorins': 'survey_id'
+                    }
                 },
                 f_submissions: {
                     connections: ['users', 'teams', 'assessment_questions', 'mentorins'],
-                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280}
+                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280},
+                    foreignKeys: {
+                        'users': 'evaluator_id, target_user_id',
+                        'teams': 'team_id',
+                        'assessment_questions': 'question_id',
+                        'mentorins': 'id (mentorins.id)'
+                    }
                 },
                 guilds: {
                     connections: ['teams'],
-                    counts: {'teams': 64}
+                    counts: {'teams': 64},
+                    foreignKeys: {
+                        'teams': 'invite ↔ teams.id'
+                    }
                 }
             };
 
             const relationships = relationshipMap[primaryTableKey];
             if (relationships) {
-                showDiagramModal(primaryTableKey, relationships.connections);
+                showDiagramModal(primaryTableKey, relationships.connections, relationships.foreignKeys);
             } else {
                 alert('Nenhum relacionamento encontrado para a tabela selecionada.');
             }
         }
 
-        function showDiagramModal(primaryTableKey, connectedTables) {
+        function showDiagramModal(primaryTableKey, connectedTables, foreignKeys = {}) {
             const modal = document.getElementById('diagram-modal');
             const container = document.getElementById('diagram-container');
             const svg = document.getElementById('diagram-svg');
@@ -1978,14 +2032,24 @@
             const allTables = [primaryTableKey, ...connectedTables];
             const uniqueTables = [...new Set(allTables)];
             
-            // Posições baseadas no layout da imagem
-            const positions = createHorizontalLayout(uniqueTables, primaryTableKey, container);
+            // Layout customizado para Assessment Answers
+            let positions;
+            if (primaryTableKey === 'assessment_answers') {
+                positions = createAssessmentAnswersLayout(container);
+            } else {
+                positions = createHorizontalLayout(uniqueTables, primaryTableKey, container);
+            }
             
             uniqueTables.forEach(tableKey => {
                 const position = positions[tableKey];
+                if (!position) return; // Pular se não tiver posição definida
+                
                 const tableDiv = document.createElement('div');
                 tableDiv.className = 'diagram-table';
-                tableDiv.innerHTML = tableConfig[tableKey]?.title || tableKey;
+                
+                // Para mentorins_left, usar o título de mentorins
+                const displayKey = tableKey === 'mentorins_left' ? 'mentorins' : tableKey;
+                tableDiv.innerHTML = tableConfig[displayKey]?.title || displayKey;
                 tableDiv.id = `diagram-table-${tableKey}`;
                 
                 // Posicionar tabela
@@ -2009,19 +2073,88 @@
             
             // Aguardar um frame para garantir que o layout foi calculado
             setTimeout(() => {
-                // Conectar tabelas relacionadas à tabela principal
-                const primaryElement = tableElements[primaryTableKey];
-                if (primaryElement) {
-                    connectedTables.forEach(tableKey => {
-                        const tableElement = tableElements[tableKey];
-                        if (tableElement) {
-                            drawLine(svg, primaryElement, tableElement, 'connection');
-                        }
-                    });
+                // Layout customizado para Assessment Answers com conexões específicas
+                if (primaryTableKey === 'assessment_answers') {
+                    drawAssessmentAnswersConnections(svg, tableElements, foreignKeys, container);
+                } else {
+                    // Conectar tabelas relacionadas à tabela principal
+                    const primaryElement = tableElements[primaryTableKey];
+                    if (primaryElement) {
+                        connectedTables.forEach(tableKey => {
+                            const tableElement = tableElements[tableKey];
+                            if (tableElement) {
+                                const foreignKey = foreignKeys[tableKey] || '';
+                                drawLine(svg, primaryElement, tableElement, 'connection', foreignKey, container);
+                            }
+                        });
+                    }
                 }
             }, 100);
         }
         
+        function createAssessmentAnswersLayout(container) {
+            const positions = {};
+            const containerWidth = container.offsetWidth || 1000;
+            const containerHeight = container.offsetHeight || 500;
+            
+            console.log('📐 Creating custom Assessment Answers layout', containerWidth, 'x', containerHeight);
+            
+            // Layout baseado na imagem fornecida
+            positions['assessment_answers'] = { x: containerWidth * 0.5, y: containerHeight * 0.45 }; // Centro
+            positions['users'] = { x: containerWidth * 0.25, y: containerHeight * 0.25 }; // Esquerda superior
+            positions['assessment_questions'] = { x: containerWidth * 0.5, y: containerHeight * 0.15 }; // Centro superior
+            positions['assessment_questions_survey'] = { x: containerWidth * 0.75, y: containerHeight * 0.2 }; // Direita superior
+            positions['mentorins_left'] = { x: containerWidth * 0.12, y: containerHeight * 0.55 }; // Esquerda inferior (Users)
+            positions['mentorins'] = { x: containerWidth * 0.75, y: containerHeight * 0.5 }; // Direita (submissions)
+            positions['teams'] = { x: containerWidth * 0.4, y: containerHeight * 0.7 }; // Centro inferior
+            positions['guilds'] = { x: containerWidth * 0.4, y: containerHeight * 0.9 }; // Abaixo de Teams
+            
+            console.log('📐 Custom layout positions created:', Object.keys(positions));
+            return positions;
+        }
+        
+        function drawAssessmentAnswersConnections(svg, tableElements, foreignKeys, container) {
+            const primary = tableElements['assessment_answers'];
+            
+            console.log('🔗 Drawing custom Assessment Answers connections');
+            
+            if (!primary) {
+                console.warn('⚠️ Primary Assessment Answers table not found!');
+                return;
+            }
+            
+            // Conexões diretas de Assessment Answers
+            if (tableElements['users']) {
+                drawLine(svg, primary, tableElements['users'], 'connection', foreignKeys['users'] || 'user_id', container);
+            }
+            if (tableElements['assessment_questions']) {
+                drawLine(svg, primary, tableElements['assessment_questions'], 'connection', foreignKeys['assessment_questions'] || 'question_id', container);
+            }
+            if (tableElements['teams']) {
+                drawLine(svg, primary, tableElements['teams'], 'connection', foreignKeys['teams'] || 'team_id', container);
+            }
+            if (tableElements['mentorins']) {
+                drawLine(svg, primary, tableElements['mentorins'], 'connection', foreignKeys['mentorins'] || 'submission_id', container);
+            }
+            
+            // Conexões de Users para Mentorins (esquerda)
+            if (tableElements['users'] && tableElements['mentorins_left']) {
+                drawLine(svg, tableElements['users'], tableElements['mentorins_left'], 'connection', foreignKeys['mentorins_left'] || 'evaluator_id, target_user_id', container);
+            }
+            
+            // Conexões de Mentorins (direita) para Assessment Questions Survey
+            if (tableElements['mentorins'] && tableElements['assessment_questions_survey']) {
+                drawLine(svg, tableElements['mentorins'], tableElements['assessment_questions_survey'], 'connection', '', container);
+            }
+            
+            // Conexões de Teams para Guilds
+            if (tableElements['teams'] && tableElements['guilds']) {
+                drawLine(svg, tableElements['teams'], tableElements['guilds'], 'connection', '', container);
+            }
+            
+            console.log('✅ Custom connections drawn successfully');
+        }
+
         function createHorizontalLayout(tables, primaryTable, container) {
             const positions = {};
             const containerWidth = container.offsetWidth || 1000;
@@ -2054,7 +2187,7 @@
             return positions;
         }
 
-        function drawLine(svg, el1, el2, type = 'connection') {
+        function drawLine(svg, el1, el2, type = 'connection', labelText = '', container) {
             const rect1 = el1.getBoundingClientRect();
             const rect2 = el2.getBoundingClientRect();
             const svgRect = svg.getBoundingClientRect();
@@ -2076,6 +2209,23 @@
             line.setAttribute('stroke-dasharray', 'none');
             line.setAttribute('opacity', '0.8');
             svg.appendChild(line);
+            
+            // Adicionar label com o ID da conexão no meio da linha
+            if (labelText && container) {
+                const label = document.createElement('div');
+                label.className = 'connection-label';
+                label.textContent = labelText;
+                
+                // Posicionar no meio da linha
+                const midX = (rect1.left + rect1.width / 2 + rect2.left + rect2.width / 2) / 2 - svgRect.left;
+                const midY = (rect1.top + rect1.height / 2 + rect2.top + rect2.height / 2) / 2 - svgRect.top;
+                
+                label.style.left = `${midX}px`;
+                label.style.top = `${midY}px`;
+                label.style.transform = 'translate(-50%, -50%)';
+                
+                container.appendChild(label);
+            }
         }
         
         function applyAdvancedFilter(itemId, sourceTableKey) {
