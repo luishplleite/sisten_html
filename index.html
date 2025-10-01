@@ -838,11 +838,39 @@
             <div class="modal-body" style="height: 60vh; overflow-y: auto;">
                 <div style="margin-bottom: 20px; padding: 15px; background-color: #e8f4f8; border-radius: 8px;">
                     <p style="margin: 0; color: #495057; font-size: 0.95em;">
-                        <strong>ℹ️ Instruções:</strong> Clique no botão "Baixar Código" ao lado de cada gráfico para fazer o download do código completo (HTML, CSS e JavaScript) do gráfico selecionado.
+                        <strong>ℹ️ Instruções:</strong> Clique no botão "Visualizar" ao lado de cada gráfico para pré-visualizar o código completo antes de baixar.
                     </p>
                 </div>
                 <div id="charts-list" style="display: flex; flex-direction: column; gap: 15px;">
                     <!-- A lista de gráficos será gerada dinamicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Preview do Gráfico -->
+    <div id="chart-preview-modal" class="modal">
+        <div class="modal-content" style="max-width: 1200px; max-height: 90vh;">
+            <div class="modal-header">
+                <h2 id="chart-preview-title">👁️ Visualizar Gráfico</h2>
+                <span class="close-btn" onclick="closeChartPreviewModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="height: 70vh; display: flex; flex-direction: column;">
+                <div id="chart-preview-loading" style="display: flex; align-items: center; justify-content: center; flex: 1; font-size: 1.2em; color: #495057;">
+                    <div style="text-align: center;">
+                        <div style="margin-bottom: 15px;">⏳ Carregando gráfico...</div>
+                        <div style="font-size: 0.9em; color: #6c757d;">Por favor, aguarde enquanto o gráfico é renderizado.</div>
+                    </div>
+                </div>
+                <div id="chart-preview-content" style="display: none; flex: 1; flex-direction: column;">
+                    <div style="flex: 1; border: 1px solid #dee2e6; border-radius: 8px; overflow: hidden; margin-bottom: 15px;">
+                        <iframe id="chart-preview-iframe" style="width: 100%; height: 100%; border: none;"></iframe>
+                    </div>
+                    <div style="text-align: center; padding: 15px; background-color: #f8f9fa; border-radius: 8px;">
+                        <button id="chart-preview-download-btn" onclick="downloadPreviewedChart()" style="background-color: #28a745; color: white; border: none; padding: 12px 30px; font-size: 1em; font-weight: bold; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" onmouseover="this.style.backgroundColor='#218838'" onmouseout="this.style.backgroundColor='#28a745'">
+                            📥 Baixar HTML Completo
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -3686,6 +3714,9 @@
             }
         };
 
+        let currentPreviewChartId = null;
+        let currentPreviewChartCode = null;
+
         function openChartsExportModal() {
             const modal = document.getElementById('charts-export-modal');
             const chartsList = document.getElementById('charts-list');
@@ -3703,8 +3734,8 @@
                         <h4 style="margin: 0 0 8px 0; color: #495057;">${chart.name}</h4>
                         <p style="margin: 0; color: #6c757d; font-size: 0.9em;">${chart.description}</p>
                     </div>
-                    <button onclick="downloadChartCode('${chartId}')" style="background-color: #28a745; color: white; border: none; padding: 10px 20px; font-size: 0.95em; font-weight: bold; border-radius: 6px; cursor: pointer; white-space: nowrap; margin-left: 15px;" onmouseover="this.style.backgroundColor='#218838'" onmouseout="this.style.backgroundColor='#28a745'">
-                        📥 Baixar Código
+                    <button onclick="previewChartCode('${chartId}')" style="background-color: #17a2b8; color: white; border: none; padding: 10px 20px; font-size: 0.95em; font-weight: bold; border-radius: 6px; cursor: pointer; white-space: nowrap; margin-left: 15px;" onmouseover="this.style.backgroundColor='#138496'" onmouseout="this.style.backgroundColor='#17a2b8'">
+                        👁️ Visualizar
                     </button>
                 `;
                 
@@ -3717,6 +3748,64 @@
         function closeChartsExportModal() {
             const modal = document.getElementById('charts-export-modal');
             modal.style.display = 'none';
+        }
+
+        function previewChartCode(chartId) {
+            const chart = chartsCodeTemplates[chartId];
+            if (!chart) return;
+            
+            currentPreviewChartId = chartId;
+            
+            const modal = document.getElementById('chart-preview-modal');
+            const titleElement = document.getElementById('chart-preview-title');
+            const loadingElement = document.getElementById('chart-preview-loading');
+            const contentElement = document.getElementById('chart-preview-content');
+            const iframe = document.getElementById('chart-preview-iframe');
+            
+            titleElement.textContent = `👁️ Visualizar: ${chart.name}`;
+            
+            loadingElement.style.display = 'flex';
+            contentElement.style.display = 'none';
+            
+            modal.style.display = 'block';
+            
+            setTimeout(() => {
+                const chartCode = generateChartCodeWithData(chartId, chart, segregatedData);
+                currentPreviewChartCode = chartCode;
+                
+                iframe.onload = () => {
+                    setTimeout(() => {
+                        loadingElement.style.display = 'none';
+                        contentElement.style.display = 'flex';
+                    }, 800);
+                };
+                
+                iframe.srcdoc = chartCode;
+            }, 300);
+        }
+
+        function closeChartPreviewModal() {
+            const modal = document.getElementById('chart-preview-modal');
+            const iframe = document.getElementById('chart-preview-iframe');
+            
+            modal.style.display = 'none';
+            iframe.src = 'about:blank';
+            currentPreviewChartId = null;
+            currentPreviewChartCode = null;
+        }
+
+        function downloadPreviewedChart() {
+            if (!currentPreviewChartCode || !currentPreviewChartId) return;
+            
+            const blob = new Blob([currentPreviewChartCode], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentPreviewChartId}_completo.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
         function downloadChartCode(chartId) {
@@ -3734,6 +3823,85 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        }
+
+        function generateChartCodeWithData(chartId, chart, data) {
+            const cssCode = '/* Estilos para ' + chart.name + ' */\n' +
+                '        body {\n' +
+                '            font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif;\n' +
+                '            background-color: #f4f7f9;\n' +
+                '            color: #333;\n' +
+                '            margin: 0;\n' +
+                '            padding: 20px;\n' +
+                '        }\n\n' +
+                '        .container {\n' +
+                '            max-width: 1200px;\n' +
+                '            margin: 0 auto;\n' +
+                '            background: #ffffff;\n' +
+                '            padding: 30px;\n' +
+                '            border-radius: 8px;\n' +
+                '            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);\n' +
+                '        }\n\n' +
+                '        h1 {\n' +
+                '            text-align: center;\n' +
+                '            color: #495057;\n' +
+                '            margin-bottom: 30px;\n' +
+                '        }\n\n' +
+                '        .chart-wrapper {\n' +
+                '            padding: 20px;\n' +
+                '            border: 1px solid #dee2e6;\n' +
+                '            border-radius: 8px;\n' +
+                '            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);\n' +
+                '            background-color: #fff;\n' +
+                '        }\n\n' +
+                '        .chart-wrapper h3 {\n' +
+                '            text-align: center;\n' +
+                '            margin-bottom: 20px;\n' +
+                '            color: #495057;\n' +
+                '        }\n\n' +
+                '        canvas {\n' +
+                '            max-width: 100%;\n' +
+                '            height: auto;\n' +
+                '        }';
+
+            const functionCode = getFunctionCode(chart.functionName);
+            const mockFAnswersCode = getFunctionCode('mockFAnswers');
+
+            const htmlCode = '<!DOCTYPE html>\n' +
+                '<html lang="pt-BR">\n' +
+                '<head>\n' +
+                '    <meta charset="UTF-8">\n' +
+                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+                '    <title>' + chart.name + '</title>\n' +
+                '    <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n' +
+                '    <style>' + cssCode + '\n' +
+                '    </style>\n' +
+                '</head>\n' +
+                '<body>\n' +
+                '    <div class="container">\n' +
+                '        <h1>' + chart.name + '</h1>\n' +
+                '        <div class="chart-wrapper">\n' +
+                '            <h3 id="' + chartId + 'Title">' + chart.name + '</h3>\n' +
+                '            <canvas id="' + chartId + '"></canvas>\n' +
+                '        </div>\n' +
+                '    </div>\n\n' +
+                '    <script>\n' +
+                '        // Dados já carregados\n' +
+                '        const segregatedData = ' + JSON.stringify(data) + ';\n\n' +
+                '        // Função auxiliar para mock de f_answers\n' +
+                mockFAnswersCode + '\n\n' +
+                '        // Função do gráfico\n' +
+                functionCode + '\n\n' +
+                '        // Renderizar o gráfico automaticamente\n' +
+                '        window.addEventListener(\'DOMContentLoaded\', () => {\n' +
+                '            ' + chart.functionName + '(segregatedData, {});\n' +
+                '            console.log(\'Gráfico "' + chart.name + '" renderizado!\');\n' +
+                '        });\n' +
+                '    <\/script>\n' +
+                '</body>\n' +
+                '</html>';
+
+            return htmlCode;
         }
 
         function generateChartCode(chartId, chart) {
