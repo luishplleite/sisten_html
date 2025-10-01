@@ -883,6 +883,11 @@
         const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
+        
+        // Variáveis globais para armazenar a seleção atual (para exportação de gráficos)
+        let currentSelectedUserId = null;
+        let currentSelectedTeamId = null;
+        let currentSelectionType = null;
 
         const tableConfig = {
             users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'role', 'team_id', 'indicadores'] },
@@ -2136,6 +2141,21 @@
             if (!sourceItem) {
                 console.error("Item de origem não encontrado:", itemId, sourceTableKey);
                 return;
+            }
+
+            // Armazenar a seleção atual para uso nos gráficos exportados
+            if (sourceTableKey === 'teams') {
+                currentSelectedTeamId = itemId;
+                currentSelectedUserId = null;
+                currentSelectionType = 'team';
+            } else if (sourceTableKey === 'users') {
+                currentSelectedUserId = itemId;
+                currentSelectedTeamId = null;
+                currentSelectionType = 'user';
+            } else {
+                currentSelectedTeamId = null;
+                currentSelectedUserId = null;
+                currentSelectionType = null;
             }
 
             const summaryContainer = document.getElementById('team-averages-summary');
@@ -3685,32 +3705,38 @@
             'competenciesChart': {
                 name: 'Radar de Competências 21D',
                 description: 'Gráfico radar mostrando as 21 competências avaliadas',
-                functionName: 'renderCompetenciesChart'
+                functionName: 'renderCompetenciesChart',
+                canvasId: 'competenciesChart'
             },
             'checkpointChart': {
                 name: 'Evolução Pessoal - Radar de Checkpoints',
                 description: 'Gráfico de radar mostrando a evolução entre checkpoints inicial e final',
-                functionName: 'renderCheckpointRadarChart'
+                functionName: 'renderCheckpointChart',
+                canvasId: 'checkpointChart'
             },
             'evaluation360Chart': {
                 name: 'Avaliação 360°',
                 description: 'Gráfico radar da autoavaliação 360 graus',
-                functionName: 'render360Evaluation'
+                functionName: 'renderEvaluation360Chart',
+                canvasId: 'evaluation360Chart'
             },
             'evaluation360ThirdPersonChart': {
                 name: 'Avaliação 360° 3ª pessoa',
                 description: 'Gráfico radar de avaliações 360 recebidas de terceiros',
-                functionName: 'render360ThirdPersonEvaluation'
+                functionName: 'renderEvaluation360ThirdPersonChart',
+                canvasId: 'evaluation360ThirdPersonChart'
             },
             'mentorEvaluationChart': {
                 name: 'Avaliação Mentores',
                 description: 'Gráfico radar das avaliações feitas por mentores',
-                functionName: 'renderMentorEvaluationChart'
+                functionName: 'renderMentorEvaluationChart',
+                canvasId: 'mentorEvaluationChart'
             },
             'categoryRadarChart': {
                 name: 'Radar por Categoria',
                 description: 'Gráfico radar agrupado por categorias de habilidades',
-                functionName: 'renderCategoryRadarChart'
+                functionName: 'renderCategoryRadarChart',
+                canvasId: 'categoryRadarChart'
             }
         };
 
@@ -3762,7 +3788,17 @@
             const contentElement = document.getElementById('chart-preview-content');
             const iframe = document.getElementById('chart-preview-iframe');
             
-            titleElement.textContent = `👁️ Visualizar: ${chart.name}`;
+            // Determinar o título baseado na seleção
+            let titleSuffix = '';
+            if (currentSelectionType === 'team' && currentSelectedTeamId) {
+                const team = originalSegregatedData.teams.find(t => t.id === currentSelectedTeamId);
+                titleSuffix = team ? ` - ${team.name}` : '';
+            } else if (currentSelectionType === 'user' && currentSelectedUserId) {
+                const user = originalSegregatedData.users.find(u => u.id === currentSelectedUserId);
+                titleSuffix = user ? ` - ${user.full_name.split(' ')[0]}` : '';
+            }
+            
+            titleElement.textContent = `👁️ Visualizar: ${chart.name}${titleSuffix}`;
             
             loadingElement.style.display = 'flex';
             contentElement.style.display = 'none';
@@ -3770,7 +3806,8 @@
             modal.style.display = 'block';
             
             setTimeout(() => {
-                const chartCode = generateChartCodeWithData(chartId, chart, segregatedData);
+                // Gerar código do gráfico com a seleção atual
+                const chartCode = generateChartCodeWithSelection(chartId, chart);
                 currentPreviewChartCode = chartCode;
                 
                 iframe.onload = () => {
@@ -3783,49 +3820,38 @@
                 iframe.srcdoc = chartCode;
             }, 300);
         }
-
-        function closeChartPreviewModal() {
-            const modal = document.getElementById('chart-preview-modal');
-            const iframe = document.getElementById('chart-preview-iframe');
+        
+        function generateChartCodeWithSelection(chartId, chart) {
+            // Preparar os dados filtrados baseado na seleção
+            let dataToRender = originalSegregatedData;
+            let selection = {};
             
-            modal.style.display = 'none';
-            iframe.src = 'about:blank';
-            currentPreviewChartId = null;
-            currentPreviewChartCode = null;
+            if (currentSelectionType === 'team' && currentSelectedTeamId) {
+                selection = { teamId: currentSelectedTeamId, isTeamAverage: chartId === 'evaluation360Chart' };
+                // Para gráficos de competências e checkpoints, filtrar os dados
+                if (chartId === 'competenciesChart' || chartId === 'checkpointChart') {
+                    const teamMemberIds = new Set(
+                        originalSegregatedData.assessment_answers
+                            .filter(a => a.team_id === currentSelectedTeamId && a.user_id)
+                            .map(a => a.user_id)
+                    );
+                    dataToRender = JSON.parse(JSON.stringify(originalSegregatedData));
+                    dataToRender.assessment_answers = originalSegregatedData.assessment_answers.filter(a => teamMemberIds.has(a.user_id));
+                }
+            } else if (currentSelectionType === 'user' && currentSelectedUserId) {
+                selection = { userId: currentSelectedUserId };
+                // Para gráficos de competências e checkpoints, filtrar os dados
+                if (chartId === 'competenciesChart' || chartId === 'checkpointChart') {
+                    dataToRender = JSON.parse(JSON.stringify(originalSegregatedData));
+                    dataToRender.assessment_answers = originalSegregatedData.assessment_answers.filter(a => a.user_id === currentSelectedUserId);
+                }
+            }
+            
+            // Para preview, gerar código com dados embutidos (não faz fetch)
+            return generateChartCodeWithEmbeddedData(chartId, chart, dataToRender, selection);
         }
-
-        function downloadPreviewedChart() {
-            if (!currentPreviewChartCode || !currentPreviewChartId) return;
-            
-            const blob = new Blob([currentPreviewChartCode], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${currentPreviewChartId}_completo.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function downloadChartCode(chartId) {
-            const chart = chartsCodeTemplates[chartId];
-            if (!chart) return;
-            
-            const chartCode = generateChartCode(chartId, chart);
-            
-            const blob = new Blob([chartCode], { type: 'text/html' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${chartId}_completo.html`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function generateChartCodeWithData(chartId, chart, data) {
+        
+        function generateChartCodeWithEmbeddedData(chartId, chart, data, selection = {}) {
             const cssCode = '/* Estilos para ' + chart.name + ' */\n' +
                 '        body {\n' +
                 '            font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif;\n' +
@@ -3866,6 +3892,17 @@
 
             const functionCode = getFunctionCode(chart.functionName);
             const mockFAnswersCode = getFunctionCode('mockFAnswers');
+            
+            // Gerar a chamada da função baseado no tipo de gráfico
+            let functionCall = '';
+            if (chartId === 'competenciesChart' || chartId === 'checkpointChart') {
+                functionCall = chart.functionName + '(segregatedData);';
+            } else if (chartId === 'evaluation360ThirdPersonChart') {
+                const userId = selection.userId || 'null';
+                functionCall = chart.functionName + '(segregatedData, ' + JSON.stringify(userId) + ');';
+            } else {
+                functionCall = chart.functionName + '(segregatedData, ' + JSON.stringify(selection) + ');';
+            }
 
             const htmlCode = '<!DOCTYPE html>\n' +
                 '<html lang="pt-BR">\n' +
@@ -3881,22 +3918,250 @@
                 '    <div class="container">\n' +
                 '        <h1>' + chart.name + '</h1>\n' +
                 '        <div class="chart-wrapper">\n' +
-                '            <h3 id="' + chartId + 'Title">' + chart.name + '</h3>\n' +
-                '            <canvas id="' + chartId + '"></canvas>\n' +
+                '            <h3 id="' + chart.canvasId + 'Title">' + chart.name + '</h3>\n' +
+                '            <canvas id="' + chart.canvasId + '"></canvas>\n' +
                 '        </div>\n' +
                 '    </div>\n\n' +
                 '    <script>\n' +
-                '        // Dados já carregados\n' +
+                '        // Dados já carregados (embutidos para preview)\n' +
                 '        const segregatedData = ' + JSON.stringify(data) + ';\n\n' +
+                '        // Variáveis globais necessárias\n' +
+                '        let ' + chart.canvasId + 'Instance = null;\n' +
+                '        let competenciesChartInstance = null;\n' +
+                '        let checkpointChartInstance = null;\n' +
+                '        let evaluation360ChartInstance = null;\n' +
+                '        let evaluation360ThirdPersonChartInstance = null;\n' +
+                '        let mentorEvaluationChartInstance = null;\n' +
+                '        let categoryRadarChartInstance = null;\n\n' +
                 '        // Função auxiliar para mock de f_answers\n' +
                 mockFAnswersCode + '\n\n' +
                 '        // Função do gráfico\n' +
                 functionCode + '\n\n' +
                 '        // Renderizar o gráfico automaticamente\n' +
                 '        window.addEventListener(\'DOMContentLoaded\', () => {\n' +
-                '            ' + chart.functionName + '(segregatedData, {});\n' +
+                '            ' + functionCall + '\n' +
                 '            console.log(\'Gráfico "' + chart.name + '" renderizado!\');\n' +
                 '        });\n' +
+                '    <\/script>\n' +
+                '</body>\n' +
+                '</html>';
+
+            return htmlCode;
+        }
+
+        function closeChartPreviewModal() {
+            const modal = document.getElementById('chart-preview-modal');
+            const iframe = document.getElementById('chart-preview-iframe');
+            
+            modal.style.display = 'none';
+            iframe.src = 'about:blank';
+            currentPreviewChartId = null;
+            currentPreviewChartCode = null;
+        }
+
+        function downloadPreviewedChart() {
+            if (!currentPreviewChartCode || !currentPreviewChartId) return;
+            
+            const blob = new Blob([currentPreviewChartCode], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${currentPreviewChartId}_completo.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadChartCode(chartId) {
+            const chart = chartsCodeTemplates[chartId];
+            if (!chart) return;
+            
+            // Usar seleção atual se houver
+            const selection = {};
+            if (currentSelectedUserId) {
+                selection.userId = currentSelectedUserId;
+            } else if (currentSelectedTeamId) {
+                selection.teamId = currentSelectedTeamId;
+            }
+            
+            // Gerar código com fetch em tempo real do webhook (para funcionar standalone)
+            const chartCode = generateChartCodeWithData(chartId, chart, segregatedData, selection);
+            
+            const blob = new Blob([chartCode], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${chartId}_completo.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+        function generateChartCodeWithData(chartId, chart, data, selection = {}) {
+            const cssCode = '/* Estilos para ' + chart.name + ' */\n' +
+                '        body {\n' +
+                '            font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, \'Helvetica Neue\', Arial, sans-serif;\n' +
+                '            background-color: #f4f7f9;\n' +
+                '            color: #333;\n' +
+                '            margin: 0;\n' +
+                '            padding: 20px;\n' +
+                '        }\n\n' +
+                '        .container {\n' +
+                '            max-width: 1200px;\n' +
+                '            margin: 0 auto;\n' +
+                '            background: #ffffff;\n' +
+                '            padding: 30px;\n' +
+                '            border-radius: 8px;\n' +
+                '            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);\n' +
+                '        }\n\n' +
+                '        h1 {\n' +
+                '            text-align: center;\n' +
+                '            color: #495057;\n' +
+                '            margin-bottom: 30px;\n' +
+                '        }\n\n' +
+                '        .chart-wrapper {\n' +
+                '            padding: 20px;\n' +
+                '            border: 1px solid #dee2e6;\n' +
+                '            border-radius: 8px;\n' +
+                '            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);\n' +
+                '            background-color: #fff;\n' +
+                '        }\n\n' +
+                '        .chart-wrapper h3 {\n' +
+                '            text-align: center;\n' +
+                '            margin-bottom: 20px;\n' +
+                '            color: #495057;\n' +
+                '        }\n\n' +
+                '        canvas {\n' +
+                '            max-width: 100%;\n' +
+                '            height: auto;\n' +
+                '        }\n\n' +
+                '        .loading {\n' +
+                '            text-align: center;\n' +
+                '            padding: 40px;\n' +
+                '            color: #6c757d;\n' +
+                '            font-size: 1.1em;\n' +
+                '        }';
+
+            const functionCode = getFunctionCode(chart.functionName);
+            const mockFAnswersCode = getFunctionCode('mockFAnswers');
+            const segregateDataCode = getFunctionCode('segregateData');
+            const deterministicHashCode = getFunctionCode('deterministicHash');
+            
+            // Gerar a chamada da função baseado no tipo de gráfico e seleção
+            let functionCall = '';
+            let dataFilterCode = '';
+            
+            // Adicionar código para filtrar dados se houver seleção
+            if (selection.userId) {
+                dataFilterCode = '                // Filtrar dados para o usuário selecionado\n' +
+                                '                const userId = ' + JSON.stringify(selection.userId) + ';\n';
+                if (chartId === 'competenciesChart' || chartId === 'checkpointChart') {
+                    dataFilterCode += '                segregatedData.assessment_answers = segregatedData.assessment_answers.filter(a => a.user_id === userId);\n';
+                    functionCall = chart.functionName + '(segregatedData);';
+                } else if (chartId === 'evaluation360ThirdPersonChart') {
+                    functionCall = chart.functionName + '(segregatedData, userId);';
+                } else {
+                    functionCall = chart.functionName + '(segregatedData, { userId: userId });';
+                }
+            } else if (selection.teamId) {
+                dataFilterCode = '                // Filtrar dados para o time selecionado\n' +
+                                '                const teamId = ' + JSON.stringify(selection.teamId) + ';\n';
+                if (chartId === 'competenciesChart' || chartId === 'checkpointChart') {
+                    dataFilterCode += '                const teamMemberIds = new Set(\n' +
+                                    '                    segregatedData.assessment_answers\n' +
+                                    '                        .filter(a => a.team_id === teamId && a.user_id)\n' +
+                                    '                        .map(a => a.user_id)\n' +
+                                    '                );\n' +
+                                    '                segregatedData.assessment_answers = segregatedData.assessment_answers.filter(a => teamMemberIds.has(a.user_id));\n';
+                    functionCall = chart.functionName + '(segregatedData);';
+                } else if (chartId === 'evaluation360Chart') {
+                    functionCall = chart.functionName + '(segregatedData, { teamId: teamId, isTeamAverage: true });';
+                } else if (chartId === 'evaluation360ThirdPersonChart') {
+                    functionCall = chart.functionName + '(segregatedData, null);';
+                } else {
+                    functionCall = chart.functionName + '(segregatedData, { teamId: teamId });';
+                }
+            } else {
+                // Sem seleção
+                if (chartId === 'competenciesChart' || chartId === 'checkpointChart') {
+                    functionCall = chart.functionName + '(segregatedData);';
+                } else if (chartId === 'evaluation360ThirdPersonChart') {
+                    functionCall = chart.functionName + '(segregatedData, null);';
+                } else {
+                    functionCall = chart.functionName + '(segregatedData, {});';
+                }
+            }
+
+            const htmlCode = '<!DOCTYPE html>\n' +
+                '<html lang="pt-BR">\n' +
+                '<head>\n' +
+                '    <meta charset="UTF-8">\n' +
+                '    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n' +
+                '    <title>' + chart.name + '</title>\n' +
+                '    <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>\n' +
+                '    <style>' + cssCode + '\n' +
+                '    </style>\n' +
+                '</head>\n' +
+                '<body>\n' +
+                '    <div class="container">\n' +
+                '        <h1>' + chart.name + '</h1>\n' +
+                '        <div id="loading" class="loading">⏳ Carregando dados em tempo real do webhook...</div>\n' +
+                '        <div class="chart-wrapper" id="chart-container" style="display: none;">\n' +
+                '            <h3 id="' + chart.canvasId + 'Title">' + chart.name + '</h3>\n' +
+                '            <canvas id="' + chart.canvasId + '"></canvas>\n' +
+                '        </div>\n' +
+                '    </div>\n\n' +
+                '    <script>\n' +
+                '        // URL do webhook com dados reais\n' +
+                '        const WEBHOOK_URL = \'https://n8n.hackathon.souamigu.org.br/webhook/userdados\';\n\n' +
+                '        // Variáveis globais necessárias\n' +
+                '        let ' + chart.canvasId + 'Instance = null;\n' +
+                '        let competenciesChartInstance = null;\n' +
+                '        let checkpointChartInstance = null;\n' +
+                '        let evaluation360ChartInstance = null;\n' +
+                '        let evaluation360ThirdPersonChartInstance = null;\n' +
+                '        let mentorEvaluationChartInstance = null;\n' +
+                '        let categoryRadarChartInstance = null;\n\n' +
+                '        // Função auxiliar para hash determinístico\n' +
+                deterministicHashCode + '\n\n' +
+                '        // Função auxiliar para mock de f_answers\n' +
+                mockFAnswersCode + '\n\n' +
+                '        // Função para segregar dados do webhook\n' +
+                segregateDataCode + '\n\n' +
+                '        // Função do gráfico\n' +
+                functionCode + '\n\n' +
+                '        // Buscar dados reais do webhook e renderizar o gráfico\n' +
+                '        async function loadDataAndRenderChart() {\n' +
+                '            try {\n' +
+                '                console.log(\'Buscando dados em tempo real do webhook...\');\n' +
+                '                const response = await fetch(WEBHOOK_URL);\n' +
+                '                if (!response.ok) throw new Error(\'Erro ao buscar dados: \' + response.status);\n' +
+                '                \n' +
+                '                const rawData = await response.json();\n' +
+                '                console.log(\'Dados recebidos:\', rawData.length, \'seções\');\n' +
+                '                \n' +
+                '                // Segregar os dados\n' +
+                '                const segregatedData = segregateData(rawData);\n' +
+                '                console.log(\'Dados segregados com sucesso\');\n' +
+                '                \n' +
+                dataFilterCode +
+                '                \n' +
+                '                // Esconder loading e mostrar gráfico\n' +
+                '                document.getElementById(\'loading\').style.display = \'none\';\n' +
+                '                document.getElementById(\'chart-container\').style.display = \'block\';\n' +
+                '                \n' +
+                '                // Renderizar o gráfico com dados reais\n' +
+                '                ' + functionCall + '\n' +
+                '                \n' +
+                '                console.log(\'Gráfico "' + chart.name + '" renderizado com dados em tempo real!\');\n' +
+                '            } catch (error) {\n' +
+                '                console.error(\'Erro ao carregar dados:\', error);\n' +
+                '                document.getElementById(\'loading\').innerHTML = \'<p style="color: red;">❌ Erro ao carregar dados: \' + error.message + \'</p>\';\n' +
+                '            }\n' +
+                '        }\n\n' +
+                '        // Carregar automaticamente quando a página carregar\n' +
+                '        window.addEventListener(\'DOMContentLoaded\', loadDataAndRenderChart);\n' +
                 '    <\/script>\n' +
                 '</body>\n' +
                 '</html>';
