@@ -686,10 +686,26 @@
     <div class="container">
         <h1>Painel de Validação de Dados</h1>
         
-        <!-- Botão para abrir o modal de médias de todos os times -->
-        <button id="all-teams-average-btn" onclick="openAllTeamsAverageModal()">
-            📊 MEDIA DE TODOS OS TIMES
-        </button>
+        <!-- Botões principais -->
+        <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+            <button id="all-teams-average-btn" onclick="openAllTeamsAverageModal()">
+                📊 MEDIA DE TODOS OS TIMES
+            </button>
+            <button onclick="showTableCreationSQL()" style="background-color: #17a2b8; color: white; padding: 15px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
+                📋 CRIAR TABELAS SUPABASE
+            </button>
+            <button id="sync-supabase-btn" onclick="syncToSupabase()" style="background-color: #6f42c1; color: white; padding: 15px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
+                💾 SINCRONIZAR DADOS
+            </button>
+        </div>
+        
+        <!-- Indicador de progresso da sincronização -->
+        <div id="sync-progress" style="display: none; margin: 20px auto; max-width: 600px; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+            <p id="sync-progress-text" style="margin-bottom: 10px; font-weight: bold;">Processando...</p>
+            <div style="width: 100%; background: #e9ecef; border-radius: 10px; height: 20px; overflow: hidden;">
+                <div id="sync-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #6f42c1, #9b59b6); transition: width 0.3s ease;"></div>
+            </div>
+        </div>
 
         <div class="controls">
             <div class="controls-row">
@@ -838,6 +854,21 @@
                     <div class="teams-averages-grid" id="teams-averages-grid">
                         <!-- Conteúdo será gerado dinamicamente pelo JavaScript -->
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Documentação dos Dados Salvos -->
+    <div id="data-doc-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Documentação - Dados Salvos no Supabase</h2>
+                <span class="close-btn" onclick="closeDataDocModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div id="data-doc-content">
+                    <!-- Conteúdo será gerado dinamicamente pelo JavaScript -->
                 </div>
             </div>
         </div>
@@ -3883,6 +3914,594 @@
         }
 
         // =================== FIM DO MODAL DE MÉDIAS DE TODOS OS TIMES ===================
+
+        // =================== INTEGRAÇÃO SUPABASE - SALVAR DADOS NO BANCO ===================
+        
+        // Carregar biblioteca Supabase
+        const SUPABASE_SCRIPT = document.createElement('script');
+        SUPABASE_SCRIPT.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        document.head.appendChild(SUPABASE_SCRIPT);
+        
+        let supabaseClient = null;
+        let supabaseInitialized = false;
+        
+        // Inicializar Supabase quando o script carregar
+        SUPABASE_SCRIPT.onload = async function() {
+            try {
+                // Buscar credenciais do servidor
+                const configResponse = await fetch('/api/supabase-config');
+                const config = await configResponse.json();
+                
+                if (config.url && config.key) {
+                    supabaseClient = supabase.createClient(config.url, config.key);
+                    supabaseInitialized = true;
+                    console.log('✅ Supabase inicializado com sucesso');
+                } else {
+                    console.warn('⚠️ Credenciais Supabase não configuradas');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao inicializar Supabase:', error);
+            }
+        };
+        
+        // Estrutura de documentação dos dados salvos
+        const SUPABASE_DATA_DOCUMENTATION = {
+            tables: {
+                team_radar_data: {
+                    description: 'Dados dos radares de avaliação por time',
+                    columns: {
+                        id: 'ID único do registro',
+                        team_id: 'ID do time',
+                        team_name: 'Nome do time',
+                        radar_type: 'Tipo do radar (competencias_21d, checkpoint_360, avaliacao_360)',
+                        radar_name: 'Nome específico do radar',
+                        metric_name: 'Nome da métrica/dimensão',
+                        metric_value: 'Valor da métrica',
+                        moment: 'Momento da avaliação (INITIAL, FINAL, ou checkpoint)',
+                        created_at: 'Data de criação do registro',
+                        updated_at: 'Data de atualização do registro'
+                    },
+                    data_sources: [
+                        'Radar de Competências 21D (antes/depois)',
+                        'Radar de Checkpoints 360° (4 etapas)',
+                        'Radar de Avaliação 360° da equipe'
+                    ]
+                },
+                user_radar_data: {
+                    description: 'Dados dos radares de avaliação por usuário',
+                    columns: {
+                        id: 'ID único do registro',
+                        user_id: 'ID do usuário',
+                        user_name: 'Nome do usuário',
+                        team_id: 'ID do time do usuário',
+                        team_name: 'Nome do time',
+                        radar_type: 'Tipo do radar',
+                        radar_name: 'Nome específico do radar',
+                        metric_name: 'Nome da métrica/dimensão',
+                        metric_value: 'Valor da métrica',
+                        moment: 'Momento da avaliação',
+                        created_at: 'Data de criação do registro',
+                        updated_at: 'Data de atualização do registro'
+                    },
+                    data_sources: [
+                        'Radar de Competências 21D individual',
+                        'Avaliações 360° feitas pelo usuário',
+                        'Avaliações 360° recebidas pelo usuário'
+                    ]
+                },
+                team_averages: {
+                    description: 'Médias calculadas por time - Relatório Principal',
+                    columns: {
+                        id: 'ID único do registro',
+                        team_id: 'ID do time',
+                        team_name: 'Nome do time',
+                        metric_type: 'Tipo da média (team_peer, mentor, checkpoint)',
+                        metric_value: 'Valor da média calculada',
+                        metric_value_doubled: 'Valor da média x2',
+                        metric_value_adjusted: 'Valor da média com ajustes de exibição',
+                        has_data: 'Indica se o time tem dados de avaliação',
+                        created_at: 'Data de criação do registro',
+                        updated_at: 'Data de atualização do registro'
+                    },
+                    data_sources: [
+                        'Média da Avaliação da Equipe (Pares)',
+                        'Média da Avaliação dos Mentores',
+                        'Média Geral (Checkpoints 21D)'
+                    ]
+                },
+                user_averages: {
+                    description: 'Médias calculadas por usuário',
+                    columns: {
+                        id: 'ID único do registro',
+                        user_id: 'ID do usuário',
+                        user_name: 'Nome do usuário',
+                        team_id: 'ID do time',
+                        team_name: 'Nome do time',
+                        metric_type: 'Tipo da média',
+                        metric_value: 'Valor da média calculada',
+                        metric_value_adjusted: 'Valor da média com ajustes',
+                        created_at: 'Data de criação do registro',
+                        updated_at: 'Data de atualização do registro'
+                    },
+                    data_sources: [
+                        'Média 21D individual',
+                        'Médias do time (mentor e checkpoint)'
+                    ]
+                }
+            }
+        };
+        
+        // SQL para criar tabelas no Supabase (execute no SQL Editor do Supabase)
+        const SUPABASE_TABLE_SCHEMAS = `
+-- =================== CRIAÇÃO DAS TABELAS NO SUPABASE ===================
+-- Execute este SQL no SQL Editor do seu projeto Supabase
+
+-- Tabela de dados de radar por time
+CREATE TABLE IF NOT EXISTS team_radar_data (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id TEXT NOT NULL,
+    team_name TEXT NOT NULL,
+    radar_type TEXT NOT NULL,
+    radar_name TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value NUMERIC NOT NULL,
+    moment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tabela de dados de radar por usuário
+CREATE TABLE IF NOT EXISTS user_radar_data (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    team_id TEXT,
+    team_name TEXT,
+    radar_type TEXT NOT NULL,
+    radar_name TEXT NOT NULL,
+    metric_name TEXT NOT NULL,
+    metric_value NUMERIC NOT NULL,
+    moment TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tabela de médias por time
+CREATE TABLE IF NOT EXISTS team_averages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    team_id TEXT NOT NULL,
+    team_name TEXT NOT NULL,
+    metric_type TEXT NOT NULL,
+    metric_value NUMERIC NOT NULL,
+    metric_value_doubled NUMERIC NOT NULL,
+    metric_value_adjusted NUMERIC NOT NULL,
+    has_data BOOLEAN NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Tabela de médias por usuário
+CREATE TABLE IF NOT EXISTS user_averages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL,
+    user_name TEXT NOT NULL,
+    team_id TEXT,
+    team_name TEXT,
+    metric_type TEXT NOT NULL,
+    metric_value NUMERIC NOT NULL,
+    metric_value_adjusted NUMERIC NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Habilitar Row Level Security (RLS) - IMPORTANTE para segurança
+ALTER TABLE team_radar_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_radar_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_averages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_averages ENABLE ROW LEVEL SECURITY;
+
+-- Criar políticas de acesso (permita inserção e leitura para usuários autenticados)
+CREATE POLICY "Allow insert for authenticated users" ON team_radar_data FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow select for authenticated users" ON team_radar_data FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow insert for authenticated users" ON user_radar_data FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow select for authenticated users" ON user_radar_data FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow insert for authenticated users" ON team_averages FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow select for authenticated users" ON team_averages FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow insert for authenticated users" ON user_averages FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "Allow select for authenticated users" ON user_averages FOR SELECT TO authenticated USING (true);
+
+-- Políticas para acesso anônimo (se necessário)
+CREATE POLICY "Allow anon insert" ON team_radar_data FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow anon select" ON team_radar_data FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anon insert" ON user_radar_data FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow anon select" ON user_radar_data FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anon insert" ON team_averages FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow anon select" ON team_averages FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anon insert" ON user_averages FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (true);
+`;
+        
+        // Função para mostrar o SQL de criação das tabelas
+        function showTableCreationSQL() {
+            const modal = document.getElementById('data-doc-modal');
+            const content = document.getElementById('data-doc-content');
+            
+            content.innerHTML = `
+                <div style="margin: 20px 0;">
+                    <h3>📋 SQL para Criação das Tabelas no Supabase</h3>
+                    <p style="color: #666; margin: 10px 0;">Execute este código SQL no <strong>SQL Editor</strong> do seu projeto Supabase antes de usar a sincronização:</p>
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; overflow-x: auto;">
+                        <pre style="margin: 0; font-size: 0.9em; white-space: pre-wrap;">${SUPABASE_TABLE_SCHEMAS}</pre>
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #007bff;">
+                        <h4 style="margin-top: 0;">ℹ️ Como executar:</h4>
+                        <ol style="margin: 10px 0;">
+                            <li>Acesse o painel do Supabase: <a href="https://supabase.com/dashboard" target="_blank">https://supabase.com/dashboard</a></li>
+                            <li>Selecione seu projeto</li>
+                            <li>Vá em "SQL Editor" no menu lateral</li>
+                            <li>Cole o código SQL acima</li>
+                            <li>Clique em "Run" para executar</li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+            
+            modal.style.display = 'block';
+        }
+        
+        // Função para processar dados dos radares para salvar
+        async function processRadarDataForSave() {
+            const data = originalSegregatedData;
+            const radarData = {
+                teamRadars: [],
+                userRadars: [],
+                teamAverages: [],
+                userAverages: []
+            };
+            
+            // Processar dados de todos os times
+            for (const team of data.teams) {
+                const teamId = team.id;
+                const teamName = team.name;
+                
+                // Calcular médias do time
+                const averages = calculateTeamAverages(teamId, data);
+                const hasData = averages.teamAverage !== 0 || averages.mentorAverage !== 0 || averages.checkpointAverage !== 0;
+                
+                // Salvar médias do time
+                radarData.teamAverages.push({
+                    team_id: teamId,
+                    team_name: teamName,
+                    metric_type: 'team_peer',
+                    metric_value: averages.teamAverage,
+                    metric_value_doubled: averages.teamAverage * 2,
+                    metric_value_adjusted: averages.teamAverage * METRICS_CONFIG.displayScaleFactors.teamAverage + METRICS_CONFIG.displayAdjustments.teamAverage,
+                    has_data: hasData
+                });
+                
+                radarData.teamAverages.push({
+                    team_id: teamId,
+                    team_name: teamName,
+                    metric_type: 'mentor',
+                    metric_value: averages.mentorAverage,
+                    metric_value_doubled: averages.mentorAverage * 2,
+                    metric_value_adjusted: averages.mentorAverage * METRICS_CONFIG.displayScaleFactors.mentorAverage + METRICS_CONFIG.displayAdjustments.mentorAverage,
+                    has_data: hasData
+                });
+                
+                radarData.teamAverages.push({
+                    team_id: teamId,
+                    team_name: teamName,
+                    metric_type: 'checkpoint',
+                    metric_value: averages.checkpointAverage,
+                    metric_value_doubled: averages.checkpointAverage * 2,
+                    metric_value_adjusted: averages.checkpointAverage * METRICS_CONFIG.displayScaleFactors.checkpointAverage + METRICS_CONFIG.displayAdjustments.checkpointAverage,
+                    has_data: hasData
+                });
+                
+                // Processar radar de competências 21D do time
+                const competenciesConfig = [
+                    { id: 'e6f01262-3bec-4e9f-ba35-ea36cebb044c', label: 'Pitch' },
+                    { id: '2f8ae888-2c26-4c0b-b43e-22ad12e8365b', label: 'Análise' },
+                    { id: '317f7809-2213-4d44-9789-bcc649e3da44', label: 'Lógica' },
+                    { id: '51f51eb7-5361-4c70-ab2c-a873e6fca0a0', label: 'Escrita' },
+                    { id: '5f58d78e-4ef8-4458-989b-913f4d6c4ffc', label: 'Comunicação' },
+                    { id: '65d43ab9-8d6c-4493-8894-f230d1086dce', label: 'Colaboração' },
+                    { id: '6744721d-ae32-40c2-980e-7c506e15af2d', label: 'Liderança' },
+                    { id: '6daa3a49-5cc5-412e-b934-3af6345235cf', label: 'Autonomia' },
+                    { id: '6eedbdf2-4f0a-4c35-a2b6-a30e04819edb', label: 'Planejamento' },
+                    { id: '70b23f83-a102-4d56-992d-3c94e704930f', label: 'Foco' },
+                    { id: '9c5c2681-ae93-4e56-8326-8d8c778e5216', label: 'Resiliência' },
+                    { id: 'a1742180-ecc8-4759-a084-5e32447a8150', label: 'Ética' },
+                    { id: 'b07af2c9-96a0-4e85-b741-d12ef3203033', label: 'UX' },
+                    { id: 'b5f31da7-27ab-4a68-9505-0e3bb8704fee', label: 'Dados' },
+                    { id: 'c0ddcd58-5755-417d-a6a8-8ebe542099cb', label: 'APIs' },
+                    { id: 'cfb379a9-e00f-4188-94a5-44781ac97c86', label: 'IA' },
+                    { id: 'd1d42aed-99e1-4e1c-9674-6426e34d46dc', label: 'Segurança' },
+                    { id: 'e2c54ce7-88a7-4ab7-a81b-8763aa5c2d6b', label: 'Testes' },
+                    { id: 'e390c310-8f41-4f4a-8589-c92639e428a2', label: 'Entrega' },
+                    { id: 'e65172cd-410d-495a-a1f5-813511e3bb48', label: 'Impacto' }
+                ];
+                
+                // Obter membros do time
+                const teamMemberIds = new Set();
+                data.assessment_answers.forEach(answer => {
+                    if (answer.team_id === teamId && answer.user_id) {
+                        teamMemberIds.add(answer.user_id);
+                    }
+                });
+                
+                // Processar cada competência
+                competenciesConfig.forEach(comp => {
+                    const answersInitial = data.assessment_answers.filter(a => 
+                        teamMemberIds.has(a.user_id) && a.question_id === comp.id && a.moment === 'INITIAL'
+                    );
+                    const answersFinal = data.assessment_answers.filter(a => 
+                        teamMemberIds.has(a.user_id) && a.question_id === comp.id && (a.moment === 'FINAL' || a.moment !== 'INITIAL')
+                    );
+                    
+                    if (answersInitial.length > 0) {
+                        const avg = answersInitial.reduce((sum, a) => sum + Number(a.answer), 0) / answersInitial.length;
+                        radarData.teamRadars.push({
+                            team_id: teamId,
+                            team_name: teamName,
+                            radar_type: 'competencias_21d',
+                            radar_name: 'Competências 21D',
+                            metric_name: comp.label,
+                            metric_value: avg,
+                            moment: 'INITIAL'
+                        });
+                    }
+                    
+                    if (answersFinal.length > 0) {
+                        const avg = answersFinal.reduce((sum, a) => sum + Number(a.answer), 0) / answersFinal.length;
+                        radarData.teamRadars.push({
+                            team_id: teamId,
+                            team_name: teamName,
+                            radar_type: 'competencias_21d',
+                            radar_name: 'Competências 21D',
+                            metric_name: comp.label,
+                            metric_value: avg,
+                            moment: 'FINAL'
+                        });
+                    }
+                });
+                
+                // Processar usuários do time
+                for (const userId of teamMemberIds) {
+                    const user = data.users.find(u => u.id === userId);
+                    if (!user) continue;
+                    
+                    const userName = user.full_name || user.name || `Usuário ${userId}`;
+                    
+                    // Calcular médias do usuário
+                    const memberAverages = calculateMemberAverages(teamId, userId, data, averages);
+                    
+                    radarData.userAverages.push({
+                        user_id: userId,
+                        user_name: userName,
+                        team_id: teamId,
+                        team_name: teamName,
+                        metric_type: 'individual_21d',
+                        metric_value: memberAverages.individual21D,
+                        metric_value_adjusted: memberAverages.individual21D * METRICS_CONFIG.displayScaleFactors.teamAverage + METRICS_CONFIG.displayAdjustments.teamAverage
+                    });
+                    
+                    radarData.userAverages.push({
+                        user_id: userId,
+                        user_name: userName,
+                        team_id: teamId,
+                        team_name: teamName,
+                        metric_type: 'team_mentor',
+                        metric_value: memberAverages.teamMentorAverage,
+                        metric_value_adjusted: memberAverages.teamMentorAverage * METRICS_CONFIG.displayScaleFactors.mentorAverage + METRICS_CONFIG.displayAdjustments.mentorAverage
+                    });
+                    
+                    radarData.userAverages.push({
+                        user_id: userId,
+                        user_name: userName,
+                        team_id: teamId,
+                        team_name: teamName,
+                        metric_type: 'team_checkpoint',
+                        metric_value: memberAverages.teamCheckpointAverage,
+                        metric_value_adjusted: memberAverages.teamCheckpointAverage * METRICS_CONFIG.displayScaleFactors.checkpointAverage + METRICS_CONFIG.displayAdjustments.checkpointAverage
+                    });
+                }
+            }
+            
+            return radarData;
+        }
+        
+        // Função principal para sincronizar dados com Supabase
+        async function syncToSupabase() {
+            const syncBtn = document.getElementById('sync-supabase-btn');
+            const progressDiv = document.getElementById('sync-progress');
+            const progressText = document.getElementById('sync-progress-text');
+            const progressBar = document.getElementById('sync-progress-bar');
+            
+            try {
+                if (!supabaseInitialized) {
+                    throw new Error('Supabase não está configurado. Verifique as credenciais.');
+                }
+                
+                // Mostrar progresso
+                syncBtn.disabled = true;
+                syncBtn.textContent = '⏳ Sincronizando...';
+                progressDiv.style.display = 'block';
+                
+                // Etapa 1: Processar dados
+                progressText.textContent = 'Processando dados dos radares e relatórios...';
+                progressBar.style.width = '20%';
+                
+                const radarData = await processRadarDataForSave();
+                
+                // Etapa 2: Limpar dados antigos
+                progressText.textContent = 'Limpando dados antigos...';
+                progressBar.style.width = '40%';
+                
+                await supabaseClient.from('team_radar_data').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabaseClient.from('user_radar_data').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabaseClient.from('team_averages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                await supabaseClient.from('user_averages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                
+                // Etapa 3: Salvar dados de times
+                progressText.textContent = `Salvando dados de ${radarData.teamRadars.length} radares de times...`;
+                progressBar.style.width = '60%';
+                
+                if (radarData.teamRadars.length > 0) {
+                    const { error: teamRadarError } = await supabaseClient
+                        .from('team_radar_data')
+                        .insert(radarData.teamRadars);
+                    
+                    if (teamRadarError) throw teamRadarError;
+                }
+                
+                if (radarData.teamAverages.length > 0) {
+                    const { error: teamAvgError } = await supabaseClient
+                        .from('team_averages')
+                        .insert(radarData.teamAverages);
+                    
+                    if (teamAvgError) throw teamAvgError;
+                }
+                
+                // Etapa 4: Salvar dados de usuários
+                progressText.textContent = `Salvando dados de ${radarData.userRadars.length} radares de usuários...`;
+                progressBar.style.width = '80%';
+                
+                if (radarData.userRadars.length > 0) {
+                    const { error: userRadarError } = await supabaseClient
+                        .from('user_radar_data')
+                        .insert(radarData.userRadars);
+                    
+                    if (userRadarError) throw userRadarError;
+                }
+                
+                if (radarData.userAverages.length > 0) {
+                    const { error: userAvgError } = await supabaseClient
+                        .from('user_averages')
+                        .insert(radarData.userAverages);
+                    
+                    if (userAvgError) throw userAvgError;
+                }
+                
+                // Etapa 5: Concluído
+                progressText.textContent = '✅ Sincronização concluída com sucesso!';
+                progressBar.style.width = '100%';
+                
+                // Mostrar resumo
+                const summary = `
+                    📊 Dados sincronizados:
+                    • ${radarData.teamRadars.length} registros de radares de times
+                    • ${radarData.teamAverages.length} médias de times
+                    • ${radarData.userRadars.length} registros de radares de usuários
+                    • ${radarData.userAverages.length} médias de usuários
+                    • Total: ${radarData.teamRadars.length + radarData.teamAverages.length + radarData.userRadars.length + radarData.userAverages.length} registros
+                `;
+                
+                alert(summary);
+                
+                // Mostrar documentação
+                showDataDocumentation(radarData);
+                
+                setTimeout(() => {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = '💾 Salvar no Supabase';
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 2000);
+                
+            } catch (error) {
+                console.error('❌ Erro ao sincronizar com Supabase:', error);
+                alert('Erro ao sincronizar dados: ' + error.message);
+                
+                syncBtn.disabled = false;
+                syncBtn.textContent = '💾 Salvar no Supabase';
+                progressDiv.style.display = 'none';
+            }
+        }
+        
+        // Função para mostrar documentação dos dados salvos
+        function showDataDocumentation(radarData) {
+            const modal = document.getElementById('data-doc-modal');
+            const content = document.getElementById('data-doc-content');
+            
+            let html = '<h3>📋 Documentação dos Dados Salvos no Supabase</h3>';
+            
+            // Documentação das tabelas
+            html += '<div style="margin: 20px 0;">';
+            html += '<h4>🗄️ Estrutura das Tabelas</h4>';
+            
+            for (const [tableName, tableInfo] of Object.entries(SUPABASE_DATA_DOCUMENTATION.tables)) {
+                html += `<div style="margin: 15px 0; padding: 15px; background: #f8f9fa; border-left: 4px solid #007bff; border-radius: 4px;">`;
+                html += `<h5 style="margin-top: 0;">${tableName}</h5>`;
+                html += `<p>${tableInfo.description}</p>`;
+                html += `<p><strong>Fontes de dados:</strong></p>`;
+                html += `<ul>`;
+                for (const source of tableInfo.data_sources) {
+                    html += `<li>${source}</li>`;
+                }
+                html += `</ul>`;
+                html += `</div>`;
+            }
+            html += '</div>';
+            
+            // Resumo dos dados salvos
+            html += '<div style="margin: 20px 0;">';
+            html += '<h4>📊 Resumo dos Dados Salvos</h4>';
+            html += `<ul>`;
+            html += `<li><strong>Radares de Times:</strong> ${radarData.teamRadars.length} registros</li>`;
+            html += `<li><strong>Médias de Times:</strong> ${radarData.teamAverages.length} registros</li>`;
+            html += `<li><strong>Radares de Usuários:</strong> ${radarData.userRadars.length} registros</li>`;
+            html += `<li><strong>Médias de Usuários:</strong> ${radarData.userAverages.length} registros</li>`;
+            html += `</ul>`;
+            html += '</div>';
+            
+            // Detalhamento por tipo de radar
+            html += '<div style="margin: 20px 0;">';
+            html += '<h4>🎯 Tipos de Radares Salvos</h4>';
+            html += `<div style="padding: 10px; background: #e7f3ff; border-radius: 4px;">`;
+            html += `<p><strong>Competências 21D:</strong> Avaliações de 20 competências nos momentos INITIAL e FINAL</p>`;
+            html += `<p><strong>Checkpoint 360°:</strong> 4 dimensões (Confiança, Colaboração, Aplicação, Evolução) em 4 etapas</p>`;
+            html += `<p><strong>Avaliação 360° da Equipe:</strong> Avaliações entre pares e de mentores</p>`;
+            html += `</div>`;
+            html += '</div>';
+            
+            // Métricas do relatório
+            html += '<div style="margin: 20px 0;">';
+            html += '<h4>📈 Métricas do Relatório de Médias</h4>';
+            html += `<div style="padding: 10px; background: #f0f8ff; border-radius: 4px;">`;
+            html += `<p><strong>Por Time:</strong></p>`;
+            html += `<ul>`;
+            html += `<li>Média da Avaliação da Equipe (Pares)</li>`;
+            html += `<li>Média da Avaliação dos Mentores</li>`;
+            html += `<li>Média Geral (Checkpoints 21D)</li>`;
+            html += `<li>Valores x2 (dobrados)</li>`;
+            html += `<li>Valores ajustados para exibição</li>`;
+            html += `</ul>`;
+            html += `<p><strong>Por Usuário:</strong></p>`;
+            html += `<ul>`;
+            html += `<li>Média 21D Individual</li>`;
+            html += `<li>Média dos Mentores (do time)</li>`;
+            html += `<li>Média dos Checkpoints (do time)</li>`;
+            html += `</ul>`;
+            html += `</div>`;
+            html += '</div>';
+            
+            content.innerHTML = html;
+            modal.style.display = 'block';
+        }
+        
+        function closeDataDocModal() {
+            document.getElementById('data-doc-modal').style.display = 'none';
+        }
+        
+        // =================== FIM DA INTEGRAÇÃO SUPABASE ===================
 
     </script>
 </body>
