@@ -351,14 +351,18 @@
         .modal-body {
             position: relative;
             padding: 20px;
-            height: 60vh;
+            height: 70vh;
+            max-height: 800px;
+            overflow: auto;
         }
 
         #diagram-container {
             position: relative;
             width: 100%;
             height: 100%;
-            overflow: hidden;
+            overflow: visible;
+            min-height: 600px;
+            height: auto;
         }
 
         .diagram-table {
@@ -843,7 +847,7 @@
         let segregatedData = {};
         let originalSegregatedData = {};
         let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance, categoryRadarChartInstance;
-        const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
+        const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorings', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
 
@@ -851,6 +855,7 @@
             users: { title: 'Users', headers: ['selecionar', 'id', 'full_name', 'email', 'role', 'member_id', 'team_id', 'indicadores'] },
             assessment_answers: { title: 'Assessment Answers', headers: ['selecionar', 'id', 'user_id', 'team_id', 'question_id', 'answer', 'moment', 'submission_id'] },
             teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
+            mentorings: { title: 'Mentorings', headers: ['selecionar', 'id', 'team_id', 'guild_id', 'request_member_id', 'mentor_id', 'request_date'] },
             mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] },
             assessment_questions: { title: 'Assessment Questions (Habilidades)', headers: ['selecionar', 'id', 'text', 'category', 'order'] },
             assessment_questions_survey: { title: 'Assessment Questions (Survey)', headers: ['selecionar', 'id', 'text', 'type', 'survey_id'] },
@@ -952,7 +957,7 @@
 
         function segregateData(data) {
             const result = {
-                teams: [], users: [], mentorins: [], assessment_answers: [],
+                teams: [], users: [], mentorings: [], mentorins: [], assessment_answers: [],
                 assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
             };
             
@@ -972,6 +977,9 @@
                             }
                             else if (key === 'user' || (item.full_name && item.role)) {
                                 result.users.push(item);
+                            }
+                            else if (key === 'mentorings' || (item.guild_id && item.mentor_id && !item.evaluator_id)) {
+                                result.mentorings.push(item);
                             }
                             else if (key === 'mentorins' || item.evaluator_id) {
                                 result.mentorins.push(item);
@@ -1940,7 +1948,19 @@
             svg.innerHTML = '';
             
             // Todas as tabelas do sistema
-            const allTables = ['teams', 'users', 'assessment_answers', 'mentorins', 
+            
+            // Tooltips informativos para cada tabela
+            const tableTooltips = {
+                'teams': 'Interliga com: Users (team_id), Assessment Answers (team_id), Mentorings (team_id), Mentorins (target_team_id), Guilds (invite)',
+                'users': 'Interliga com: Assessment Answers (user_id), Mentorings (request_member_id, mentor_id), Mentorins (evaluator_id, target_user_id), Teams (derivado)',
+                'assessment_answers': 'Interliga com: Users (user_id), Teams (team_id), Assessment Questions (question_id), Mentorins (submission_id)',
+                'mentorings': 'Interliga com: Teams (team_id), Guilds (guild_id), Users (request_member_id, mentor_id)',
+                'mentorins': 'Interliga com: Users (evaluator_id, target_user_id), Teams (target_team_id), Assessment Questions Survey (survey_id), Assessment Answers (submission_id)',
+                'assessment_questions': 'Interliga com: Assessment Answers (question_id)',
+                'assessment_questions_survey': 'Interliga com: Mentorins (survey_id)',
+                'guilds': 'Interliga com: Teams (invite), Mentorings (guild_id)'
+            };
+            const allTables = ['teams', 'users', 'assessment_answers', 'mentorings', 'mentorins', 
                              'assessment_questions', 'assessment_questions_survey', 'guilds'];
             
             // Definir relacionamentos completos (direção correta: child → parent)
@@ -1948,10 +1968,13 @@
                 // Users relacionamentos
                 { from: 'assessment_answers', to: 'users', label: 'user_id' },
                 { from: 'mentorins', to: 'users', label: 'evaluator_id, target_user_id' },
+                { from: 'mentorings', to: 'users', label: 'request_member_id, mentor_id' },
                 { from: 'users', to: 'teams', label: 'team_id (derivado)' },
                 // Teams relacionamentos
                 { from: 'assessment_answers', to: 'teams', label: 'team_id' },
                 { from: 'mentorins', to: 'teams', label: 'target_team_id' },
+                { from: 'mentorings', to: 'teams', label: 'team_id' },
+                { from: 'mentorings', to: 'guilds', label: 'guild_id' },
                 { from: 'guilds', to: 'teams', label: 'invite → teams.id' },
                 // Assessment Questions relacionamentos
                 { from: 'assessment_answers', to: 'assessment_questions', label: 'question_id' },
@@ -1972,6 +1995,7 @@
                 const tableDiv = document.createElement('div');
                 tableDiv.className = 'diagram-table connected';
                 tableDiv.innerHTML = tableConfig[tableKey]?.title || tableKey;
+                tableDiv.title = tableTooltips[tableKey] || "";
                 tableDiv.id = `diagram-table-${tableKey}`;
                 
                 tableDiv.style.left = `${position.x}px`;
@@ -2020,6 +2044,7 @@
             
             // Direita: Mentorins
             positions['mentorins'] = { x: containerWidth * 0.85, y: containerHeight * 0.5 };
+            positions['mentorings'] = { x: containerWidth * 0.85, y: containerHeight * 0.7 };
             
             // Base: Teams e Guilds
             positions['teams'] = { x: containerWidth * 0.4, y: containerHeight * 0.85 };
@@ -3862,4 +3887,3 @@
     </script>
 </body>
 </html>
-
