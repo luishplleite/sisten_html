@@ -695,6 +695,7 @@
                  </div>
                  <div class="buttons-group">
                      <button id="validate-btn">Validar IDs</button>
+                     <button id="show-full-diagram-btn" style="background-color: #17a2b8;">📊 Diagrama Completo</button>
                      <button id="clear-filter-btn" style="display: none;">Limpar Filtro</button>
                  </div>
             </div>
@@ -1833,6 +1834,7 @@
 
         function setupEventListeners() {
             document.getElementById('validate-btn').addEventListener('click', validatePrimaryTableIds);
+            document.getElementById('show-full-diagram-btn').addEventListener('click', showFullDiagram);
             document.getElementById('clear-filter-btn').addEventListener('click', clearAdvancedFilter);
             
             // Event listeners para os filtros de busca
@@ -1928,6 +1930,104 @@
             }
         }
         
+        function showFullDiagram() {
+            const modal = document.getElementById('diagram-modal');
+            const container = document.getElementById('diagram-container');
+            const svg = document.getElementById('diagram-svg');
+            
+            // Limpar container e SVG
+            container.innerHTML = '';
+            svg.innerHTML = '';
+            
+            // Todas as tabelas do sistema
+            const allTables = ['teams', 'users', 'assessment_answers', 'mentorins', 
+                             'assessment_questions', 'assessment_questions_survey', 'guilds'];
+            
+            // Definir relacionamentos completos (direção correta: child → parent)
+            const allRelationships = [
+                // Users relacionamentos
+                { from: 'assessment_answers', to: 'users', label: 'user_id' },
+                { from: 'mentorins', to: 'users', label: 'evaluator_id, target_user_id' },
+                { from: 'users', to: 'teams', label: 'team_id (derivado)' },
+                // Teams relacionamentos
+                { from: 'assessment_answers', to: 'teams', label: 'team_id' },
+                { from: 'mentorins', to: 'teams', label: 'target_team_id' },
+                { from: 'guilds', to: 'teams', label: 'invite → teams.id' },
+                // Assessment Questions relacionamentos
+                { from: 'assessment_answers', to: 'assessment_questions', label: 'question_id' },
+                // Mentorins relacionamentos
+                { from: 'assessment_answers', to: 'mentorins', label: 'submission_id → mentorins.id' },
+                { from: 'mentorins', to: 'assessment_questions_survey', label: 'survey_id' }
+            ];
+            
+            // Criar layout completo
+            const positions = createFullDiagramLayout(container);
+            const tableElements = {};
+            
+            // Criar elementos de tabela
+            allTables.forEach(tableKey => {
+                const position = positions[tableKey];
+                if (!position) return;
+                
+                const tableDiv = document.createElement('div');
+                tableDiv.className = 'diagram-table connected';
+                tableDiv.innerHTML = tableConfig[tableKey]?.title || tableKey;
+                tableDiv.id = `diagram-table-${tableKey}`;
+                
+                tableDiv.style.left = `${position.x}px`;
+                tableDiv.style.top = `${position.y}px`;
+                tableDiv.style.transform = 'translate(-50%, -50%)';
+                
+                // Destacar Assessment Answers como central
+                if (tableKey === 'assessment_answers') {
+                    tableDiv.classList.add('primary');
+                }
+                
+                container.appendChild(tableDiv);
+                tableElements[tableKey] = tableDiv;
+            });
+            
+            // Mostrar modal
+            modal.style.display = 'block';
+            
+            // Desenhar todas as conexões
+            setTimeout(() => {
+                allRelationships.forEach(rel => {
+                    const fromElement = tableElements[rel.from];
+                    const toElement = tableElements[rel.to];
+                    if (fromElement && toElement) {
+                        drawLine(svg, fromElement, toElement, 'connection', rel.label, container);
+                    }
+                });
+            }, 100);
+        }
+        
+        function createFullDiagramLayout(container) {
+            const positions = {};
+            const containerWidth = container.offsetWidth || 1000;
+            const containerHeight = container.offsetHeight || 500;
+            
+            // Layout otimizado para mostrar todas as tabelas e suas conexões
+            // Centro: Assessment Answers (tabela principal de dados)
+            positions['assessment_answers'] = { x: containerWidth * 0.5, y: containerHeight * 0.5 };
+            
+            // Topo: Questions
+            positions['assessment_questions'] = { x: containerWidth * 0.35, y: containerHeight * 0.15 };
+            positions['assessment_questions_survey'] = { x: containerWidth * 0.65, y: containerHeight * 0.15 };
+            
+            // Esquerda: Users
+            positions['users'] = { x: containerWidth * 0.15, y: containerHeight * 0.4 };
+            
+            // Direita: Mentorins
+            positions['mentorins'] = { x: containerWidth * 0.85, y: containerHeight * 0.5 };
+            
+            // Base: Teams e Guilds
+            positions['teams'] = { x: containerWidth * 0.4, y: containerHeight * 0.85 };
+            positions['guilds'] = { x: containerWidth * 0.6, y: containerHeight * 0.85 };
+            
+            return positions;
+        }
+        
         function validatePrimaryTableIds() {
             const primaryTableKey = document.getElementById('primary-table-select').value;
             if (!primaryTableKey) {
@@ -1935,77 +2035,69 @@
                 return;
             }
 
-            // Mapeamento baseado em análise real dos dados com contadores e IDs de conexão
+            // Mapeamento de relacionamentos baseado na estrutura real do webhook
+            // Webhook: https://n8n.hackathon.souamigu.org.br/webhook/dadosportohacker
+            // Estrutura: [{ teams: [...], user: [...], mentorins: [...], assessment_answers: [...], ... }]
             const relationshipMap = {
                 teams: {
-                    connections: ['assessment_answers', 'mentorins', 'guilds'],
-                    counts: {'assessment_answers': 43, 'mentorins': 1972, 'guilds': 6},
+                    connections: ['users', 'assessment_answers', 'mentorins', 'guilds'],
                     foreignKeys: {
+                        'users': 'team_id (derivado)',
                         'assessment_answers': 'team_id',
-                        'mentorins': 'team_id',
-                        'guilds': 'id ↔ teams.invite'
+                        'mentorins': 'target_team_id',
+                        'guilds': 'invite → teams.id'
                     }
                 },
                 users: {
-                    connections: ['assessment_answers', 'mentorins'],
-                    counts: {'assessment_answers': 196, 'mentorins': 180},
+                    connections: ['assessment_answers', 'mentorins', 'teams'],
                     foreignKeys: {
                         'assessment_answers': 'user_id',
-                        'mentorins': 'evaluator_id, target_user_id'
+                        'mentorins': 'evaluator_id, target_user_id',
+                        'teams': 'team_id (derivado)'
                     }
                 },
                 assessment_answers: {
-                    connections: ['users', 'teams', 'assessment_questions', 'mentorins', 'mentorins_left', 'assessment_questions_survey', 'guilds'],
-                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280},
+                    connections: ['users', 'teams', 'assessment_questions', 'mentorins'],
                     foreignKeys: {
                         'users': 'user_id',
                         'teams': 'team_id',
                         'assessment_questions': 'question_id',
-                        'mentorins': 'submission_id',
-                        'mentorins_left': 'evaluator_id, target_user_id',
-                        'assessment_questions_survey': '(via Mentorins)',
-                        'guilds': '(via Teams)'
+                        'mentorins': 'submission_id → mentorins.id'
                     }
                 },
                 mentorins: {
                     connections: ['users', 'teams', 'assessment_questions_survey', 'assessment_answers'],
-                    counts: {'users': 180, 'teams': 43, 'assessment_questions_survey': 2395, 'assessment_answers': 280},
                     foreignKeys: {
                         'users': 'evaluator_id, target_user_id',
-                        'teams': 'team_id',
-                        'assessment_questions_survey': 'id (f_submissions)',
-                        'assessment_answers': 'id ↔ submission_id'
+                        'teams': 'target_team_id',
+                        'assessment_questions_survey': 'survey_id',
+                        'assessment_answers': 'id ← submission_id'
                     }
                 },
                 assessment_questions: {
                     connections: ['assessment_answers'],
-                    counts: {'assessment_answers': 21},
                     foreignKeys: {
-                        'assessment_answers': 'question_id'
+                        'assessment_answers': 'id ← question_id'
                     }
                 },
                 assessment_questions_survey: {
                     connections: ['mentorins'],
-                    counts: {'mentorins': 2395},
                     foreignKeys: {
-                        'mentorins': 'survey_id'
+                        'mentorins': 'survey_id ← id'
                     }
                 },
                 f_submissions: {
-                    connections: ['users', 'teams', 'assessment_questions', 'mentorins'],
-                    counts: {'users': 196, 'teams': 43, 'assessment_questions': 21, 'mentorins': 280},
+                    connections: ['users', 'teams', 'mentorins'],
                     foreignKeys: {
                         'users': 'evaluator_id, target_user_id',
-                        'teams': 'team_id',
-                        'assessment_questions': 'question_id',
-                        'mentorins': 'id (mentorins.id)'
+                        'teams': 'target_team_id',
+                        'mentorins': 'id (equivalente)'
                     }
                 },
                 guilds: {
                     connections: ['teams'],
-                    counts: {'teams': 64},
                     foreignKeys: {
-                        'teams': 'invite ↔ teams.id'
+                        'teams': 'id ← invite'
                     }
                 }
             };
@@ -2097,33 +2189,30 @@
             const containerWidth = container.offsetWidth || 1000;
             const containerHeight = container.offsetHeight || 500;
             
-            console.log('📐 Creating custom Assessment Answers layout', containerWidth, 'x', containerHeight);
+            console.log('📐 Creating Assessment Answers layout', containerWidth, 'x', containerHeight);
             
-            // Layout baseado na imagem fornecida
-            positions['assessment_answers'] = { x: containerWidth * 0.5, y: containerHeight * 0.45 }; // Centro
-            positions['users'] = { x: containerWidth * 0.25, y: containerHeight * 0.25 }; // Esquerda superior
+            // Layout baseado nos relacionamentos reais do webhook
+            positions['assessment_answers'] = { x: containerWidth * 0.5, y: containerHeight * 0.5 }; // Centro
+            positions['users'] = { x: containerWidth * 0.2, y: containerHeight * 0.3 }; // Esquerda superior
             positions['assessment_questions'] = { x: containerWidth * 0.5, y: containerHeight * 0.15 }; // Centro superior
-            positions['assessment_questions_survey'] = { x: containerWidth * 0.75, y: containerHeight * 0.2 }; // Direita superior
-            positions['mentorins_left'] = { x: containerWidth * 0.12, y: containerHeight * 0.55 }; // Esquerda inferior (Users)
-            positions['mentorins'] = { x: containerWidth * 0.75, y: containerHeight * 0.5 }; // Direita (submissions)
-            positions['teams'] = { x: containerWidth * 0.4, y: containerHeight * 0.7 }; // Centro inferior
-            positions['guilds'] = { x: containerWidth * 0.4, y: containerHeight * 0.9 }; // Abaixo de Teams
+            positions['mentorins'] = { x: containerWidth * 0.8, y: containerHeight * 0.5 }; // Direita
+            positions['teams'] = { x: containerWidth * 0.5, y: containerHeight * 0.8 }; // Centro inferior
             
-            console.log('📐 Custom layout positions created:', Object.keys(positions));
+            console.log('📐 Layout positions created:', Object.keys(positions));
             return positions;
         }
         
         function drawAssessmentAnswersConnections(svg, tableElements, foreignKeys, container) {
             const primary = tableElements['assessment_answers'];
             
-            console.log('🔗 Drawing custom Assessment Answers connections');
+            console.log('🔗 Drawing Assessment Answers connections');
             
             if (!primary) {
                 console.warn('⚠️ Primary Assessment Answers table not found!');
                 return;
             }
             
-            // Conexões diretas de Assessment Answers
+            // Conexões diretas baseadas nos relacionamentos reais do webhook
             if (tableElements['users']) {
                 drawLine(svg, primary, tableElements['users'], 'connection', foreignKeys['users'] || 'user_id', container);
             }
@@ -2134,25 +2223,10 @@
                 drawLine(svg, primary, tableElements['teams'], 'connection', foreignKeys['teams'] || 'team_id', container);
             }
             if (tableElements['mentorins']) {
-                drawLine(svg, primary, tableElements['mentorins'], 'connection', foreignKeys['mentorins'] || 'submission_id', container);
+                drawLine(svg, primary, tableElements['mentorins'], 'connection', foreignKeys['mentorins'] || 'submission_id → mentorins.id', container);
             }
             
-            // Conexões de Users para Mentorins (esquerda)
-            if (tableElements['users'] && tableElements['mentorins_left']) {
-                drawLine(svg, tableElements['users'], tableElements['mentorins_left'], 'connection', foreignKeys['mentorins_left'] || 'evaluator_id, target_user_id', container);
-            }
-            
-            // Conexões de Mentorins (direita) para Assessment Questions Survey
-            if (tableElements['mentorins'] && tableElements['assessment_questions_survey']) {
-                drawLine(svg, tableElements['mentorins'], tableElements['assessment_questions_survey'], 'connection', '', container);
-            }
-            
-            // Conexões de Teams para Guilds
-            if (tableElements['teams'] && tableElements['guilds']) {
-                drawLine(svg, tableElements['teams'], tableElements['guilds'], 'connection', '', container);
-            }
-            
-            console.log('✅ Custom connections drawn successfully');
+            console.log('✅ Connections drawn successfully');
         }
 
         function createHorizontalLayout(tables, primaryTable, container) {
