@@ -697,6 +697,12 @@
             <button id="sync-supabase-btn" onclick="syncToSupabase()" style="background-color: #6f42c1; color: white; padding: 15px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
                 💾 SINCRONIZAR DADOS
             </button>
+            <button onclick="openSupabaseConfigModal()" style="background-color: #fd7e14; color: white; padding: 15px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
+                ⚙️ CONFIGURAR SUPABASE
+            </button>
+            <button onclick="openDocumentationModal()" style="background-color: #20c997; color: white; padding: 15px 30px; font-size: 1.1em; font-weight: bold; border-radius: 8px; border: none; cursor: pointer;">
+                📚 DOCUMENTAÇÃO
+            </button>
         </div>
         
         <!-- Indicador de progresso da sincronização -->
@@ -869,6 +875,77 @@
             <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
                 <div id="data-doc-content">
                     <!-- Conteúdo será gerado dinamicamente pelo JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração do Supabase -->
+    <div id="supabase-config-modal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>⚙️ Configuração do Supabase</h2>
+                <span class="close-btn" onclick="closeSupabaseConfigModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 30px;">
+                <div style="margin-bottom: 20px;">
+                    <label for="supabase-url-input" style="display: block; font-weight: bold; margin-bottom: 8px; color: #495057;">
+                        🌐 Supabase URL:
+                    </label>
+                    <input 
+                        type="text" 
+                        id="supabase-url-input" 
+                        placeholder="https://seu-projeto.supabase.co"
+                        style="width: 100%; padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 1em; box-sizing: border-box;"
+                    />
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label for="supabase-key-input" style="display: block; font-weight: bold; margin-bottom: 8px; color: #495057;">
+                        🔑 Supabase Anon Key:
+                    </label>
+                    <textarea 
+                        id="supabase-key-input" 
+                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        rows="4"
+                        style="width: 100%; padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 0.9em; font-family: monospace; box-sizing: border-box; resize: vertical;"
+                    ></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button 
+                        onclick="saveSupabaseConfig()" 
+                        style="background-color: #28a745; color: white; padding: 12px 30px; font-size: 1em; font-weight: bold; border-radius: 6px; border: none; cursor: pointer;"
+                    >
+                        💾 Salvar e Reiniciar
+                    </button>
+                    <button 
+                        onclick="closeSupabaseConfigModal()" 
+                        style="background-color: #6c757d; color: white; padding: 12px 30px; font-size: 1em; font-weight: bold; border-radius: 6px; border: none; cursor: pointer;"
+                    >
+                        ❌ Cancelar
+                    </button>
+                </div>
+                <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 6px;">
+                    <strong>ℹ️ Informações:</strong>
+                    <ul style="margin: 10px 0 0 20px; padding: 0;">
+                        <li>Estas credenciais são armazenadas apenas nesta sessão do navegador</li>
+                        <li>Para uso interno da aplicação</li>
+                        <li>Você pode encontrar suas credenciais no painel do Supabase</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Documentação -->
+    <div id="documentation-modal" class="modal">
+        <div class="modal-content" style="max-width: 1200px;">
+            <div class="modal-header">
+                <h2>📚 Documentação - Mapeamento de Dados da Página para o Banco</h2>
+                <span class="close-btn" onclick="closeDocumentationModal()">&times;</span>
+            </div>
+            <div class="modal-body" style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                <div id="documentation-content" style="font-family: 'Courier New', monospace; font-size: 0.9em; line-height: 1.6; white-space: pre-wrap; background-color: #f8f9fa; padding: 20px; border-radius: 8px; color: #212529;">
+                    <!-- Documentação será carregada aqui -->
                 </div>
             </div>
         </div>
@@ -2466,8 +2543,9 @@
                 }
 
             } else if (sourceTableKey === 'users') {
-                summaryContainer.style.display = 'none';
-                summaryContainerDoubled.style.display = 'none';
+                // Mantém os resumos das médias da equipe sempre visíveis
+                // summaryContainer.style.display = 'none';
+                // summaryContainerDoubled.style.display = 'none';
                 const userId = itemId;
                 const filteredDataForUserCharts = JSON.parse(JSON.stringify(originalSegregatedData));
                 filteredDataForUserCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => a.user_id === userId);
@@ -2479,8 +2557,9 @@
                 renderMentorEvaluationChart(originalSegregatedData, { userId: userId });
                 renderCategoryRadarChart(originalSegregatedData, { userId: userId });
             } else {
-                summaryContainer.style.display = 'none';
-                summaryContainerDoubled.style.display = 'none';
+                // Mantém os resumos das médias da equipe sempre visíveis
+                // summaryContainer.style.display = 'none';
+                // summaryContainerDoubled.style.display = 'none';
             }
 
             let relevantAnswers = [];
@@ -2549,8 +2628,9 @@
             currentTableOrder = [...initialTableOrder];
             sortStates = {};
             
-            document.getElementById('team-averages-summary').style.display = 'none';
-            document.getElementById('team-averages-summary-doubled').style.display = 'none';
+            // Mantém os resumos das médias da equipe sempre visíveis
+            // document.getElementById('team-averages-summary').style.display = 'none';
+            // document.getElementById('team-averages-summary-doubled').style.display = 'none';
             
             renderAllTables(segregatedData, currentTableOrder);
             renderCharts(originalSegregatedData);
@@ -3939,15 +4019,16 @@
         let supabaseClient = null;
         let supabaseInitialized = false;
         
+        // Credenciais Supabase (configuráveis via modal)
+        let SUPABASE_URL = 'https://xrrlnrfodadalvlklsth.supabase.co';
+        let SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhycmxucmZvZGFkYWx2bGtsc3RoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk0MDg0OTQsImV4cCI6MjA3NDk4NDQ5NH0.hJ7loy37yWIAvXR0ZEpir3mv3KMvcBJafN0lBMMBdRw';
+        
         // Inicializar Supabase quando o script carregar
         SUPABASE_SCRIPT.onload = async function() {
             try {
-                // Buscar credenciais do servidor
-                const configResponse = await fetch('/api/supabase-config');
-                const config = await configResponse.json();
-                
-                if (config.url && config.key) {
-                    supabaseClient = supabase.createClient(config.url, config.key);
+                // Usar credenciais diretas
+                if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+                    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                     supabaseInitialized = true;
                     console.log('✅ Supabase inicializado com sucesso');
                 } else {
@@ -3957,6 +4038,498 @@
                 console.error('❌ Erro ao inicializar Supabase:', error);
             }
         };
+        
+        // Funções para controlar o modal de configuração do Supabase
+        function openSupabaseConfigModal() {
+            const modal = document.getElementById('supabase-config-modal');
+            const urlInput = document.getElementById('supabase-url-input');
+            const keyInput = document.getElementById('supabase-key-input');
+            
+            // Preencher os campos com os valores atuais
+            urlInput.value = SUPABASE_URL;
+            keyInput.value = SUPABASE_ANON_KEY;
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeSupabaseConfigModal() {
+            const modal = document.getElementById('supabase-config-modal');
+            modal.style.display = 'none';
+        }
+        
+        function saveSupabaseConfig() {
+            const urlInput = document.getElementById('supabase-url-input');
+            const keyInput = document.getElementById('supabase-key-input');
+            
+            const newUrl = urlInput.value.trim();
+            const newKey = keyInput.value.trim();
+            
+            if (!newUrl || !newKey) {
+                alert('⚠️ Por favor, preencha ambos os campos (URL e Anon Key)');
+                return;
+            }
+            
+            // Atualizar as credenciais
+            SUPABASE_URL = newUrl;
+            SUPABASE_ANON_KEY = newKey;
+            
+            // Reinicializar o cliente Supabase com as novas credenciais
+            try {
+                supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseInitialized = true;
+                console.log('✅ Supabase reinicializado com novas credenciais');
+                alert('✅ Credenciais do Supabase atualizadas com sucesso!');
+                closeSupabaseConfigModal();
+            } catch (error) {
+                console.error('❌ Erro ao reinicializar Supabase:', error);
+                alert('❌ Erro ao aplicar as novas credenciais. Verifique os valores e tente novamente.');
+            }
+        }
+        
+        // Fechar modal ao clicar no X ou fora dele
+        window.addEventListener('click', function(event) {
+            const modal = document.getElementById('supabase-config-modal');
+            if (event.target == modal) {
+                closeSupabaseConfigModal();
+            }
+            const docModal = document.getElementById('documentation-modal');
+            if (event.target == docModal) {
+                closeDocumentationModal();
+            }
+        });
+        
+        // Funções para controlar o modal de documentação
+        function openDocumentationModal() {
+            const modal = document.getElementById('documentation-modal');
+            const content = document.getElementById('documentation-content');
+            
+            // Carregar a documentação
+            content.innerHTML = getDocumentationContent();
+            
+            modal.style.display = 'block';
+        }
+        
+        function closeDocumentationModal() {
+            const modal = document.getElementById('documentation-modal');
+            modal.style.display = 'none';
+        }
+        
+        function getDocumentationContent() {
+            return `================================================================================
+          DOCUMENTAÇÃO - MAPEAMENTO DE DADOS DA PÁGINA PARA O BANCO
+================================================================================
+
+Este documento explica onde cada informação exibida no Painel de Validação de 
+Dados está sendo salva no banco de dados Supabase.
+
+================================================================================
+                           VISÃO GERAL DO SISTEMA
+================================================================================
+
+O sistema possui 11 tabelas no Supabase que armazenam diferentes tipos de dados:
+
+TABELAS PRINCIPAIS (Resumos e Agregações):
+  1. team_radar_data          - Dados de radar agregados por time
+  2. user_radar_data          - Dados de radar agregados por usuário
+  3. team_averages            - Médias calculadas por time
+  4. user_averages            - Médias calculadas por usuário
+
+TABELAS DE DETALHAMENTO (Dados Individuais):
+  5. user_21d_evaluations            - Avaliações 21D individuais
+  6. user_checkpoint_evaluations     - Avaliações de checkpoint
+  7. user_360_self_evaluations       - Auto-avaliações 360°
+  8. user_360_peer_evaluations       - Avaliações 360° de pares
+  9. mentor_evaluations              - Avaliações de mentores
+  10. team_memberships               - Membros e seus times
+  11. team_metric_summaries          - Resumo geral de métricas por time
+
+================================================================================
+                    ELEMENTOS DA PÁGINA → TABELAS DO BANCO
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  1. BOTÃO "📊 MEDIA DE TODOS OS TIMES"                                   ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Quando clicado, exibe um modal com médias de todos os times.
+
+ORIGEM DOS DADOS:
+├─ Médias do Time (Peer/Mentor/Checkpoint)
+│  └─ Tabela: team_metric_summaries
+│     ├─ team_id: ID do time
+│     ├─ team_name: Nome do time
+│     ├─ team_peer_average: Média de avaliações entre pares
+│     ├─ mentor_average: Média de avaliações do mentor
+│     ├─ checkpoint_average: Média de checkpoint
+│     ├─ team_peer_average_doubled: Média peer x2
+│     ├─ mentor_average_doubled: Média mentor x2
+│     ├─ checkpoint_average_doubled: Média checkpoint x2
+│     └─ total_members: Total de membros do time
+│
+└─ Médias Individuais dos Membros
+   └─ Tabela: user_averages
+      ├─ user_id: ID do usuário
+      ├─ user_name: Nome do usuário
+      ├─ team_id: ID do time
+      ├─ metric_type: Tipo da métrica (ex: "avg_21d_initial", "avg_checkpoint")
+      ├─ metric_value: Valor da média
+      └─ metric_value_adjusted: Valor ajustado da média
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  2. TABELAS DE DADOS (teams, users, assessment_answers, etc.)            ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+As tabelas exibidas na página principal mostram dados brutos que são processados
+e salvos em diferentes tabelas:
+
+┌─ TABELA "teams" (Times) ─────────────────────────────────────────────────┐
+│                                                                            │
+│  ORIGEM: Webhook/API                                                       │
+│  DESTINO NO BANCO:                                                         │
+│                                                                            │
+│  → team_metric_summaries                                                   │
+│    ├─ team_id (de team.id)                                                │
+│    ├─ team_name (de team.name)                                            │
+│    └─ Métricas calculadas do time                                         │
+│                                                                            │
+│  → team_averages                                                           │
+│    ├─ team_id (de team.id)                                                │
+│    ├─ team_name (de team.name)                                            │
+│    ├─ metric_type (tipo da média calculada)                               │
+│    └─ metric_value (valor da média)                                       │
+│                                                                            │
+│  → team_radar_data                                                         │
+│    ├─ team_id (de team.id)                                                │
+│    ├─ team_name (de team.name)                                            │
+│    ├─ radar_type (tipo do radar, ex: "21D", "360", "checkpoint")         │
+│    ├─ radar_name (nome específico do radar)                               │
+│    ├─ metric_name (nome da métrica/competência)                           │
+│    └─ metric_value (valor da métrica)                                     │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TABELA "users" (Usuários) ──────────────────────────────────────────────┐
+│                                                                            │
+│  ORIGEM: Webhook/API                                                       │
+│  DESTINO NO BANCO:                                                         │
+│                                                                            │
+│  → team_memberships                                                        │
+│    ├─ user_id (de user.id)                                                │
+│    ├─ user_name (de user.full_name ou user.name)                         │
+│    ├─ team_id (calculado a partir de assessment_answers)                  │
+│    ├─ team_name (nome do time associado)                                  │
+│    └─ user_role (de user.role)                                            │
+│                                                                            │
+│  → user_averages                                                           │
+│    ├─ user_id (de user.id)                                                │
+│    ├─ user_name (de user.full_name ou user.name)                         │
+│    └─ Métricas calculadas do usuário                                      │
+│                                                                            │
+│  → user_radar_data                                                         │
+│    ├─ user_id (de user.id)                                                │
+│    ├─ user_name (de user.full_name ou user.name)                         │
+│    └─ Dados do radar individual                                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TABELA "assessment_answers" (Respostas 21D) ────────────────────────────┐
+│                                                                            │
+│  ORIGEM: Respostas das avaliações 21D (inicial e final)                   │
+│  DESTINO NO BANCO:                                                         │
+│                                                                            │
+│  → user_21d_evaluations                                                    │
+│    ├─ user_id (de assessment_answer.user_id)                              │
+│    ├─ user_name (nome do usuário que respondeu)                           │
+│    ├─ team_id (de assessment_answer.team_id)                              │
+│    ├─ team_name (nome do time)                                            │
+│    ├─ competency_id (de assessment_answer.question_id)                    │
+│    ├─ competency_name (nome da competência, ex: "Pitch", "Lógica")       │
+│    ├─ score (de assessment_answer.answer)                                 │
+│    └─ moment (de assessment_answer.moment: "INITIAL" ou "FINAL")         │
+│                                                                            │
+│  COMPETÊNCIAS 21D SALVAS:                                                  │
+│  • Pitch                    • Análise                 • Lógica            │
+│  • Escrita                  • Comunicação             • Colaboração       │
+│  • Liderança                • Autonomia               • Planejamento      │
+│  • Foco                     • Resiliência             • Ética             │
+│  • UX                       • Dados                   • APIs              │
+│  • IA                       • Segurança               • Testes            │
+│  • Entrega                  • Impacto                                     │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TABELA "f_submissions" + "f_answers" (Avaliações 360° e Checkpoint) ────┐
+│                                                                            │
+│  ORIGEM: Submissões de avaliações e suas respostas                        │
+│  DESTINO NO BANCO:                                                         │
+│                                                                            │
+│  → user_checkpoint_evaluations                                             │
+│    ├─ user_id (usuário sendo avaliado)                                    │
+│    ├─ user_name (nome do usuário)                                         │
+│    ├─ team_id (time do usuário)                                           │
+│    ├─ checkpoint_stage ("avaliacao_360")                                  │
+│    ├─ dimension_name (dimensão: Confiança/Colaboração/Aplicação/Evolução)│
+│    ├─ score (de f_answer.answer)                                          │
+│    ├─ evaluator_type ("peer" para avaliação entre pares)                 │
+│    ├─ question_id (de f_answer.question_id)                               │
+│    ├─ question_text (texto da pergunta)                                   │
+│    └─ submission_id (de f_submission.id)                                  │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TABELA "mentorins" (Avaliações 360° e Mentor) ──────────────────────────┐
+│                                                                            │
+│  ORIGEM: Submissões de mentoring e avaliações 360°                        │
+│  DESTINO NO BANCO (depende do tipo de avaliação):                         │
+│                                                                            │
+│  → user_360_self_evaluations (auto-avaliação)                             │
+│    ├─ user_id (de mentorin.evaluator_id quando evaluator = target)       │
+│    ├─ user_name (nome do usuário)                                         │
+│    ├─ team_id (time do usuário)                                           │
+│    ├─ question_id (de f_answer.question_id, questões 16-19)              │
+│    ├─ question_text (texto da pergunta 360°)                              │
+│    └─ answer (de f_answer.answer)                                         │
+│                                                                            │
+│  → user_360_peer_evaluations (avaliação de pares)                         │
+│    ├─ evaluator_id (de mentorin.evaluator_id)                             │
+│    ├─ evaluator_name (nome de quem avaliou)                               │
+│    ├─ target_user_id (de mentorin.target_user_id)                         │
+│    ├─ target_user_name (nome de quem foi avaliado)                        │
+│    ├─ team_id (time do avaliado)                                          │
+│    ├─ question_id (de f_answer.question_id, questões 16-19)              │
+│    ├─ question_text (texto da pergunta)                                   │
+│    ├─ answer (de f_answer.answer)                                         │
+│    └─ submission_id (de mentorin.id)                                      │
+│                                                                            │
+│  → mentor_evaluations (avaliação do mentor)                                │
+│    ├─ mentor_id (ID do mentor)                                            │
+│    ├─ mentor_name (nome do mentor)                                         │
+│    ├─ mentee_id (ID do mentorado)                                         │
+│    ├─ mentee_name (nome do mentorado)                                     │
+│    ├─ team_id (time do mentorado)                                         │
+│    ├─ question_id (de f_answer.question_id)                               │
+│    ├─ question_text (texto da pergunta)                                   │
+│    ├─ answer (de f_answer.answer)                                         │
+│    └─ submission_id (de mentorin.id)                                      │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  3. FILTROS DE BUSCA (Sistema de Busca - Filtros de Avaliação)          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Os filtros identificam usuários que NÃO fizeram determinadas avaliações.
+Eles NÃO são salvos no banco, apenas usam dados existentes para filtrar.
+
+FILTROS DISPONÍVEIS:
+├─ ☑ NÃO fizeram auto avaliação 21D inicial
+│  └─ Verifica: user_21d_evaluations WHERE moment = 'INITIAL'
+│
+├─ ☑ NÃO fizeram auto avaliação 21D final  
+│  └─ Verifica: user_21d_evaluations WHERE moment = 'FINAL'
+│
+├─ ☑ NÃO fizeram auto avaliação 360°
+│  └─ Verifica: user_360_self_evaluations
+│
+├─ ☑ NÃO fizeram avaliação 360° de outros participantes
+│  └─ Verifica: user_360_peer_evaluations WHERE evaluator_id = user_id
+│
+└─ ☑ Mentor Nao fez Avaliação
+   └─ Verifica: mentor_evaluations WHERE mentee_id = user_id
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  4. DIAGRAMA DE RELACIONAMENTOS (Botão "📊 Diagrama Completo")          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+O diagrama visual mostra relacionamentos entre tabelas. Os dados vêm de:
+
+CONEXÕES EXIBIDAS:
+├─ Tabela Central (selecionada)
+│  └─ Origem: Qualquer uma das 8 tabelas principais
+│
+├─ Tabelas Conectadas
+│  └─ Identificadas por chaves estrangeiras (IDs em comum)
+│
+└─ Labels de Conexão
+   └─ Mostram o campo que conecta as tabelas (ex: "team_id", "user_id")
+
+DADOS USADOS:
+→ Todas as tabelas do sistema para identificar relacionamentos
+→ Campos de ID para traçar conexões
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  5. SEÇÃO "Resumo do Time" (Médias do Time Selecionado)                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Exibe médias calculadas para um time específico após validação.
+
+ORIGEM DOS DADOS:
+└─ Tabela: team_metric_summaries
+   ├─ team_peer_average: "Média Team"
+   ├─ mentor_average: "Média Mentor" 
+   ├─ checkpoint_average: "Média Checkpoint"
+   ├─ team_peer_average_doubled: "Média Team x2"
+   ├─ mentor_average_doubled: "Média Mentor x2"
+   └─ checkpoint_average_doubled: "Média Checkpoint x2"
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  6. GRÁFICOS (Charts com Chart.js)                                       ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+Os gráficos exibidos são gerados dinamicamente a partir dos dados.
+
+TIPOS DE GRÁFICOS E SUAS FONTES:
+
+┌─ Gráfico de Radar (Competências 21D) ────────────────────────────────────┐
+│  Origem: user_21d_evaluations                                             │
+│  ├─ Eixos: competency_name (20 competências)                             │
+│  └─ Valores: score (média por competência)                                │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Gráfico de Barras (Médias por Time) ────────────────────────────────────┐
+│  Origem: team_metric_summaries                                            │
+│  ├─ Eixo X: team_name                                                     │
+│  └─ Eixo Y: team_peer_average, mentor_average, checkpoint_average        │
+└────────────────────────────────────────────────────────────────────────────┘
+
+┌─ Gráfico de Evolução (21D Inicial vs Final) ─────────────────────────────┐
+│  Origem: user_21d_evaluations                                             │
+│  ├─ Série 1: score WHERE moment = 'INITIAL'                              │
+│  └─ Série 2: score WHERE moment = 'FINAL'                                │
+└────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                        FLUXO DE SINCRONIZAÇÃO DE DADOS
+================================================================================
+
+ETAPA 1: Carregamento dos Dados
+  ↓ Webhook fornece dados brutos (JSON)
+  ↓ Dados são segregados em 8 arrays principais
+
+ETAPA 2: Processamento
+  ↓ Dados são processados e calculados
+  ↓ Médias e agregações são geradas
+
+ETAPA 3: Sincronização com Supabase (Botão "💾 SINCRONIZAR DADOS")
+  ↓
+  ├─ 10% - Limpa dados antigos de todas as tabelas
+  ├─ 20% - Salva team_radar_data e team_averages
+  ├─ 30% - Salva team_metric_summaries
+  ├─ 35% - Salva team_memberships
+  ├─ 45% - Salva user_radar_data e user_averages
+  ├─ 55% - Salva user_21d_evaluations (chunks de 500)
+  ├─ 65% - Salva user_checkpoint_evaluations (chunks de 500)
+  ├─ 75% - Salva user_360_self_evaluations (chunks de 500)
+  ├─ 85% - Salva user_360_peer_evaluations (chunks de 500)
+  ├─ 95% - Salva mentor_evaluations (chunks de 500)
+  └─ 100% - Sincronização completa!
+
+================================================================================
+                          ESTRUTURA DE DADOS NO BANCO
+================================================================================
+
+RELACIONAMENTOS PRINCIPAIS:
+
+team_metric_summaries
+  ├─ team_id → teams
+  └─ Contém métricas agregadas do time
+
+team_memberships
+  ├─ user_id → users
+  ├─ team_id → teams
+  └─ Define quem pertence a qual time
+
+user_21d_evaluations
+  ├─ user_id → users
+  ├─ team_id → teams
+  └─ Respostas das 20 competências 21D
+
+user_checkpoint_evaluations
+  ├─ user_id → users
+  └─ Avaliações de checkpoint/360° recebidas
+
+user_360_self_evaluations
+  ├─ user_id → users
+  └─ Auto-avaliações 360° (questões 16-19)
+
+user_360_peer_evaluations
+  ├─ evaluator_id → users (quem avaliou)
+  ├─ target_user_id → users (quem foi avaliado)
+  └─ Avaliações 360° entre pares
+
+mentor_evaluations
+  ├─ mentor_id → users (mentor)
+  ├─ mentee_id → users (mentorado)
+  └─ Avaliações feitas pelo mentor
+
+team_averages
+  ├─ team_id → teams
+  └─ Médias diversas por time
+
+user_averages
+  ├─ user_id → users
+  └─ Médias diversas por usuário
+
+team_radar_data
+  ├─ team_id → teams
+  └─ Dados para gráficos de radar do time
+
+user_radar_data
+  ├─ user_id → users
+  └─ Dados para gráficos de radar do usuário
+
+================================================================================
+                              CAMPOS IMPORTANTES
+================================================================================
+
+CAMPOS DE IDENTIFICAÇÃO:
+  • id: UUID gerado automaticamente (chave primária)
+  • team_id: Identificador único do time
+  • user_id: Identificador único do usuário
+  • question_id: Identificador da questão/competência
+  • submission_id: Identificador da submissão de avaliação
+
+CAMPOS TEMPORAIS:
+  • moment: Momento da avaliação ("INITIAL" ou "FINAL")
+  • created_at: Data/hora de criação do registro
+  • updated_at: Data/hora da última atualização
+
+CAMPOS DE MÉTRICAS:
+  • score / answer: Valor da resposta/avaliação
+  • metric_value: Valor calculado da métrica
+  • metric_value_adjusted: Valor ajustado da métrica
+
+CAMPOS DE CONTEXTO:
+  • competency_name: Nome da competência
+  • dimension_name: Nome da dimensão (360°)
+  • checkpoint_stage: Etapa do checkpoint
+  • question_text: Texto da pergunta
+  • evaluator_type: Tipo do avaliador (peer, mentor, self)
+
+================================================================================
+                                 OBSERVAÇÕES
+================================================================================
+
+1. LIMPEZA DE DADOS:
+   • Antes de cada sincronização, todas as tabelas são limpas
+   • Isso garante que não haja dados duplicados
+   • Use com cuidado em produção!
+
+2. PERFORMANCE:
+   • Dados são salvos em chunks de 500 registros
+   • Isso evita timeouts e melhora a performance
+   • Barra de progresso mostra o andamento
+
+3. SEGURANÇA:
+   • As credenciais do Supabase devem ser configuradas
+   • Use o botão "⚙️ CONFIGURAR SUPABASE" para definir
+   • As credenciais são mantidas apenas na sessão
+
+4. BACKUP:
+   • Recomenda-se fazer backup antes de sincronizar
+   • O Supabase possui ferramentas de backup nativas
+   • Considere usar políticas de Row Level Security (RLS)
+
+================================================================================`;
+        }
         
         // Estrutura de documentação dos dados salvos
         const SUPABASE_DATA_DOCUMENTATION = {
@@ -4049,96 +4622,241 @@
         const SUPABASE_TABLE_SCHEMAS = `
 -- =================== CRIAÇÃO DAS TABELAS NO SUPABASE ===================
 -- Execute este SQL no SQL Editor do seu projeto Supabase
+-- Este schema cria 11 tabelas para armazenar dados de avaliações e métricas
 
--- Tabela de dados de radar por time
-CREATE TABLE IF NOT EXISTS team_radar_data (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    team_id TEXT NOT NULL,
-    team_name TEXT NOT NULL,
-    radar_type TEXT NOT NULL,
-    radar_name TEXT NOT NULL,
-    metric_name TEXT NOT NULL,
-    metric_value NUMERIC NOT NULL,
-    moment TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 1. Tabela de avaliações de mentores
+CREATE TABLE IF NOT EXISTS public.mentor_evaluations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  mentor_id text NOT NULL,
+  mentor_name text NOT NULL,
+  mentee_id text NOT NULL,
+  mentee_name text NOT NULL,
+  team_id text,
+  team_name text,
+  question_id text NOT NULL,
+  question_text text,
+  answer numeric NOT NULL,
+  submission_id text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT mentor_evaluations_pkey PRIMARY KEY (id)
 );
 
--- Tabela de dados de radar por usuário
-CREATE TABLE IF NOT EXISTS user_radar_data (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL,
-    team_id TEXT,
-    team_name TEXT,
-    radar_type TEXT NOT NULL,
-    radar_name TEXT NOT NULL,
-    metric_name TEXT NOT NULL,
-    metric_value NUMERIC NOT NULL,
-    moment TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 2. Tabela de médias por time
+CREATE TABLE IF NOT EXISTS public.team_averages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  team_id text NOT NULL,
+  team_name text NOT NULL,
+  metric_type text NOT NULL,
+  metric_value numeric NOT NULL,
+  metric_value_doubled numeric NOT NULL,
+  metric_value_adjusted numeric NOT NULL,
+  has_data boolean NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_averages_pkey PRIMARY KEY (id)
 );
 
--- Tabela de médias por time
-CREATE TABLE IF NOT EXISTS team_averages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    team_id TEXT NOT NULL,
-    team_name TEXT NOT NULL,
-    metric_type TEXT NOT NULL,
-    metric_value NUMERIC NOT NULL,
-    metric_value_doubled NUMERIC NOT NULL,
-    metric_value_adjusted NUMERIC NOT NULL,
-    has_data BOOLEAN NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 3. Tabela de membros dos times
+CREATE TABLE IF NOT EXISTS public.team_memberships (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  user_name text NOT NULL,
+  team_id text NOT NULL,
+  team_name text NOT NULL,
+  user_role text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_memberships_pkey PRIMARY KEY (id)
 );
 
--- Tabela de médias por usuário
-CREATE TABLE IF NOT EXISTS user_averages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id TEXT NOT NULL,
-    user_name TEXT NOT NULL,
-    team_id TEXT,
-    team_name TEXT,
-    metric_type TEXT NOT NULL,
-    metric_value NUMERIC NOT NULL,
-    metric_value_adjusted NUMERIC NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- 4. Tabela de resumo de métricas por time
+CREATE TABLE IF NOT EXISTS public.team_metric_summaries (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  team_id text NOT NULL,
+  team_name text NOT NULL,
+  total_members integer NOT NULL,
+  team_peer_average numeric NOT NULL,
+  mentor_average numeric NOT NULL,
+  checkpoint_average numeric NOT NULL,
+  team_peer_average_doubled numeric NOT NULL,
+  mentor_average_doubled numeric NOT NULL,
+  checkpoint_average_doubled numeric NOT NULL,
+  has_data boolean NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_metric_summaries_pkey PRIMARY KEY (id)
 );
 
--- Habilitar Row Level Security (RLS) - IMPORTANTE para segurança
-ALTER TABLE team_radar_data ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_radar_data ENABLE ROW LEVEL SECURITY;
-ALTER TABLE team_averages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE user_averages ENABLE ROW LEVEL SECURITY;
+-- 5. Tabela de dados de radar por time
+CREATE TABLE IF NOT EXISTS public.team_radar_data (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  team_id text NOT NULL,
+  team_name text NOT NULL,
+  radar_type text NOT NULL,
+  radar_name text NOT NULL,
+  metric_name text NOT NULL,
+  metric_value numeric NOT NULL,
+  moment text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT team_radar_data_pkey PRIMARY KEY (id)
+);
 
--- Criar políticas de acesso (permita inserção e leitura para usuários autenticados)
-CREATE POLICY "Allow insert for authenticated users" ON team_radar_data FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow select for authenticated users" ON team_radar_data FOR SELECT TO authenticated USING (true);
+-- 6. Tabela de avaliações 21D por usuário
+CREATE TABLE IF NOT EXISTS public.user_21d_evaluations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  user_name text NOT NULL,
+  team_id text,
+  team_name text,
+  competency_id text NOT NULL,
+  competency_name text NOT NULL,
+  score numeric NOT NULL,
+  moment text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_21d_evaluations_pkey PRIMARY KEY (id)
+);
 
-CREATE POLICY "Allow insert for authenticated users" ON user_radar_data FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow select for authenticated users" ON user_radar_data FOR SELECT TO authenticated USING (true);
+-- 7. Tabela de avaliações 360° de pares
+CREATE TABLE IF NOT EXISTS public.user_360_peer_evaluations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  evaluator_id text NOT NULL,
+  evaluator_name text NOT NULL,
+  target_user_id text NOT NULL,
+  target_user_name text NOT NULL,
+  team_id text,
+  team_name text,
+  question_id text NOT NULL,
+  question_text text,
+  answer numeric NOT NULL,
+  submission_id text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_360_peer_evaluations_pkey PRIMARY KEY (id)
+);
 
-CREATE POLICY "Allow insert for authenticated users" ON team_averages FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow select for authenticated users" ON team_averages FOR SELECT TO authenticated USING (true);
+-- 8. Tabela de auto-avaliações 360°
+CREATE TABLE IF NOT EXISTS public.user_360_self_evaluations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  user_name text NOT NULL,
+  team_id text,
+  team_name text,
+  question_id text NOT NULL,
+  question_text text,
+  answer numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_360_self_evaluations_pkey PRIMARY KEY (id)
+);
 
-CREATE POLICY "Allow insert for authenticated users" ON user_averages FOR INSERT TO authenticated WITH CHECK (true);
-CREATE POLICY "Allow select for authenticated users" ON user_averages FOR SELECT TO authenticated USING (true);
+-- 9. Tabela de médias por usuário
+CREATE TABLE IF NOT EXISTS public.user_averages (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  user_name text NOT NULL,
+  team_id text,
+  team_name text,
+  metric_type text NOT NULL,
+  metric_value numeric NOT NULL,
+  metric_value_adjusted numeric NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_averages_pkey PRIMARY KEY (id)
+);
 
--- Políticas para acesso anônimo (se necessário)
-CREATE POLICY "Allow anon insert" ON team_radar_data FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow anon select" ON team_radar_data FOR SELECT TO anon USING (true);
+-- 10. Tabela de avaliações de checkpoint por usuário
+CREATE TABLE IF NOT EXISTS public.user_checkpoint_evaluations (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  user_name text NOT NULL,
+  team_id text,
+  team_name text,
+  checkpoint_stage text NOT NULL,
+  dimension_name text NOT NULL,
+  score numeric NOT NULL,
+  evaluator_type text NOT NULL,
+  question_id text,
+  question_text text,
+  submission_id text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_checkpoint_evaluations_pkey PRIMARY KEY (id)
+);
 
-CREATE POLICY "Allow anon insert" ON user_radar_data FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow anon select" ON user_radar_data FOR SELECT TO anon USING (true);
+-- 11. Tabela de dados de radar por usuário
+CREATE TABLE IF NOT EXISTS public.user_radar_data (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  user_name text NOT NULL,
+  team_id text,
+  team_name text,
+  radar_type text NOT NULL,
+  radar_name text NOT NULL,
+  metric_name text NOT NULL,
+  metric_value numeric NOT NULL,
+  moment text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_radar_data_pkey PRIMARY KEY (id)
+);
 
-CREATE POLICY "Allow anon insert" ON team_averages FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow anon select" ON team_averages FOR SELECT TO anon USING (true);
+-- =================== CONFIGURAÇÕES DE SEGURANÇA ===================
+-- Habilitar Row Level Security (RLS) em todas as tabelas
+ALTER TABLE public.mentor_evaluations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_averages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_memberships ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_metric_summaries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.team_radar_data ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_21d_evaluations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_360_peer_evaluations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_360_self_evaluations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_averages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_checkpoint_evaluations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_radar_data ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow anon insert" ON user_averages FOR INSERT TO anon WITH CHECK (true);
-CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (true);
+-- Criar políticas de acesso para usuários anônimos (permitir inserção e leitura)
+-- IMPORTANTE: Estas políticas permitem acesso total. Ajuste conforme necessário para produção.
+
+-- Políticas para mentor_evaluations
+CREATE POLICY "Allow anon all" ON public.mentor_evaluations FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para team_averages
+CREATE POLICY "Allow anon all" ON public.team_averages FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para team_memberships
+CREATE POLICY "Allow anon all" ON public.team_memberships FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para team_metric_summaries
+CREATE POLICY "Allow anon all" ON public.team_metric_summaries FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para team_radar_data
+CREATE POLICY "Allow anon all" ON public.team_radar_data FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para user_21d_evaluations
+CREATE POLICY "Allow anon all" ON public.user_21d_evaluations FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para user_360_peer_evaluations
+CREATE POLICY "Allow anon all" ON public.user_360_peer_evaluations FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para user_360_self_evaluations
+CREATE POLICY "Allow anon all" ON public.user_360_self_evaluations FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para user_averages
+CREATE POLICY "Allow anon all" ON public.user_averages FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para user_checkpoint_evaluations
+CREATE POLICY "Allow anon all" ON public.user_checkpoint_evaluations FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- Políticas para user_radar_data
+CREATE POLICY "Allow anon all" ON public.user_radar_data FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- =================== CONCLUÍDO ===================
+-- Todas as 11 tabelas foram criadas com sucesso!
+-- As políticas RLS permitem acesso anônimo para facilitar o uso.
+-- Para produção, considere ajustar as políticas de segurança conforme necessário.
 `;
         
         // Função para mostrar o SQL de criação das tabelas
