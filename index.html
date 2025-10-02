@@ -993,6 +993,10 @@
             };
             
             // Processar a estrutura correta dos dados do webhook
+            // MAPEAMENTO CORRETO DAS SEÇÕES DO WEBHOOK:
+            // - "from guilds" → mentorins (f_submissions reais com evaluator_id)
+            // - "mentorins" → mentorings (solicitações de mentoria)
+            // - "from f_submissions" → assessment_questions_survey
             data.forEach((dataSection) => {
                 // Cada seção tem uma chave (teams, user, etc.) com um array aninhado
                 Object.keys(dataSection).forEach(key => {
@@ -1009,10 +1013,10 @@
                             else if (key === 'user' || (item.full_name && item.role)) {
                                 result.users.push(item);
                             }
-                            else if (key === 'mentorings' || (item.guild_id && item.mentor_id && !item.evaluator_id)) {
+                            else if (key === 'mentorins' || (key === 'mentorings' && item.guild_id && item.mentor_id && !item.evaluator_id)) {
                                 result.mentorings.push(item);
                             }
-                            else if (key === 'mentorins' || item.evaluator_id) {
+                            else if (key === 'from guilds' || item.evaluator_id) {
                                 result.mentorins.push(item);
                             }
                             else if (key === 'assessment_answers' || (item.question_id && typeof item.answer !== 'undefined')) {
@@ -1023,7 +1027,7 @@
                             else if (key === 'assessment_questions' || (item.text && item.category)) {
                                 result.assessment_questions.push(item);
                             }
-                            else if (key === 'assessment_questions_survey' || (item.text && item.type && item.survey_id)) {
+                            else if (key === 'from f_submissions' || (key === 'assessment_questions_survey' && item.text && item.type && item.survey_id)) {
                                 result.assessment_questions_survey.push(item);
                             }
                             else if (key === 'guilds' || (item.name && item.invite)) {
@@ -4526,26 +4530,39 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                     });
                     
                     // 5. SALVAR AVALIAÇÕES DE MENTORES
-                    // MÉTODO 1: Buscar relação de mentoria usando request_member_id (campo correto)
-                    const mentorEval = data.mentorings.find(m => m.request_member_id === userId);
-                    if (mentorEval && mentorEval.mentor_id) {
-                        const mentor = data.users.find(u => u.id === mentorEval.mentor_id);
-                        const mentorName = mentor ? (mentor.full_name || mentor.name) : 'Mentor Desconhecido';
+                    // IMPORTANTE: Mentores avaliam TIMES (target_team_id), não usuários individuais
+                    // As avaliações de mentores têm target_user_id = null e target_team_id preenchido
+                    
+                    // Buscar avaliações de mentores para o TIME deste usuário
+                    if (teamId) {
+                        const mentorEvaluationsForTeam = data.mentorins.filter(sub => {
+                            if (sub.target_team_id !== teamId) return false;
+                            if (sub.target_user_id !== null) return false; // Avaliações de mentores têm target_user_id = null
+                            
+                            // Verificar se o avaliador é um mentor
+                            const evaluator = data.users.find(u => u.id === sub.evaluator_id);
+                            return evaluator && evaluator.role && evaluator.role.toLowerCase() === 'mentor';
+                        });
                         
-                        // Buscar TODAS as avaliações onde o mentor avaliou este usuário
-                        const mentorSubmissions = data.mentorins.filter(sub => 
-                            sub.evaluator_id === mentorEval.mentor_id && 
-                            sub.target_user_id === userId
-                        );
+                        if (mentorEvaluationsForTeam.length > 0) {
+                            console.log(`🔍 DEBUG: Encontradas ${mentorEvaluationsForTeam.length} avaliações de mentores para o time ${teamName}`);
+                        }
                         
-                        mentorSubmissions.forEach(submission => {
+                        mentorEvaluationsForTeam.forEach(submission => {
+                            const mentor = data.users.find(u => u.id === submission.evaluator_id);
+                            const mentorName = mentor ? (mentor.full_name || mentor.name) : 'Mentor Desconhecido';
+                            
                             const answers = data.f_answers.filter(a => a.submission_id === submission.id);
+                            
+                            if (answers.length === 0) {
+                                console.warn(`⚠️ Nenhuma resposta encontrada para submission ${submission.id} do mentor ${mentorName}`);
+                            }
                             
                             answers.forEach(answer => {
                                 const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
                                 const answerValue = Number(answer.answer || answer.answer_numeric) || 0;
                                 radarData.mentorEvaluations.push({
-                                    mentor_id: mentorEval.mentor_id,
+                                    mentor_id: submission.evaluator_id,
                                     mentor_name: mentorName,
                                     mentee_id: userId,
                                     mentee_name: userName,
@@ -4559,85 +4576,6 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                             });
                         });
                     }
-                    
-                    // MÉTODO 2: Identificar mentores pela role E por quem avalia outros
-                    const isMentor = user.role && (user.role.toLowerCase().includes('mentor') || user.role.toLowerCase().includes('orientador'));
-                    if (isMentor) {
-                        // Este usuário é um mentor, buscar avaliações que ele fez
-                        const evaluationsAsMentor = data.mentorins.filter(sub => 
-                            sub.evaluator_id === userId && sub.target_user_id !== userId
-                        );
-                        
-                        evaluationsAsMentor.forEach(submission => {
-                            const targetUser = data.users.find(u => u.id === submission.target_user_id);
-                            const targetName = targetUser ? (targetUser.full_name || targetUser.name) : 'Usuário Desconhecido';
-                            const targetTeam = data.teams.find(t => 
-                                data.assessment_answers.some(a => a.user_id === submission.target_user_id && a.team_id === t.id)
-                            );
-                            
-                            const answers = data.f_answers.filter(a => a.submission_id === submission.id);
-                            
-                            answers.forEach(answer => {
-                                const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
-                                const answerValue = Number(answer.answer || answer.answer_numeric) || 0;
-                                radarData.mentorEvaluations.push({
-                                    mentor_id: userId,
-                                    mentor_name: userName,
-                                    mentee_id: submission.target_user_id,
-                                    mentee_name: targetName,
-                                    team_id: targetTeam ? targetTeam.id : null,
-                                    team_name: targetTeam ? targetTeam.name : null,
-                                    question_id: answer.question_id,
-                                    question_text: question ? question.text : '',
-                                    answer: answerValue,
-                                    submission_id: submission.id
-                                });
-                            });
-                        });
-                    }
-                    
-                    // MÉTODO 3: Capturar TODAS as avaliações onde NÃO são 360° (avaliações gerais de mentores)
-                    // Buscar avaliações onde este usuário foi avaliado por alguém que não está nas 360° peer
-                    const allEvaluationsReceived = data.mentorins.filter(sub => 
-                        sub.target_user_id === userId && 
-                        sub.evaluator_id !== userId
-                    );
-                    
-                    allEvaluationsReceived.forEach(submission => {
-                        const evaluator = data.users.find(u => u.id === submission.evaluator_id);
-                        const evaluatorName = evaluator ? (evaluator.full_name || evaluator.name) : 'Avaliador Desconhecido';
-                        
-                        // Verificar se este avaliador é mentor (por role ou por estar em mentorings)
-                        const isMentorRole = evaluator && evaluator.role && 
-                            (evaluator.role.toLowerCase().includes('mentor') || evaluator.role.toLowerCase().includes('orientador'));
-                        const isMentorRelation = data.mentorings.some(m => 
-                            m.mentor_id === submission.evaluator_id && m.request_member_id === userId
-                        );
-                        
-                        if (isMentorRole || isMentorRelation) {
-                            const answers = data.f_answers.filter(a => 
-                                a.submission_id === submission.id && 
-                                !question360Ids.includes(a.question_id)
-                            );
-                            
-                            answers.forEach(answer => {
-                                const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
-                                const answerValue = Number(answer.answer || answer.answer_numeric) || 0;
-                                radarData.mentorEvaluations.push({
-                                    mentor_id: submission.evaluator_id,
-                                    mentor_name: evaluatorName,
-                                    mentee_id: userId,
-                                    mentee_name: userName,
-                                    team_id: teamId,
-                                    team_name: teamName,
-                                    question_id: answer.question_id,
-                                    question_text: question ? question.text : '',
-                                    answer: answerValue,
-                                    submission_id: submission.id
-                                });
-                            });
-                        }
-                    });
                 }
             }
             
