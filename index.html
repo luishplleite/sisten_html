@@ -4516,8 +4516,8 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                     });
                     
                     // 5. SALVAR AVALIAÇÕES DE MENTORES
-                    // Buscar relação de mentoria para este usuário
-                    const mentorEval = data.mentorings.find(m => m.user_id === userId);
+                    // MÉTODO 1: Buscar relação de mentoria usando request_member_id (campo correto)
+                    const mentorEval = data.mentorings.find(m => m.request_member_id === userId);
                     if (mentorEval && mentorEval.mentor_id) {
                         const mentor = data.users.find(u => u.id === mentorEval.mentor_id);
                         const mentorName = mentor ? (mentor.full_name || mentor.name) : 'Mentor Desconhecido';
@@ -4549,12 +4549,12 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                         });
                     }
                     
-                    // ADICIONAL: Salvar TODAS as avaliações onde usuários com role "mentor" avaliaram outros
+                    // MÉTODO 2: Identificar mentores pela role E por quem avalia outros
                     const isMentor = user.role && (user.role.toLowerCase().includes('mentor') || user.role.toLowerCase().includes('orientador'));
                     if (isMentor) {
                         // Este usuário é um mentor, buscar avaliações que ele fez
                         const evaluationsAsMentor = data.mentorins.filter(sub => 
-                            sub.evaluator_id === userId
+                            sub.evaluator_id === userId && sub.target_user_id !== userId
                         );
                         
                         evaluationsAsMentor.forEach(submission => {
@@ -4583,6 +4583,48 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                             });
                         });
                     }
+                    
+                    // MÉTODO 3: Capturar TODAS as avaliações onde NÃO são 360° (avaliações gerais de mentores)
+                    // Buscar avaliações onde este usuário foi avaliado por alguém que não está nas 360° peer
+                    const allEvaluationsReceived = data.mentorins.filter(sub => 
+                        sub.target_user_id === userId && 
+                        sub.evaluator_id !== userId
+                    );
+                    
+                    allEvaluationsReceived.forEach(submission => {
+                        const evaluator = data.users.find(u => u.id === submission.evaluator_id);
+                        const evaluatorName = evaluator ? (evaluator.full_name || evaluator.name) : 'Avaliador Desconhecido';
+                        
+                        // Verificar se este avaliador é mentor (por role ou por estar em mentorings)
+                        const isMentorRole = evaluator && evaluator.role && 
+                            (evaluator.role.toLowerCase().includes('mentor') || evaluator.role.toLowerCase().includes('orientador'));
+                        const isMentorRelation = data.mentorings.some(m => 
+                            m.mentor_id === submission.evaluator_id && m.request_member_id === userId
+                        );
+                        
+                        if (isMentorRole || isMentorRelation) {
+                            const answers = data.f_answers.filter(a => 
+                                a.submission_id === submission.id && 
+                                !question360Ids.includes(a.question_id)
+                            );
+                            
+                            answers.forEach(answer => {
+                                const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
+                                radarData.mentorEvaluations.push({
+                                    mentor_id: submission.evaluator_id,
+                                    mentor_name: evaluatorName,
+                                    mentee_id: userId,
+                                    mentee_name: userName,
+                                    team_id: teamId,
+                                    team_name: teamName,
+                                    question_id: answer.question_id,
+                                    question_text: question ? question.text : '',
+                                    answer: Number(answer.answer) || 0,
+                                    submission_id: submission.id
+                                });
+                            });
+                        }
+                    });
                 }
             }
             
