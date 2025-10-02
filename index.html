@@ -955,7 +955,7 @@
         let segregatedData = {};
         let originalSegregatedData = {};
         let competenciesChartInstance, checkpointChartInstance, evaluation360ChartInstance, evaluation360ThirdPersonChartInstance, mentorEvaluationChartInstance, categoryRadarChartInstance;
-        const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorings', 'mentorins', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
+        const initialTableOrder = ['teams', 'users', 'assessment_answers', 'mentorings', 'mentorins', 'checkpoints', 'assessment_questions', 'assessment_questions_survey', 'f_submissions', 'guilds'];
         let currentTableOrder = [...initialTableOrder];
         let sortStates = {};
 
@@ -965,6 +965,7 @@
             teams: { title: 'Teams', headers: ['selecionar', 'id', 'name', 'code', 'status', 'event_id'] },
             mentorings: { title: 'Mentorings', headers: ['selecionar', 'id', 'team_id', 'guild_id', 'request_member_id', 'mentor_id', 'request_date'] },
             mentorins: { title: 'Mentorins (f_submissions)', headers: ['selecionar', 'id', 'evaluator_id', 'target_user_id', 'target_team_id', 'survey_id', 'checkpoint_id', 'created_at'] },
+            checkpoints: { title: 'Checkpoints', headers: ['selecionar', 'id', 'number', 'status', 'guild_id', 'thread_id', 'created_at', 'event_id'] },
             assessment_questions: { title: 'Assessment Questions (Habilidades)', headers: ['selecionar', 'id', 'text', 'category', 'order'] },
             assessment_questions_survey: { title: 'Assessment Questions (Survey)', headers: ['selecionar', 'id', 'text', 'type', 'survey_id'] },
             f_submissions: { title: 'F Submissions', headers: ['selecionar', 'submission_id', 'user_id', 'question_id', 'answer', 'moment'] },
@@ -1066,7 +1067,7 @@
         function segregateData(data) {
             const result = {
                 teams: [], users: [], mentorings: [], mentorins: [], assessment_answers: [],
-                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], f_answers: []
+                assessment_questions: [], assessment_questions_survey: [], f_submissions: [], guilds: [], checkpoints: [], f_answers: []
             };
             
             // Processar a estrutura correta dos dados do webhook
@@ -1116,6 +1117,10 @@
                             else if (key === 'f_answers') {
                                 // Capturar dados reais de f_answers do webhook
                                 result.f_answers.push(item);
+                            }
+                            else if (key === 'chekpoints' || key === 'checkpoints') {
+                                // Capturar dados de checkpoints do webhook (note que o webhook usa "chekpoints" com erro de digitação)
+                                result.checkpoints.push(item);
                             }
                         });
                     }
@@ -2077,13 +2082,14 @@
                 'users': 'Interliga com: Assessment Answers (user_id), Mentorings (request_member_id, mentor_id), Mentorins (evaluator_id, target_user_id), Teams (derivado)',
                 'assessment_answers': 'Interliga com: Users (user_id), Teams (team_id), Assessment Questions (question_id), Mentorins (submission_id)',
                 'mentorings': 'Interliga com: Teams (team_id), Guilds (guild_id), Users (request_member_id, mentor_id)',
-                'mentorins': 'Interliga com: Users (evaluator_id, target_user_id), Teams (target_team_id), Assessment Questions Survey (survey_id), Assessment Answers (submission_id)',
+                'mentorins': 'Interliga com: Users (evaluator_id, target_user_id), Teams (target_team_id), Assessment Questions Survey (survey_id), Assessment Answers (submission_id), Checkpoints (checkpoint_id)',
                 'assessment_questions': 'Interliga com: Assessment Answers (question_id)',
                 'assessment_questions_survey': 'Interliga com: Mentorins (survey_id)',
-                'guilds': 'Interliga com: Teams (invite), Mentorings (guild_id)'
+                'guilds': 'Interliga com: Teams (invite), Mentorings (guild_id), Checkpoints (guild_id)',
+                'checkpoints': 'Interliga com: Guilds (guild_id), Mentorins (checkpoint_id)'
             };
             const allTables = ['teams', 'users', 'assessment_answers', 'mentorings', 'mentorins', 
-                             'assessment_questions', 'assessment_questions_survey', 'guilds'];
+                             'assessment_questions', 'assessment_questions_survey', 'guilds', 'checkpoints'];
             
             // Definir relacionamentos completos (direção correta: child → parent)
             const allRelationships = [
@@ -2102,7 +2108,10 @@
                 { from: 'assessment_answers', to: 'assessment_questions', label: 'question_id' },
                 // Mentorins relacionamentos
                 { from: 'assessment_answers', to: 'mentorins', label: 'submission_id → mentorins.id' },
-                { from: 'mentorins', to: 'assessment_questions_survey', label: 'survey_id' }
+                { from: 'mentorins', to: 'assessment_questions_survey', label: 'survey_id' },
+                { from: 'mentorins', to: 'checkpoints', label: 'checkpoint_id' },
+                // Checkpoints relacionamentos
+                { from: 'checkpoints', to: 'guilds', label: 'guild_id' }
             ];
             
             // Criar layout completo
@@ -2169,8 +2178,9 @@
             positions['mentorings'] = { x: containerWidth * 0.85, y: containerHeight * 0.7 };
             
             // Base: Teams e Guilds
-            positions['teams'] = { x: containerWidth * 0.4, y: containerHeight * 0.85 };
-            positions['guilds'] = { x: containerWidth * 0.6, y: containerHeight * 0.85 };
+            positions['teams'] = { x: containerWidth * 0.35, y: containerHeight * 0.85 };
+            positions['guilds'] = { x: containerWidth * 0.55, y: containerHeight * 0.85 };
+            positions['checkpoints'] = { x: containerWidth * 0.75, y: containerHeight * 0.85 };
             
             return positions;
         }
@@ -2213,12 +2223,13 @@
                     }
                 },
                 mentorins: {
-                    connections: ['users', 'teams', 'assessment_questions_survey', 'assessment_answers'],
+                    connections: ['users', 'teams', 'assessment_questions_survey', 'assessment_answers', 'checkpoints'],
                     foreignKeys: {
                         'users': 'evaluator_id, target_user_id',
                         'teams': 'target_team_id',
                         'assessment_questions_survey': 'survey_id',
-                        'assessment_answers': 'id ← submission_id'
+                        'assessment_answers': 'id ← submission_id',
+                        'checkpoints': 'checkpoint_id'
                     }
                 },
                 assessment_questions: {
@@ -2242,9 +2253,26 @@
                     }
                 },
                 guilds: {
-                    connections: ['teams'],
+                    connections: ['teams', 'checkpoints', 'mentorings'],
                     foreignKeys: {
-                        'teams': 'id ← invite'
+                        'teams': 'id ← invite',
+                        'checkpoints': 'id ← guild_id',
+                        'mentorings': 'id ← guild_id'
+                    }
+                },
+                checkpoints: {
+                    connections: ['guilds', 'mentorins'],
+                    foreignKeys: {
+                        'guilds': 'guild_id',
+                        'mentorins': 'id ← checkpoint_id'
+                    }
+                },
+                mentorings: {
+                    connections: ['teams', 'guilds', 'users'],
+                    foreignKeys: {
+                        'teams': 'team_id',
+                        'guilds': 'guild_id',
+                        'users': 'request_member_id, mentor_id'
                     }
                 }
             };
@@ -2595,6 +2623,22 @@
                     if (answer.submission_id) relatedIds.submissions.add(answer.submission_id);
                 });
 
+                // Adicionar guild_ids relacionados às mentorings
+                const relatedGuildIds = new Set();
+                originalSegregatedData.mentorings.forEach(mentoring => {
+                    if (relatedIds.teams.has(mentoring.team_id) || relatedIds.users.has(mentoring.request_member_id) || relatedIds.users.has(mentoring.mentor_id)) {
+                        if (mentoring.guild_id) relatedGuildIds.add(mentoring.guild_id);
+                    }
+                });
+                
+                // Adicionar checkpoint_ids relacionados aos mentorins
+                const relatedCheckpointIds = new Set();
+                originalSegregatedData.mentorins.forEach(mentorin => {
+                    if (relatedIds.users.has(mentorin.evaluator_id) || relatedIds.users.has(mentorin.target_user_id) || relatedIds.teams.has(mentorin.target_team_id)) {
+                        if (mentorin.checkpoint_id) relatedCheckpointIds.add(mentorin.checkpoint_id);
+                    }
+                });
+
                 Object.keys(originalSegregatedData).forEach(tableKey => {
                     const tableBody = document.querySelector(`#table-container-${tableKey} tbody`);
                     if (!tableBody) return;
@@ -2609,6 +2653,9 @@
                                 case 'assessment_answers': isVisible = relatedIds.answer_ids.has(rowData.id); break;
                                 case 'f_submissions': isVisible = relatedIds.submissions.has(rowData.submission_id) || relatedIds.users.has(rowData.user_id); break;
                                 case 'mentorins': isVisible = relatedIds.users.has(rowData.evaluator_id) || relatedIds.users.has(rowData.target_user_id) || relatedIds.teams.has(rowData.target_team_id); break;
+                                case 'mentorings': isVisible = relatedIds.teams.has(rowData.team_id) || relatedIds.users.has(rowData.request_member_id) || relatedIds.users.has(rowData.mentor_id); break;
+                                case 'guilds': isVisible = relatedGuildIds.has(rowData.id) || relatedGuildIds.has(rowData.invite); break;
+                                case 'checkpoints': isVisible = relatedCheckpointIds.has(rowData.id); break;
                                 case 'assessment_questions': case 'assessment_questions_survey': isVisible = relatedIds.questions.has(rowData.id); break;
                                 default: isVisible = false;
                             }
