@@ -1032,6 +1032,10 @@
                             else if (key === 'f_submissions') {
                                 result.f_submissions.push(item);
                             }
+                            else if (key === 'f_answers') {
+                                // Capturar dados reais de f_answers do webhook
+                                result.f_answers.push(item);
+                            }
                         });
                     }
                 });
@@ -1060,7 +1064,13 @@
                 }
             });
             
-            result.f_answers = mockFAnswers(result.mentorins);
+            // Se não houver f_answers reais do webhook, usar mock como fallback
+            if (result.f_answers.length === 0) {
+                console.warn('⚠️ Nenhum f_answers real encontrado, usando dados mockados como fallback');
+                result.f_answers = mockFAnswers(result.mentorins);
+            } else {
+                console.log(`✅ ${result.f_answers.length} f_answers reais carregados do webhook`);
+            }
             
             return result;
         }
@@ -4533,6 +4543,7 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                             
                             answers.forEach(answer => {
                                 const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
+                                const answerValue = Number(answer.answer || answer.answer_numeric) || 0;
                                 radarData.mentorEvaluations.push({
                                     mentor_id: mentorEval.mentor_id,
                                     mentor_name: mentorName,
@@ -4542,7 +4553,7 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                                     team_name: teamName,
                                     question_id: answer.question_id,
                                     question_text: question ? question.text : '',
-                                    answer: Number(answer.answer) || 0,
+                                    answer: answerValue,
                                     submission_id: submission.id
                                 });
                             });
@@ -4568,6 +4579,7 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                             
                             answers.forEach(answer => {
                                 const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
+                                const answerValue = Number(answer.answer || answer.answer_numeric) || 0;
                                 radarData.mentorEvaluations.push({
                                     mentor_id: userId,
                                     mentor_name: userName,
@@ -4577,7 +4589,7 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                                     team_name: targetTeam ? targetTeam.name : null,
                                     question_id: answer.question_id,
                                     question_text: question ? question.text : '',
-                                    answer: Number(answer.answer) || 0,
+                                    answer: answerValue,
                                     submission_id: submission.id
                                 });
                             });
@@ -4610,6 +4622,7 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                             
                             answers.forEach(answer => {
                                 const question = data.assessment_questions_survey.find(q => q.id === answer.question_id);
+                                const answerValue = Number(answer.answer || answer.answer_numeric) || 0;
                                 radarData.mentorEvaluations.push({
                                     mentor_id: submission.evaluator_id,
                                     mentor_name: evaluatorName,
@@ -4619,7 +4632,7 @@ CREATE POLICY "Allow anon select" ON user_averages FOR SELECT TO anon USING (tru
                                     team_name: teamName,
                                     question_id: answer.question_id,
                                     question_text: question ? question.text : '',
-                                    answer: Number(answer.answer) || 0,
+                                    answer: answerValue,
                                     submission_id: submission.id
                                 });
                             });
