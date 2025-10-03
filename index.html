@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BI Interno - Validação de Dados</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     <!-- Adicionando a biblioteca de gráficos Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -1027,7 +1028,7 @@
         };
 
         function updateAllVisualizations(data, selection = {}) {
-            renderCharts(data);
+            renderCharts(data, selection);
             renderEvaluation360Chart(data, selection.userId ? { userId: selection.userId } : (selection.teamId ? { teamId: selection.teamId } : {}));
             renderEvaluation360ThirdPersonChart(data, selection.userId || null);
             renderMentorEvaluationChart(data, selection);
@@ -1161,7 +1162,7 @@
             return result;
         }
 
-        function renderCharts(data) {
+        function renderCharts(data, selection = {}) {
             if (competenciesChartInstance) competenciesChartInstance.destroy();
             if (checkpointChartInstance) checkpointChartInstance.destroy();
             
@@ -1208,61 +1209,171 @@
             const checkpointQuestions = { "16": 0, "17": 1, "18": 2, "19": 3 };
             const questionIds360 = Object.keys(checkpointQuestions);
             
-            const submissionsByCheckpoint = data.mentorins.reduce((acc, sub) => {
-                if(sub.checkpoint_id) {
-                    if (!acc[sub.checkpoint_id]) acc[sub.checkpoint_id] = [];
-                    acc[sub.checkpoint_id].push(sub.id);
-                }
-                return acc;
-            }, {});
-
-            const allAnswers = [...data.assessment_answers, ...data.f_answers];
-            const checkpointDatasets = [];
-            const colors = ['rgba(255, 69, 58, 0.6)', 'rgba(10, 132, 255, 0.6)', 'rgba(48, 209, 88, 0.6)', 'rgba(255, 159, 10, 0.6)'];
-            const etapaNomes = ['Desafio', 'Ideação', 'Prototipagem', 'Apresentação'];
-            
-            const sortedCheckpoints = Object.keys(submissionsByCheckpoint).sort((a,b) => a - b);
-
-            sortedCheckpoints.slice(0, 4).forEach((checkpointId, index) => {
-                const submissionIds = submissionsByCheckpoint[checkpointId];
-                const answersForCheckpoint = allAnswers.filter(a => submissionIds.includes(a.submission_id) && questionIds360.includes(a.question_id));
+            if (selection.userId) {
+                const selectedUserId = selection.userId;
+                const selectedUser = data.users.find(u => u.id === selectedUserId);
                 
-                const scoresByQuestion = { "16": [], "17": [], "18": [], "19": [] };
-                answersForCheckpoint.forEach(a => {
-                    const value = parseFloat(a.answer || a.answer_numeric);
-                    if (!isNaN(value)) scoresByQuestion[a.question_id].push(value);
-                });
+                const userEvaluations = data.mentorins.filter(sub => sub.target_user_id === selectedUserId && sub.checkpoint_id);
+                
+                if (userEvaluations.length === 0) {
+                    checkpointCtx.clearRect(0, 0, checkpointCtx.canvas.width, checkpointCtx.canvas.height);
+                    checkpointCtx.textAlign = "center";
+                    checkpointCtx.fillText(`Nenhum checkpoint encontrado para ${selectedUser ? selectedUser.full_name : 'este usuário'}`, checkpointCtx.canvas.width / 2, checkpointCtx.canvas.height / 2);
+                } else {
+                    const submissionsByCheckpoint = {};
+                    userEvaluations.forEach(sub => {
+                        if (!submissionsByCheckpoint[sub.checkpoint_id]) {
+                            submissionsByCheckpoint[sub.checkpoint_id] = [];
+                        }
+                        submissionsByCheckpoint[sub.checkpoint_id].push(sub.id);
+                    });
 
-                const dataPoints = Array(5).fill(0);
-                let totalSum = 0;
-                let totalCount = 0;
+                    const allAnswers = [...data.assessment_answers, ...data.f_answers];
+                    const checkpointDatasets = [];
+                    const colors = ['rgba(255, 69, 58, 0.6)', 'rgba(10, 132, 255, 0.6)', 'rgba(48, 209, 88, 0.6)', 'rgba(255, 159, 10, 0.6)', 'rgba(175, 82, 222, 0.6)', 'rgba(255, 204, 0, 0.6)'];
+                    const checkpointNames = {
+                        "3": "Desafio", "4": "Ideação", "5": "Prototipagem", "6": "Apresentação"
+                    };
+                    
+                    const sortedCheckpoints = Object.keys(submissionsByCheckpoint).sort((a,b) => parseInt(a) - parseInt(b));
 
-                Object.keys(scoresByQuestion).forEach(qId => {
-                    const scores = scoresByQuestion[qId];
-                    if(scores.length > 0) {
-                        const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
-                        dataPoints[checkpointQuestions[qId]] = avg;
-                        totalSum += avg;
-                        totalCount++;
+                    sortedCheckpoints.forEach((checkpointId, index) => {
+                        const submissionIds = submissionsByCheckpoint[checkpointId];
+                        const answersForCheckpoint = allAnswers.filter(a => submissionIds.includes(a.submission_id) && questionIds360.includes(a.question_id));
+                        
+                        const scoresByQuestion = { "16": [], "17": [], "18": [], "19": [] };
+                        answersForCheckpoint.forEach(a => {
+                            const value = parseFloat(a.answer || a.answer_numeric);
+                            if (!isNaN(value)) scoresByQuestion[a.question_id].push(value);
+                        });
+
+                        const dataPoints = Array(5).fill(0);
+                        let totalSum = 0;
+                        let totalCount = 0;
+
+                        Object.keys(scoresByQuestion).forEach(qId => {
+                            const scores = scoresByQuestion[qId];
+                            if(scores.length > 0) {
+                                const avg = scores.reduce((sum, val) => sum + val, 0) / scores.length;
+                                dataPoints[checkpointQuestions[qId]] = avg;
+                                totalSum += avg;
+                                totalCount++;
+                            }
+                        });
+
+                        if (totalCount > 0) {
+                            dataPoints[4] = totalSum / totalCount;
+                        }
+
+                        checkpointDatasets.push({
+                            label: checkpointNames[checkpointId] || `Checkpoint ${checkpointId}`,
+                            data: dataPoints,
+                            borderColor: colors[index % colors.length],
+                            backgroundColor: colors[index % colors.length].replace('0.6', '0.2'),
+                        });
+                    });
+
+                    checkpointChartInstance = new Chart(checkpointCtx, {
+                        type: 'radar',
+                        data: { labels: labelsCheckpoint, datasets: checkpointDatasets },
+                        options: { 
+                            responsive: true, 
+                            plugins: { 
+                                legend: { position: 'bottom' },
+                                title: {
+                                    display: true,
+                                    text: `Evolução Pessoal - ${selectedUser ? selectedUser.full_name : 'Usuário Selecionado'}`
+                                }
+                            }, 
+                            scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } 
+                        }
+                    });
+                }
+            } else {
+                const userCheckpointCount = {};
+                data.mentorins.forEach(sub => {
+                    if (sub.target_user_id && sub.checkpoint_id) {
+                        if (!userCheckpointCount[sub.target_user_id]) {
+                            userCheckpointCount[sub.target_user_id] = new Set();
+                        }
+                        userCheckpointCount[sub.target_user_id].add(sub.checkpoint_id);
                     }
                 });
 
-                if (totalCount > 0) {
-                    dataPoints[4] = totalSum / totalCount;
-                }
-
-                checkpointDatasets.push({
-                    label: etapaNomes[index] || `Checkpoint ${checkpointId}`,
-                    data: dataPoints,
-                    borderColor: colors[index % colors.length],
-                    backgroundColor: colors[index % colors.length].replace('0.6', '0.2'),
+                const userCheckpointData = Object.entries(userCheckpointCount).map(([userId, checkpoints]) => {
+                    const user = data.users.find(u => u.id === userId);
+                    const fullName = user ? user.full_name : `User ${userId.substring(0, 8)}`;
+                    const userName = fullName.length > 25 ? fullName.substring(0, 22) + '...' : fullName;
+                    const checkpointArray = Array.from(checkpoints).sort((a, b) => {
+                        const numA = parseInt(a);
+                        const numB = parseInt(b);
+                        return !isNaN(numA) && !isNaN(numB) ? numA - numB : String(a).localeCompare(String(b));
+                    });
+                    return {
+                        userId: userId,
+                        userName: userName,
+                        checkpointCount: checkpoints.size,
+                        checkpoints: checkpointArray
+                    };
                 });
-            });
 
-            checkpointChartInstance = new Chart(checkpointCtx, {
-                type: 'radar', data: { labels: labelsCheckpoint, datasets: checkpointDatasets },
-                options: { responsive: true, plugins: { legend: { position: 'bottom' } }, scales: { r: { suggestedMin: 0, suggestedMax: 5, ticks: { stepSize: 1 } } } }
-            });
+                userCheckpointData.sort((a, b) => b.checkpointCount - a.checkpointCount);
+                
+                const topUsers = userCheckpointData.slice(0, 10);
+                
+                if (topUsers.length === 0) {
+                    checkpointCtx.clearRect(0, 0, checkpointCtx.canvas.width, checkpointCtx.canvas.height);
+                    checkpointCtx.textAlign = "center";
+                    checkpointCtx.fillText("Nenhum checkpoint encontrado", checkpointCtx.canvas.width / 2, checkpointCtx.canvas.height / 2);
+                } else {
+                    const labelsCheckpointUsers = topUsers.map(u => u.userName);
+                    const checkpointCounts = topUsers.map(u => u.checkpointCount);
+                    
+                    const maxCheckpoints = Math.max(...checkpointCounts, 6);
+
+                    checkpointChartInstance = new Chart(checkpointCtx, {
+                        type: 'radar',
+                        data: {
+                            labels: labelsCheckpointUsers,
+                            datasets: [{
+                                label: 'Checkpoints Concluídos',
+                                data: checkpointCounts,
+                                backgroundColor: 'rgba(48, 209, 88, 0.2)',
+                                borderColor: 'rgb(48, 209, 75)',
+                                pointBackgroundColor: 'rgb(48, 209, 75)',
+                                pointBorderColor: '#fff',
+                                pointHoverBackgroundColor: '#fff',
+                                pointHoverBorderColor: 'rgb(48, 209, 75)'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom'
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            const user = topUsers[context.dataIndex];
+                                            return `${context.dataset.label}: ${context.parsed.r} checkpoint(s) concluído(s) - IDs: [${user.checkpoints.join(', ')}]`;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                r: {
+                                    suggestedMin: 0,
+                                    suggestedMax: maxCheckpoints,
+                                    ticks: {
+                                        stepSize: 1
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
         }
         
         function renderEvaluation360Chart(data, selection = {}) {
@@ -2559,7 +2670,7 @@
                         <div class="average-item"> <h4>Média Geral (Checkpoints)</h4> <p>${checkpointAverageDoubled}</p> </div>
                     `;
 
-                    renderCharts(filteredDataForCharts);
+                    renderCharts(filteredDataForCharts, { teamId: teamId });
                     renderEvaluation360Chart(originalSegregatedData, { teamId: teamId, isTeamAverage: true });
                     renderMentorEvaluationChart(originalSegregatedData, { teamId: teamId });
                     renderCategoryRadarChart(originalSegregatedData, { teamId: teamId });
@@ -2578,7 +2689,7 @@
                 const filteredDataForUserCharts = JSON.parse(JSON.stringify(originalSegregatedData));
                 filteredDataForUserCharts.assessment_answers = originalSegregatedData.assessment_answers.filter(a => a.user_id === userId);
 
-                renderCharts(filteredDataForUserCharts);
+                renderCharts(filteredDataForUserCharts, { userId: userId });
                 renderEvaluation360Chart(originalSegregatedData, { userId: userId });
                 renderEvaluation360FirstPersonChart(originalSegregatedData, userId);
                 renderEvaluation360ThirdPersonChart(originalSegregatedData, userId);
@@ -2682,7 +2793,7 @@
             // document.getElementById('team-averages-summary-doubled').style.display = 'none';
             
             renderAllTables(segregatedData, currentTableOrder);
-            renderCharts(originalSegregatedData);
+            renderCharts(originalSegregatedData, {});
             renderEvaluation360Chart(originalSegregatedData);
             renderEvaluation360ThirdPersonChart(originalSegregatedData, null);
             renderMentorEvaluationChart(originalSegregatedData, {});
