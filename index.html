@@ -2609,7 +2609,8 @@
                       if(tableBody) {
                            tableBody.querySelectorAll('tr').forEach(row => {
                                 const isSelectedRow = (tableKey === sourceTableKey && row.dataset.itemId === itemId);
-                                row.classList.toggle('filtered-out', !isSelectedRow);
+                                const isAssessmentQuestions = (tableKey === 'assessment_questions');
+                                row.classList.toggle('filtered-out', !isSelectedRow && !isAssessmentQuestions);
                           });
                       }
                  });
@@ -2654,9 +2655,10 @@
                                 case 'f_submissions': isVisible = relatedIds.submissions.has(rowData.submission_id) || relatedIds.users.has(rowData.user_id); break;
                                 case 'mentorins': isVisible = relatedIds.users.has(rowData.evaluator_id) || relatedIds.users.has(rowData.target_user_id) || relatedIds.teams.has(rowData.target_team_id); break;
                                 case 'mentorings': isVisible = relatedIds.teams.has(rowData.team_id) || relatedIds.users.has(rowData.request_member_id) || relatedIds.users.has(rowData.mentor_id); break;
-                                case 'guilds': isVisible = relatedGuildIds.has(rowData.id) || relatedGuildIds.has(rowData.invite); break;
+                                case 'guilds': isVisible = true; break;
                                 case 'checkpoints': isVisible = relatedCheckpointIds.has(rowData.id); break;
-                                case 'assessment_questions': case 'assessment_questions_survey': isVisible = relatedIds.questions.has(rowData.id); break;
+                                case 'assessment_questions': isVisible = true; break;
+                                case 'assessment_questions_survey': isVisible = true; break;
                                 default: isVisible = false;
                             }
                         }
