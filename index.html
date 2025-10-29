@@ -956,34 +956,24 @@ async function loadData() {
     emptyState.style.display = 'none';
     
     try {
-        // Buscar dados do webhook
-        const response = await fetch(WEBHOOK_LAB3D_INFO_URL, {
+        let endpoint = '';
+        if (currentTable === 'lab3d_fase_1') {
+            endpoint = '/api/fluxos';
+        } else if (currentTable === 'lab3d_dw') {
+            endpoint = '/api/lab3d-dw';
+        }
+        
+        const response = await fetch(endpoint, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
         
         if (!response.ok) {
-            throw new Error('Erro ao carregar dados do servidor');
+            throw new Error('Erro ao carregar dados do PostgreSQL');
         }
         
-        const data = await response.json();
-        
-        // O webhook retorna um array com objeto contendo consulta_fluxo e consulta_DW
-        if (data && data.length > 0) {
-            const dataObj = data[0];
-            
-            if (currentTable === 'lab3d_fase_1' && dataObj.consulta_fluxo) {
-                // Extrai o array de fluxos (está dentro de um array duplo)
-                currentData = dataObj.consulta_fluxo[0] || [];
-            } else if (currentTable === 'lab3d_dw' && dataObj.consulta_DW) {
-                // Extrai o array de DW (está dentro de um array duplo)
-                currentData = dataObj.consulta_DW[0] || [];
-            } else {
-                currentData = [];
-            }
-        } else {
-            currentData = [];
-        }
+        const result = await response.json();
+        currentData = result.data || [];
         
         renderDataTable(currentData);
         await loadFluxos();
@@ -1003,25 +993,21 @@ async function loadData() {
 
 async function loadStats() {
     try {
-        const response = await fetch(WEBHOOK_LAB3D_INFO_URL, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
+        const [fluxosResp, dwResp] = await Promise.all([
+            fetch('/api/fluxos'),
+            fetch('/api/lab3d-dw')
+        ]);
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.length > 0) {
-                const dataObj = data[0];
-                
-                const totalFluxos = (dataObj.consulta_fluxo && dataObj.consulta_fluxo[0]) ? dataObj.consulta_fluxo[0].length : 0;
-                const totalFase1 = totalFluxos; // Fase 1 = consulta_fluxo
-                const totalDW = (dataObj.consulta_DW && dataObj.consulta_DW[0]) ? dataObj.consulta_DW[0].length : 0;
-                
-                document.getElementById('totalFluxos').textContent = totalFluxos;
-                document.getElementById('totalFase1').textContent = totalFase1;
-                document.getElementById('totalDW').textContent = totalDW;
-            }
-        }
+        const fluxosData = await fluxosResp.json();
+        const dwData = await dwResp.json();
+        
+        const totalFluxos = (fluxosData.data || []).length;
+        const totalFase1 = totalFluxos;
+        const totalDW = (dwData.data || []).length;
+        
+        document.getElementById('totalFluxos').textContent = totalFluxos;
+        document.getElementById('totalFase1').textContent = totalFase1;
+        document.getElementById('totalDW').textContent = totalDW;
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -1137,21 +1123,9 @@ function formatColumnName(name) {
 
 async function loadFluxos() {
     try {
-        const response = await fetch(WEBHOOK_LAB3D_INFO_URL, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data && data.length > 0 && data[0].consulta_fluxo) {
-                fluxosList = data[0].consulta_fluxo[0] || [];
-            } else {
-                fluxosList = [];
-            }
-        } else {
-            fluxosList = [];
-        }
+        const response = await fetch('/api/fluxos');
+        const result = await response.json();
+        fluxosList = result.data || [];
         
         const filterFluxo = document.getElementById('filterFluxo');
         filterFluxo.innerHTML = '<option value="">Todos</option>';
@@ -1212,18 +1186,22 @@ async function salvarNovoFluxo() {
     }
     
     try {
-        const response = await fetch(WEBHOOK_CRIAR_FLUXO_URL, {
+        const userIdPlaceholder = '00000000-0000-0000-0000-000000000000';
+        
+        const response = await fetch('/api/fluxos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 nome_fluxo: nomeFluxo,
                 id_cliente: parseInt(idCliente),
                 id_empresa_prestadora: parseInt(idEmpresa),
-                id_colaborador_criador: currentUser.email
+                id_colaborador_criador: userIdPlaceholder
             })
         });
         
-        if (!response.ok) throw new Error('Erro ao criar fluxo');
+        const result = await response.json();
+        
+        if (!response.ok) throw new Error(result.error || 'Erro ao criar fluxo');
         
         showNotification('Fluxo criado com sucesso!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('modalNovoFluxo')).hide();
@@ -1322,19 +1300,27 @@ async function salvarLinha() {
     const rowData = {};
     
     for (let [key, value] of formData.entries()) {
-        rowData[key] = value;
+        if (value.trim()) {
+            rowData[key] = value;
+        }
     }
     
     try {
-        if (supabaseClient) {
-            const { data, error } = await supabaseClient
-                .from(currentTable)
-                .insert([rowData]);
+        if (currentTable === 'lab3d_dw') {
+            const response = await fetch('/api/lab3d-dw', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rowData)
+            });
             
-            if (error) throw error;
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Erro ao salvar');
+            
+            showNotification('Linha adicionada com sucesso!', 'success');
+        } else {
+            showNotification('Adicionar linhas só está disponível para a tabela DW no momento', 'warning');
         }
         
-        showNotification('Linha adicionada com sucesso!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('modalEditarLinha')).hide();
         loadData();
         loadStats();
