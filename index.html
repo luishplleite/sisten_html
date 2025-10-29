@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - ResolvTask</title>
-
+    <title>ResolvLab3d - Sistema de Gerenciamento de Dados</title>
+    
+    <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- DataTables CSS -->
     <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <style>
-        /* Color Variables */
         :root {
             --primary-color: #0d6efd;
             --secondary-color: #6c757d;
@@ -23,92 +28,122 @@
             --light-color: #f8f9fa;
             --dark-color: #212529;
         }
-
-        /* Global Styles */
+        
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--light-color);
             overflow-x: hidden;
         }
-        .app-container {
-            opacity: 0;
-            transition: opacity 0.5s ease;
-        }
-        .app-container.authenticated {
-            opacity: 1;
-        }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { filter: brightness(0.9); }
-
-        /* Auth Loading Screen */
-        .auth-loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color) 100%);
+        
+        /* ===== LOGIN SCREEN ===== */
+        .login-screen {
             display: flex;
-            flex-direction: column;
-            justify-content: center;
             align-items: center;
-            z-index: 9999;
-            color: white;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #f0f2f5;
         }
-        .auth-loading .spinner-auth {
-            width: 60px;
-            height: 60px;
-            border: 4px solid rgba(255, 255, 255, 0.3);
-            border-top: 4px solid white;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        
+        .login-container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
             margin-bottom: 20px;
         }
-        .auth-loading h4 {
-            margin-bottom: 10px;
-            font-weight: 300;
+        
+        .login-container .logo {
+            max-width: 180px;
+            margin-bottom: 20px;
         }
-
+        
+        .login-container h1 {
+            color: #0d6efd;
+            margin-bottom: 10px;
+        }
+        
+        .form-control {
+            border-radius: 8px;
+            padding: 12px 15px;
+            border: 1px solid #ced4da;
+        }
+        
+        .btn-login {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            width: 100%;
+        }
+        
+        /* ===== DASHBOARD ===== */
+        .app-container {
+            display: none;
+        }
+        
+        .app-container.authenticated {
+            display: block;
+        }
+        
         /* Sidebar */
         .sidebar {
             height: 100vh;
             width: 280px;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color) 100%);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
             position: fixed;
             left: 0;
             top: 0;
             transition: transform 0.3s ease;
             z-index: 1000;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
+        
         .sidebar.collapsed {
             transform: translateX(-100%);
         }
+        
         .sidebar-header {
             padding: 20px;
             text-align: center;
             background-color: white;
             border-bottom: 1px solid #dee2e6;
         }
+        
         .sidebar-header .logo {
             max-width: 150px;
             height: auto;
             margin-bottom: 10px;
         }
+        
+        .sidebar-header h1 {
+            color: var(--dark-color);
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+        
         .sidebar-header .text-light {
             color: var(--dark-color) !important;
             font-weight: 500;
         }
+        
         .sidebar-menu {
             padding: 20px 0;
+            flex-grow: 1;
         }
+        
         .menu-item {
             display: block;
             padding: 15px 25px;
@@ -121,25 +156,29 @@
             text-align: left;
             cursor: pointer;
         }
-        .menu-item:hover, .menu-item.active {
+        
+        .menu-item:hover,
+        .menu-item.active {
             background-color: rgba(255,255,255,0.1);
             color: white;
         }
+
         .menu-item i {
             width: 20px;
             margin-right: 15px;
         }
-
+        
         /* Main Content */
         .main-content {
             margin-left: 280px;
             transition: margin-left 0.3s ease;
             min-height: 100vh;
         }
+        
         .main-content.expanded {
             margin-left: 0;
         }
-
+        
         /* Top Navigation */
         .top-nav {
             background: white;
@@ -152,23 +191,26 @@
             top: 0;
             z-index: 999;
         }
+        
         .sidebar-toggle {
+            display: none;
             background: none;
             border: none;
             font-size: 20px;
             cursor: pointer;
         }
+        
         .user-info {
             display: flex;
             align-items: center;
             gap: 15px;
         }
-
+        
         /* Content Area */
         .content-area {
             padding: 25px;
         }
-
+        
         /* Cards */
         .card {
             border: none;
@@ -177,160 +219,213 @@
             margin-bottom: 25px;
             transition: transform 0.3s ease;
         }
-
+        
         .card:hover {
             transform: translateY(-5px);
         }
-
-        /* Table Styles */
-        .table-container {
-            background: white;
-            border-radius: 15px;
+        
+        .stat-card {
+            color: white;
+            text-align: center;
             padding: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            position: relative;
         }
 
-        .table thead th {
-            background-color: var(--light-color);
-            color: var(--dark-color);
-            font-weight: 600;
-            border: none;
-            padding: 15px;
+        .stat-card.primary {
+            background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
         }
-
-        .table tbody td {
-            padding: 15px;
-            border-color: #f1f3f4;
-            vertical-align: middle;
+        
+        .stat-card.success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #157347 100%);
         }
-
-        /* Status Badges */
-        .status-badge {
-            padding: 8px 15px;
-            border-radius: 25px;
-            font-size: 0.85rem;
-            font-weight: 600;
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e0a800 100%);
+            color: #212529;
         }
-        .status-em-andamento { background-color: #cff4fc; color: #055160; }
-        .status-concluido, .status-concluÍdo { background-color: #d1e7dd; color: #0f5132; }
-        .status-nao-iniciado { background-color: #f8d7da; color: #842029; }
-        .status-paralizado { background-color: #fff3cd; color: #664d03; }
-
-        /* Form Styles */
-        .form-card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        
+        .stat-card.danger {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #b02a37 100%);
         }
-        .form-control, .form-select {
-            border: 2px solid #f1f3f4;
-            border-radius: 10px;
-            padding: 12px 15px;
-            transition: all 0.3s ease;
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
         }
-        .form-control:focus, .form-select:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.9;
         }
-        .form-control:disabled, .form-select:disabled {
-          background-color: #e9ecef;
-          opacity: 1;
-        }
-        .btn {
-            border-radius: 10px;
-            padding: 12px 25px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        /* Other specific styles from task manager */
-        .time-control-btn { padding: 6px 12px; font-size: 0.85rem; }
-        .time-entries-table { max-height: 300px; overflow-y: auto; }
-        .time-entries-table table { font-size: 0.9rem; }
-        .time-entry-status { display: inline-block; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem; font-weight: 600; }
-        .time-entry-active { background-color: #cff4fc; color: #055160; }
-        .time-entry-completed { background-color: #d1e7dd; color: #0f5132; }
-        .observation-truncated { cursor: pointer; color: var(--primary-color); text-decoration: underline; font-weight: 500; }
-        .observation-truncated:hover { filter: brightness(0.8); }
-        .positive-deviation { color: var(--danger-color); font-weight: bold; }
-        .negative-deviation { color: var(--success-color); font-weight: bold; }
-        .required-field::after { content: "*"; color: var(--danger-color); margin-left: 4px; }
-        .hour-input { text-align: right; }
-        .filters-container { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
-        .filter-item { flex: 1; min-width: 200px; }
-        .resume-truncated { cursor: pointer; color: var(--primary-color); text-decoration: underline; font-weight: 500; }
-        .resume-truncated:hover { filter: brightness(0.8); }
-        .notification {
-            position: fixed;
-            top: 20px;
+        
+        .stat-icon {
+            font-size: 3rem;
+            opacity: 0.3;
+            position: absolute;
             right: 20px;
-            z-index: 9999;
-            min-width: 300px;
-            max-width: 400px;
+            top: 20px;
         }
-
-        /* Spin Animation */
+        
+        /* Data Grid */
+        .data-grid-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow-x: auto;
+        }
+        
+        .table-responsive {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        /* Modal */
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            color: white;
+        }
+        
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            flex-direction: column;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-
-        /* Disabled Button Styling */
-        .btn.disabled, .btn:disabled {
-            opacity: 0.5;
-            pointer-events: none;
-            cursor: not-allowed;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 992px) {
-            .sidebar { width: 260px; }
-            .main-content { margin-left: 260px; }
-        }
+        
+        /* Responsive */
         @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); width: 280px; z-index: 1050; }
-            .sidebar.show { transform: translateX(0); }
-            .main-content { margin-left: 0; }
-            .sidebar-toggle { display: block; }
-            .top-nav { flex-wrap: wrap; gap: 10px; }
-            .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1040; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
-            .sidebar-overlay.show { opacity: 1; visibility: visible; }
-            .filter-item { min-width: 100%; }
+            .sidebar {
+                transform: translateX(-100%);
+                z-index: 1050;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .content-area {
+                padding: 15px;
+            }
+        }
+        
+        /* Notification area */
+        .notification-area {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+            min-width: 300px;
+        }
+        
+        .alert {
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .spinner-border-sm {
+            margin-right: 5px;
         }
     </style>
 </head>
 <body>
-    <div class="auth-loading" id="authLoading">
-        <div class="spinner-auth"></div>
-        <h4>ResolvTask Dashboard</h4>
-        <p>Verificando autenticação...</p>
+
+    <!-- ========== LOGIN SCREEN ========== -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-container">
+            <img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo">
+            <h1><i class="fas fa-flask me-3"></i>Lab3d</h1>
+            <p class="text-muted mb-4">Faça login para continuar.</p>
+            <form id="loginForm">
+                <div class="mb-3 text-start">
+                    <label for="email" class="form-label">E-mail:</label>
+                    <input type="email" class="form-control" id="email" required placeholder="seuemail@exemplo.com">
+                </div>
+                <div class="mb-3 text-start">
+                    <label for="password" class="form-label">Senha:</label>
+                    <input type="password" class="form-control" id="password" required placeholder="Sua senha">
+                </div>
+                <button type="submit" class="btn btn-login mt-3" id="loginButton">
+                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                    Login
+                </button>
+            </form>
+            <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
+        </div>
     </div>
 
+    <!-- ========== DASHBOARD ========== -->
     <div class="app-container" id="appContainer">
+        <!-- Sidebar -->
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo">
-                <br><br>
+                <img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo">
                 <h1><i class="fas fa-bolt me-2"></i>Task</h1>
                 <small class="text-light">Sistema Integrado de Gestão</small>
             </div>
             <div class="sidebar-menu" id="sidebarMenu">
-                <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/resolv'" data-menu="dashboard"><i class="fas fa-chart-line"></i>Dashboard</button>
-                <button class="menu-item active" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gerenciadortarefas'" data-menu="tasks"><i class="fas fa-tasks"></i>Gerenciador de Tarefas</button>
-                <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/taskhoras'" data-menu="hours"><i class="fas fa-clock"></i>Gerenciador de Horas</button>
-                <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gestao_clientes'" data-menu="clients"><i class="fas fa-handshake"></i>Gestão de Clientes</button>
-                <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gestaodeparceiros'" data-menu="partners"><i class="fas fa-handshake-angle"></i>Gestão de Parceiros</button>
-                <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/equipe'" data-menu="team"><i class="fas fa-users"></i>Equipe</button>
-                <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/conf'" data-menu="settings"><i class="fas fa-cog"></i>Configurações</button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_DASHBOARD'" data-menu="dashboard">
+                    <i class="fas fa-chart-line"></i>Dashboard
+                </button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_TAREFAS'" data-menu="tasks">
+                    <i class="fas fa-tasks"></i>Gerenciador de Tarefas
+                </button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_HORAS'" data-menu="hours">
+                    <i class="fas fa-clock"></i>Gerenciador de Horas
+                </button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_CLIENTES'" data-menu="clients">
+                    <i class="fas fa-handshake"></i>Gestão de Clientes
+                </button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_PARCEIROS'" data-menu="partners">
+                    <i class="fas fa-handshake-angle"></i>Gestão de Parceiros
+                </button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_EQUIPE'" data-menu="team">
+                    <i class="fas fa-users"></i>Equipe
+                </button>
+                <button class="menu-item active" onclick="showDashboardView()" data-menu="lab3d">
+                    <i class="fas fa-flask"></i>Lab3d
+                </button>
+                <button class="menu-item" onclick="window.location.href='WEBHOOK_CONFIGURACOES'" data-menu="settings">
+                    <i class="fas fa-cog"></i>Configurações
+                </button>
             </div>
         </nav>
 
+        <!-- Main Content -->
         <main class="main-content" id="mainContent">
+            <!-- Top Navigation -->
             <nav class="top-nav">
                 <div class="d-flex align-items-center">
-                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
-                    <h5 class="mb-0 ms-3" id="pageTitle">Dashboard de Clientes</h5>
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0 ms-3" id="pageTitle">ResolvLab3d - Gestão de Dados</h5>
                 </div>
                 <div class="user-info">
                     <div class="d-flex align-items-center">
@@ -343,2473 +438,1031 @@
                 </div>
             </nav>
 
+            <!-- Content Area -->
             <div class="content-area">
-                <div id="tasks-page" class="page-content active">
-                    <div class="card form-card mb-4">
-                        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-plus me-2"></i><span id="formTitle">Adicionar Nova Tarefa</span>
-                            </h5>
-                            <button class="btn btn-light btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#formCollapse" aria-expanded="true">
-                                <i class="fas fa-chevron-down"></i>
-                            </button>
+                <!-- Dashboard View -->
+                <div id="dashboardView">
+                    <!-- Stats Cards -->
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card stat-card primary">
+                                <div class="position-relative">
+                                    <div class="stat-number" id="totalFluxos">0</div>
+                                    <div class="stat-label">Total de Fluxos</div>
+                                    <i class="fas fa-stream stat-icon"></i>
+                                </div>
+                            </div>
                         </div>
-                        <div class="collapse show" id="formCollapse">
-                            <div class="card-body">
-                                <form id="taskForm">
-                                    <input type="hidden" id="taskId">
-                                    <div class="row g-3">
-                                        <div class="col-md-6">
-                                            <label for="taskType" class="form-label required-field">Tipo de Tarefa</label>
-                                            <div class="input-group">
-                                                <select class="form-select" id="taskType" required></select>
-                                                <button class="btn btn-outline-primary" type="button" id="addNewTaskTypeBtn" title="Adicionar Novo Tipo de Tarefa">
-                                                    <i class="fas fa-plus"></i> NOVA TAREFA
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <label for="taskDescription" class="form-label required-field">Resumo da Descrição</label>
-                                            <input type="text" class="form-control" id="taskDescription" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="project" class="form-label required-field">Projeto</label>
-                                            <input type="text" class="form-control" id="project" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="client" class="form-label">Cliente</label>
-                                            <div class="input-group">
-                                                <select class="form-select" id="client"></select>
-                                                <button class="btn btn-outline-primary" type="button" id="addNewClientBtn" title="Adicionar Novo Cliente">
-                                                    <i class="fas fa-plus"></i> NOVO CLIENTE
-                                                </button>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="company" class="form-label">Empresa</label>
-                                            <select class="form-select" id="company"></select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="responsible" class="form-label required-field">Responsável</label>
-                                            <select class="form-select" id="responsible" required></select>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="startDate" class="form-label required-field">Data Início</label>
-                                            <input type="date" class="form-control" id="startDate" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="endDate" class="form-label required-field">Data Final</label>
-                                            <input type="date" class="form-control" id="endDate" required>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <label for="completionDate" class="form-label">Data de Finalização</label>
-                                            <input type="date" class="form-control" id="completionDate">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label for="estimatedHours" class="form-label">Horas Estimadas</label>
-                                            <input type="text" class="form-control hour-input" id="estimatedHours" value="0" placeholder="Ex: 8,5">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label for="actualHours" class="form-label">Horas Realizadas</label>
-                                            <input type="text" class="form-control hour-input" id="actualHours" value="0" placeholder="Ex: 8,5">
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label for="deviation" class="form-label">Desvio (Horas)</label>
-                                            <input type="text" class="form-control hour-input" id="deviation" readonly>
-                                        </div>
-                                        <div class="col-md-2">
-                                            <label for="status" class="form-label">Situação</label>
-                                            <select class="form-select" id="status"></select>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex justify-content-end mt-4 gap-2">
-                                        <button type="button" class="btn btn-secondary" id="clearFormBtn">
-                                            <i class="fas fa-eraser me-2"></i>Limpar
-                                        </button>
-                                        <button type="submit" class="btn btn-primary" id="saveTaskBtn">
-                                            <i class="fas fa-save me-2"></i>Adicionar Tarefa
-                                        </button>
-                                    </div>
-                                </form>
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card stat-card success">
+                                <div class="position-relative">
+                                    <div class="stat-number" id="totalFase1">0</div>
+                                    <div class="stat-label">Registros Fase 1</div>
+                                    <i class="fas fa-database stat-icon"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4 col-md-6">
+                            <div class="card stat-card warning">
+                                <div class="position-relative">
+                                    <div class="stat-number" id="totalDW">0</div>
+                                    <div class="stat-label">Registros DW</div>
+                                    <i class="fas fa-chart-bar stat-icon"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="card form-card mb-4">
-                        <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-filter me-2"></i>Filtros
-                            </h5>
-                            <button class="btn btn-light btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filtersCollapse" aria-expanded="false">
-                                <i class="fas fa-chevron-down"></i>
-                            </button>
-                        </div>
-                        <div class="collapse" id="filtersCollapse">
-                            <div class="card-body">
-                                <div class="filters-container">
-                                    <div class="filter-item">
-                                        <label for="filterResponsible" class="form-label">Responsável</label>
-                                        <select class="form-select" id="filterResponsible"></select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterProject" class="form-label">Projeto</label>
-                                        <select class="form-select" id="filterProject"></select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterClient" class="form-label">Cliente</label>
-                                        <select class="form-select" id="filterClient"></select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterCompany" class="form-label">Empresa</label>
-                                        <select class="form-select" id="filterCompany"></select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterStatus" class="form-label">Situação</label>
-                                        <select class="form-select" id="filterStatus"></select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterTaskType" class="form-label">Tipo de Tarefa</label>
-                                        <select class="form-select" id="filterTaskType"></select>
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterStartDate" class="form-label">Data Início (De)</label>
-                                        <input type="date" class="form-control" id="filterStartDate">
-                                    </div>
-                                    <div class="filter-item">
-                                        <label for="filterEndDate" class="form-label">Data Início (Até)</label>
-                                        <input type="date" class="form-control" id="filterEndDate">
-                                    </div>
+                    <!-- Actions Bar -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Dados do Lab3d</h5>
                                 </div>
-                                <div class="d-flex justify-content-end gap-2 mt-3">
-                                    <button type="button" class="btn btn-info" id="applyFiltersBtn">
+                                <div class="col-md-6 text-md-end">
+                                    <button class="btn btn-success me-2" id="btnNovoFluxo">
+                                        <i class="fas fa-plus me-2"></i>Criar Novo Fluxo
+                                    </button>
+                                    <button class="btn btn-info" id="btnAdicionarColuna">
+                                        <i class="fas fa-columns me-2"></i>Adicionar Coluna
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Filters -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5><i class="fas fa-filter me-2"></i>Filtros</h5>
+                            <form id="filterForm" class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="filterCustomerId" class="form-label">Customer ID</label>
+                                    <input type="text" class="form-control" id="filterCustomerId">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filterFluxo" class="form-label">Fluxo</label>
+                                    <select class="form-select" id="filterFluxo">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filterTabela" class="form-label">Tabela</label>
+                                    <select class="form-select" id="filterTabela">
+                                        <option value="lab3d_fase_1">Fase 1</option>
+                                        <option value="lab3d_dw">DW</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-primary me-2">
                                         <i class="fas fa-search me-2"></i>Filtrar
                                     </button>
-                                    <button type="button" class="btn btn-secondary" id="clearFiltersBtn">
-                                        <i class="fas fa-times me-2"></i>Limpar Filtros
-                                    </button>
-                                    <button type="button" class="btn btn-success" id="exportExcelBtn">
-                                        <i class="fas fa-file-excel me-2"></i>Exportar Excel
+                                    <button type="button" class="btn btn-secondary" id="btnLimparFiltros">
+                                        <i class="fas fa-eraser me-2"></i>Limpar
                                     </button>
                                 </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
 
-                    <div class="table-container">
-                        <h5 class="mb-3">
-                            <i class="fas fa-list text-primary me-2"></i>
-                            Lista de Tarefas
-                        </h5>
-
-                        <ul class="nav nav-tabs" id="taskTabs" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="approved-tab" data-bs-toggle="tab" data-bs-target="#approved-tab-pane" type="button" role="tab" aria-controls="approved-tab-pane" aria-selected="true">Aprovados</button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-tab-pane" type="button" role="tab" aria-controls="pending-tab-pane" aria-selected="false">
-                                    Pendentes <span class="badge bg-danger" id="pending-count">0</span>
+                    <!-- Data Grid -->
+                    <div class="data-grid-container">
+                        <div class="loading" id="dataLoading">
+                            <div class="spinner"></div>
+                            <h5>Carregando dados...</h5>
+                        </div>
+                        
+                        <div id="dataGrid" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover" id="dataTable">
+                                    <thead class="table-primary">
+                                        <tr id="tableHeaders"></tr>
+                                    </thead>
+                                    <tbody id="tableBody"></tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="mt-3">
+                                <button class="btn btn-primary" id="btnAdicionarLinha">
+                                    <i class="fas fa-plus me-2"></i>Adicionar Nova Linha
                                 </button>
-                            </li>
-                        </ul>
-
-                        <div class="tab-content" id="taskTabsContent">
-                            <div class="tab-pane fade show active" id="approved-tab-pane" role="tabpanel" aria-labelledby="approved-tab" tabindex="0">
-                                <div class="table-responsive pt-3">
-                                    <table id="taskTableApproved" class="table table-striped table-hover" style="width:100%">
-                                        <thead>
-                                            <tr>
-                                                <th>Id</th>
-                                                <th>Controle de Horas</th>
-                                                <th>Tipo de Tarefa</th>
-                                                <th>Resumo</th>
-                                                <th>Projeto</th>
-                                                <th>Cliente</th>
-                                                <th>Empresa</th>
-                                                <th>Responsável</th>
-                                                <th>Data Início</th>
-                                                <th>Data Final</th>
-                                                <th>Data Finalizada</th>
-                                                <th>Estimativa (h)</th>
-                                                <th>Realizado (h)</th>
-                                                <th>Desvio (h)</th>
-                                                <th>Situação</th>
-                                                <th>Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
                             </div>
-                            <div class="tab-pane fade" id="pending-tab-pane" role="tabpanel" aria-labelledby="pending-tab" tabindex="0">
-                                <div class="d-flex justify-content-end my-3">
-                                    <div class="col-md-3">
-                                        <label for="filterPendingStatus" class="form-label">Filtrar por Status</label>
-                                        <select class="form-select form-select-sm" id="filterPendingStatus">
-                                            <option value="false" selected>Pendente</option>
-                                            <option value="canceled">Cancelado</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="table-responsive">
-                                    <table id="taskTablePending" class="table table-striped table-hover" style="width:100%">
-                                        <thead>
-                                            <tr>
-                                                <th>Id</th>
-                                                <th>Tipo de Tarefa</th>
-                                                <th>Resumo</th>
-                                                <th>Projeto</th>
-                                                <th>Responsável</th>
-                                                <th>Data Início</th>
-                                                <th>Estimativa (h)</th>
-                                                <th>Status Aprovação</th>
-                                                <th>Motivo da Recusa</th>
-                                                <th>Ações</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
-                            </div>
+                        </div>
+                        
+                        <div id="emptyState" style="display: none; text-align: center; padding: 50px; color: #999;">
+                            <i class="fas fa-inbox" style="font-size: 4rem; margin-bottom: 20px;"></i>
+                            <h5>Nenhum dado encontrado</h5>
+                            <p>Crie um novo fluxo para começar a inserir dados</p>
                         </div>
                     </div>
                 </div>
             </div>
         </main>
-
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-        <div class="modal fade" id="confirmTaskModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="confirmTaskModalTitle">Confirmar Dados da Tarefa</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body"></div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-edit me-2"></i>Editar
-                        </button>
-                        <button type="button" class="btn btn-primary" id="confirmTaskBtn">
-                            <i class="fas fa-check me-2"></i>OK - Confirmar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-danger text-white">
-                        <h5 class="modal-title">Confirmar Exclusão</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="resumeModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">Resumo Completo da Tarefa</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p id="fullResumeText"></p>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="timeControlModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="fas fa-clock me-2"></i>Controle de Horas - Tarefa ID: <span id="timeControlTaskId"></span>
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-4">
-                            <h6 class="text-secondary mb-3">Informações da Tarefa</h6>
-                            <table class="table table-sm">
-                                <tr><td><strong>Descrição:</strong></td><td id="timeControlTaskDescription"></td></tr>
-                                <tr><td><strong>Responsável:</strong></td><td id="timeControlTaskResponsible"></td></tr>
-                                <tr><td><strong>Projeto:</strong></td><td id="timeControlTaskProject"></td></tr>
-                            </table>
-                        </div>
-                        <div id="timeControlObservationSection" class="mb-4">
-                            <label for="timeControlObservation" class="form-label required-field">Observação</label>
-                            <textarea class="form-control" id="timeControlObservation" rows="3" placeholder="Descreva o procedimento realizado..." required></textarea>
-                        </div>
-                        <div class="mb-4 d-flex justify-content-center gap-3" id="timeActionButtons">
-                            <!-- Buttons will be injected here by JavaScript -->
-                        </div>
-                        <div class="time-entries-table">
-                            <h6 class="text-secondary mb-3">Registros de Horas</h6>
-                            <div id="timeEntriesTableContainer">
-                                <p class="text-muted text-center">Nenhum registro de horas para esta tarefa.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="manualTimeModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title" id="manualTimeModalTitle">Inserir Horário Manualmente</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="manualDateTimeInput" class="form-label required-field">Data e Hora</label>
-                            <input type="datetime-local" class="form-control" id="manualDateTimeInput" required>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="confirmManualTimeBtn">Confirmar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="timeConfirmationModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-warning text-dark">
-                        <h5 class="modal-title">
-                            <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Ação
-                        </h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="text-center mb-3">
-                            <i class="fas fa-clock fs-1 text-warning mb-3"></i>
-                            <p class="fs-5 mb-2">Tem certeza que deseja realizar esta ação?</p>
-                            <p class="text-muted" id="timeConfirmationMessage">Esta ação irá registrar o controle de horas para a tarefa.</p>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            <i class="fas fa-times me-1"></i>Cancelar
-                        </button>
-                        <button type="button" class="btn btn-warning" id="confirmTimeActionBtn">
-                            <i class="fas fa-check me-1"></i>Confirmar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="newTaskTypeModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">Adicionar Novo Tipo de Tarefa</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="newTaskTypeForm">
-                            <div class="mb-3">
-                                <label for="newTaskTypeName" class="form-label">Nome do Novo Tipo de Tarefa</label>
-                                <input type="text" class="form-control" id="newTaskTypeName" style="text-transform: uppercase;" required>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="saveNewTaskTypeBtn">Salvar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="modal fade" id="newClientModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">Adicionar/Editar Cliente</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <form id="newClientForm">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label for="newClientName" class="form-label required-field">Nome do Cliente</label>
-                                    <input type="text" class="form-control" id="newClientName" style="text-transform: uppercase;" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newClientCnpj" class="form-label">CNPJ</label>
-                                    <input type="text" class="form-control" id="newClientCnpj">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newClientEmail" class="form-label">Email</label>
-                                    <input type="email" class="form-control" id="newClientEmail" style="text-transform: lowercase;">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="newClientPhone" class="form-label">Telefone</label>
-                                    <input type="text" class="form-control" id="newClientPhone">
-                                </div>
-                                <div class="col-12">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="newClientActive" checked>
-                                        <label class="form-check-label" for="newClientActive">
-                                            Cliente Ativo
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="button" class="btn btn-primary" id="saveNewClientBtn">Salvar</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="modal fade" id="approvalActionModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">Aprovar ou Cancelar Tarefa</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div id="approvalTaskDetails">
-                        </div>
-                        <div id="cancelReasonSection" class="mt-3" style="display: none;">
-                            <label for="cancelReason" class="form-label required-field">Motivo do Cancelamento</label>
-                            <textarea class="form-control" id="cancelReason" rows="3" required></textarea>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                        <div id="initialButtons">
-                            <button type="button" class="btn btn-danger" id="showCancelReasonBtn">Cancelar Tarefa</button>
-                            <button type="button" class="btn btn-success" id="confirmApproveBtn">Aprovar Tarefa</button>
-                        </div>
-                        <div id="confirmCancelButtons" style="display: none;">
-                            <button type="button" class="btn btn-secondary" id="backToOptionsBtn">Voltar</button>
-                            <button type="button" class="btn btn-danger" id="confirmCancelBtn">Confirmar Cancelamento</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Modal: Criar Novo Fluxo -->
+    <div class="modal fade" id="modalNovoFluxo" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>Criar Novo Fluxo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formNovoFluxo">
+                        <div class="mb-3">
+                            <label for="nomeFluxo" class="form-label">Nome do Fluxo</label>
+                            <input type="text" class="form-control" id="nomeFluxo" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="selectCliente" class="form-label">Cliente</label>
+                            <select class="form-select" id="selectCliente" required>
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="selectEmpresa" class="form-label">Empresa Prestadora</label>
+                            <select class="form-select" id="selectEmpresa" required>
+                                <option value="">Carregando...</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarFluxo">
+                        <i class="fas fa-save me-2"></i>Salvar Fluxo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Adicionar Coluna -->
+    <div class="modal fade" id="modalAdicionarColuna" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-columns me-2"></i>Adicionar Nova Coluna</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAdicionarColuna">
+                        <div class="mb-3">
+                            <label for="selectTabelaColuna" class="form-label">Tabela</label>
+                            <select class="form-select" id="selectTabelaColuna" required>
+                                <option value="lab3d_fase_1">Fase 1</option>
+                                <option value="lab3d_dw">DW</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="nomeColuna" class="form-label">Nome da Coluna</label>
+                            <input type="text" class="form-control" id="nomeColuna" 
+                                   pattern="[a-zA-Z0-9_]+" 
+                                   title="Use apenas letras, números e underscores"
+                                   required>
+                            <small class="form-text text-muted">Use apenas letras, números e underscores</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="tipoColuna" class="form-label">Tipo da Coluna</label>
+                            <select class="form-select" id="tipoColuna" required>
+                                <option value="text">Texto (text)</option>
+                                <option value="integer">Número Inteiro (integer)</option>
+                                <option value="numeric">Número Decimal (numeric)</option>
+                                <option value="date">Data (date)</option>
+                                <option value="boolean">Verdadeiro/Falso (boolean)</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarColuna">
+                        <i class="fas fa-save me-2"></i>Adicionar Coluna
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Diagrama -->
+    <div class="modal fade" id="modalDiagrama" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-diagram-project me-2"></i>Diagrama do Cliente</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="diagramaContent">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p class="mt-2">Carregando diagrama...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Adicionar/Editar Linha -->
+    <div class="modal fade" id="modalEditarLinha" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalEditarLinhaTitle">
+                        <i class="fas fa-edit me-2"></i>Adicionar Nova Linha
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarLinha"></form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarLinha">
+                        <i class="fas fa-save me-2"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Area -->
+    <div class="notification-area" id="notificationArea"></div>
+
+    <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
-    <script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
-
+    
+    <!-- Application JavaScript -->
     <script>
-        // --- VARIÁVEIS GLOBAIS ---
-        let tasks = [];
-        let colaboradores = [];
-        let clients = [];
-        let companies = [];
-        let editingTaskId = null;
-        let dataTableApproved;
-        let dataTablePending;
-        let tempTasksData = null;
-        let activeTimeEntry = null;
-        let openTaskIds = new Set();
-        let completedTaskIds = new Set();
-        let globalEndDate = null;
-        let taskTypes = [];
-        let _timeControlState = { action: null, taskId: null };
+// ===================================
+// CONFIGURAÇÃO E VARIÁVEIS GLOBAIS
+// ===================================
 
-    // ===================================
-    // FUNÇÕES UTILITÁRIAS GLOBAIS
-    // ===================================
-    function formatDate(dateString) {
-        if (!dateString) return '';
-        const dateParts = dateString.split(/[-T]/);
-        if (dateParts.length < 3) return '';
-        const date = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]);
-        return date.toLocaleDateString('pt-BR');
-    }
+// URLs dos Webhooks n8n (SUBSTITUIR PELOS SEUS WEBHOOKS)
+const WEBHOOK_AUTHENTICATE_URL = 'URL_WEBHOOK_AUTENTICAR';  // POST /autenticar
+const WEBHOOK_CLIENTES_URL = 'URL_WEBHOOK_CLIENTES';       // GET /clientes-resolv
+const WEBHOOK_EMPRESAS_URL = 'URL_WEBHOOK_EMPRESAS';       // GET /empresas-resolv
+const WEBHOOK_CRIAR_FLUXO_URL = 'URL_WEBHOOK_CRIAR_FLUXO'; // POST /criar-fluxo
 
-    function formatDateTime(dateString) {
-        if (!dateString) return '';
-        
-        // Para valores vindos do /dataHoraatual, exibir exatamente como retornado
-        if (typeof dateString === 'string' && dateString.includes('T')) {
-            // Retorna o valor idêntico do endpoint sem qualquer modificação
-            console.log('📅 Exibindo valor idêntico do endpoint:', dateString);
-            return dateString;
-        }
-        
-        // Fallback para outros formatos históricos
-        const date = new Date(dateString); 
-        if (isNaN(date.getTime())) {
-            return 'Data inválida';
-        }
-        
-        return date.toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    }
+// Configuração Supabase (será preenchida dinamicamente)
+let supabaseClient = null;
+let currentUser = null;
+let currentTable = 'lab3d_fase_1';
+let currentData = [];
+let fluxosList = [];
 
-    function formatDateTimeBrazilian(dateString) {
-        if (!dateString) return '';
-        
-        // Formato brasileiro específico para tabela de controle de horas: dd/MM/aa, HH:mm:ss
-        if (typeof dateString === 'string' && dateString.includes('T')) {
-            try {
-                // Para strings como "2025-09-17T21:26:53.732-03:00"
-                const [datePart, timePart] = dateString.split('T');
-                if (!datePart || !timePart) return 'Data inválida';
-                
-                const [year, month, day] = datePart.split('-');
-                if (!year || !month || !day) return 'Data inválida';
-                
-                const timeWithTz = timePart.split(/[\+\-]/)[0]; // Remove timezone
-                if (!timeWithTz) return 'Data inválida';
-                
-                const [hour, minute, secondWithMs] = timeWithTz.split(':');
-                if (!hour || !minute) return 'Data inválida';
-                
-                // Verificar se secondWithMs existe antes de fazer split
-                const second = secondWithMs ? secondWithMs.split('.')[0] : '00';
-                
-                // Formato: 17/09/25, 21:26:53
-                return `${day}/${month}/${year.slice(-2)}, ${hour}:${minute}:${second}`;
-            } catch (error) {
-                console.error('Erro ao formatar data:', error, 'dateString:', dateString);
-                return 'Data inválida';
-            }
-        }
-        
-        // Fallback para outros formatos históricos
-        const date = new Date(dateString); 
-        if (isNaN(date.getTime())) {
-            return 'Data inválida';
-        }
-        
-        return date.toLocaleString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
-            year: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-        });
-    }
+// ===================================
+// INICIALIZAÇÃO
+// ===================================
 
-    function calculateDurationInMinutes(startDateString, endDateString) {
-        if (!startDateString || !endDateString) return '---';
+document.addEventListener('DOMContentLoaded', async () => {
+    await initSupabase();
+    checkUserSession();
+    setupEventListeners();
+});
+
+// ===================================
+// SUPABASE
+// ===================================
+
+async function initSupabase() {
+    try {
+        // Aqui você deve configurar as credenciais do Supabase
+        const SUPABASE_URL = 'SEU_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'SEU_SUPABASE_ANON_KEY';
         
-        try {
-            // Função para limpar e corrigir strings de data corrompidas
-            const cleanDateString = (dateString) => {
-                if (!dateString) return dateString;
-                
-                let cleaned = dateString.toString().trim();
-                
-                // Corrigir anos corrompidos - várias abordagens
-                // Exemplo: "62025-09-17T19:22" -> "2025-09-17T19:22"
-                
-                // Método 1: Remover dígitos extras no início do ano
-                if (cleaned.includes('-') && cleaned.includes('T')) {
-                    const parts = cleaned.split('-');
-                    if (parts.length >= 3 && parts[0].length > 4) {
-                        // Se o primeiro parte (ano) tem mais de 4 dígitos, pegar os últimos 4
-                        const correctedYear = parts[0].slice(-4);
-                        cleaned = correctedYear + '-' + parts.slice(1).join('-');
-                        console.log('📅 Data corrigida:', cleaned, '(original:', dateString + ')');
-                    }
-                }
-                
-                return cleaned;
-            };
-            
-            // Função para converter string de data em objeto Date
-            const parseDateTime = (dateString) => {
-                const cleanedDateString = cleanDateString(dateString);
-                
-                // Se já é um objeto Date válido
-                if (cleanedDateString instanceof Date && !isNaN(cleanedDateString.getTime())) {
-                    return cleanedDateString;
-                }
-                
-                // Tentar parsing com a string limpa
-                if (typeof cleanedDateString === 'string') {
-                    // Método 1: Parse direto da string ISO
-                    let date = new Date(cleanedDateString);
-                    if (!isNaN(date.getTime())) {
-                        return date;
-                    }
-                    
-                    // Método 2: Se não tem segundos, adicionar ":00"
-                    if (cleanedDateString.includes('T') && !cleanedDateString.includes(':00') && cleanedDateString.split(':').length === 2) {
-                        const withSeconds = cleanedDateString + ':00';
-                        date = new Date(withSeconds);
-                        if (!isNaN(date.getTime())) {
-                            return date;
-                        }
-                    }
-                }
-                
-                throw new Error(`Não foi possível converter para Date: ${cleanedDateString} (original: ${dateString})`);
-            };
-            
-            const startDate = parseDateTime(startDateString);
-            const endDate = parseDateTime(endDateString);
-            
-            console.log('🕐 Calculando duração:', {
-                start: startDate.toISOString(),
-                end: endDate.toISOString()
-            });
-            
-            // Calcular diferença em milissegundos e converter para minutos
-            const diffInMilliseconds = endDate.getTime() - startDate.getTime();
-            const diffInMinutes = Math.round(diffInMilliseconds / 60000);
-            
-            console.log('⏱️ Duração calculada:', diffInMinutes, 'minutos');
-            
-            // Sempre retornar valor positivo para representar tempo trabalhado
-            return Math.abs(diffInMinutes);
-            
-        } catch (error) {
-            console.error('❌ Erro ao calcular duração:', error.message, {
-                start: startDateString,
-                end: endDateString
-            });
-            return 0; // Retornar 0 em vez de 'Erro' para manter consistência numérica
+        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase initialized successfully');
+        } else {
+            console.warn('Supabase credentials not configured. Using demo mode.');
         }
+    } catch (error) {
+        console.error('Error initializing Supabase:', error);
     }
+}
+
+// ===================================
+// AUTENTICAÇÃO
+// ===================================
+
+function checkUserSession() {
+    const authToken = localStorage.getItem('authToken');
+    const userSession = localStorage.getItem('userSession');
     
-    function parseDecimalInput(value) {
-        if (!value || value === '') return 0;
-        const cleanValue = value.toString().trim().replace(/\s/g, '').replace(',', '.');
-        const parsed = parseFloat(cleanValue);
-        return isNaN(parsed) ? 0 : parsed;
+    if (authToken && userSession) {
+        currentUser = JSON.parse(userSession);
+        showDashboard();
+    } else {
+        showLogin();
     }
+}
 
-    function calculateDeviation() {
-        const estimated = parseDecimalInput(document.getElementById('estimatedHours').value);
-        const actual = parseDecimalInput(document.getElementById('actualHours').value);
-        const deviation = actual - estimated;
-        const deviationEl = document.getElementById('deviation');
-        deviationEl.value = formatDecimalOutput(deviation);
-        deviationEl.className = 'form-control hour-input';
-        if (deviation > 0) deviationEl.classList.add('positive-deviation');
-        if (deviation < 0) deviationEl.classList.add('negative-deviation');
-    }
+function showLogin() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('appContainer').classList.remove('authenticated');
+}
+
+function showDashboard() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appContainer').classList.add('authenticated');
+    document.getElementById('userNameDisplay').textContent = currentUser.nome || currentUser.email;
+    showDashboardView();
+}
+
+function showDashboardView() {
+    document.getElementById('dashboardView').style.display = 'block';
+    loadData();
+    loadStats();
+}
+
+// ===================================
+// EVENT LISTENERS
+// ===================================
+
+function setupEventListeners() {
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', handleLogin);
     
-    function formatDecimalOutput(value) {
-        const num = parseFloat(value);
-        return isNaN(num) ? '0,00' : num.toFixed(2).replace('.', ',');
-    }
-
-    function truncateResume(text, maxLength = 18) {
-        if (!text || text.length <= maxLength) return text || '';
-        return text.substring(0, maxLength) + '...';
-    }
+    // Logout
+    document.getElementById('logoutButton').addEventListener('click', handleLogout);
     
-    function toggleFormLock(isEditing = false) {
-        const userData = Auth.getUserData();
-        const userType = userData?.tipo || 'colaborador';
-
-        const allFields = [
-            'taskType', 'taskDescription', 'project', 'client', 'company',
-            'responsible', 'startDate', 'endDate', 'estimatedHours',
-            'completionDate', 'actualHours', 'status'
-        ];
-
-        const isColaborador = userType === 'colaborador';
-        const fieldsToDisable = isColaborador && isEditing ? {
-            taskType: true, taskDescription: true, project: true, client: true, company: true,
-            responsible: true, startDate: true, endDate: true, completionDate: false, 
-            estimatedHours: true, actualHours: false, deviation: true, status: false
-        } : {};
-
-        allFields.forEach(fieldId => {
-            const el = document.getElementById(fieldId);
-            if (el) {
-                el.disabled = (isColaborador && isEditing) ? fieldsToDisable[fieldId] : (fieldId === 'deviation');
-            }
-        });
-        document.getElementById('deviation').disabled = true;
-    }
-
-    // ===================================
-    // OBJETOS GLOBAIS (AUTH e UI)
-    // ===================================
-    const Auth = {
-        getUserData: () => {
-            const sessionData = localStorage.getItem('userSession');
-            return sessionData ? JSON.parse(sessionData) : null;
-        },
-        checkAuth: () => {
-            const authToken = localStorage.getItem('authToken');
-            const userData = Auth.getUserData();
-            console.log('🔐 Verificando status de login...', { hasToken: !!authToken, hasData: !!userData });
-            
-            // For demo/development purposes, create mock auth if not present
-            if (!authToken || !userData) {
-                console.log('🔧 Modo de demonstração: criando autenticação mock...');
-                localStorage.setItem('authToken', 'demo-token-123');
-                localStorage.setItem('userSession', JSON.stringify({
-                    nome: 'Usuário Demo',
-                    tipo: 'admin',
-                    email: 'demo@resolvrisk.com.br'
-                }));
-                return true;
-            }
-            return true;
-        },
-        logout: () => {
-            console.log('🚪 Iniciando processo de logout...');
-            localStorage.clear();
-            const authLoadingEl = document.getElementById('authLoading');
-            if (authLoadingEl) {
-                authLoadingEl.style.display = 'flex';
-                authLoadingEl.innerHTML = `<div class="spinner-auth"></div><h4>Sessão encerrada</h4><p>Você será redirecionado.</p>`;
-            }
-            document.getElementById('appContainer').style.opacity = 0;
-            setTimeout(() => { window.location.href = 'https://n8n.dev.resolvrisk.com.br/webhook/login'; }, 1500);
-        },
-        redirectToLogin: () => {
-            console.log('🔄 Redirecionando para página de login...');
-            window.location.href = 'https://n8n.dev.resolvrisk.com.br/webhook/login';
-        }
-    };
-
-    const UI = {
-        updateUserInfo: () => {
-            const userData = Auth.getUserData();
-            if (userData) {
-                document.getElementById('userNameDisplay').textContent = userData.nome;
-                console.log('👤 Informações do usuário atualizadas:', userData.nome);
-            }
-        },
-        showAuthenticatedInterface: () => {
-            document.getElementById('authLoading').style.display = 'none';
-            document.getElementById('appContainer').classList.add('authenticated');
-            console.log('🎉 Interface principal ativada.');
-        },
-        applyUIPermissions: () => {
-            const userData = Auth.getUserData();
-            const userType = userData?.tipo || 'colaborador';
-            console.log(`🔧 Aplicando permissões de UI para o tipo: ${userType}`);
-
-            const menuPermissions = {
-                admin: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'],
-                colaborador: ['dashboard', 'tasks', 'hours', 'settings']
-            };
-            const allowedMenus = menuPermissions[userType] || menuPermissions.colaborador;
-
-            document.querySelectorAll('#sidebarMenu .menu-item').forEach(item => {
-                const menuType = item.getAttribute('data-menu');
-                item.style.display = allowedMenus.includes(menuType) ? 'block' : 'none';
-            });
-
-            const newTaskTypeBtn = document.getElementById('addNewTaskTypeBtn');
-            const newClientBtn = document.getElementById('addNewClientBtn');
-
-            const isAdmin = userType === 'admin';
-            if (newTaskTypeBtn) newTaskTypeBtn.style.display = isAdmin ? '' : 'none';
-            if (newClientBtn) newClientBtn.style.display = isAdmin ? '' : 'none';
-            
-            toggleFormLock(false);
-        },
-        showNotification: (message, type = 'info', duration = 5000) => {
-            const container = document.body;
-            const alertType = type === 'error' ? 'danger' : type;
-            const iconMap = { success: 'check-circle', warning: 'exclamation-triangle', danger: 'times-circle', info: 'info-circle' };
-            const icon = iconMap[type] || 'info-circle';
-            const notification = document.createElement('div');
-            notification.className = `alert alert-${alertType} alert-dismissible fade show shadow-lg notification`;
-            notification.innerHTML = `<i class="fas fa-${icon} me-2"></i> ${message} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
-            container.appendChild(notification);
-            setTimeout(() => {
-                const bsAlert = bootstrap.Alert.getOrCreateInstance(notification);
-                if (bsAlert) {
-                    bsAlert.close();
-                }
-            }, duration);
-        },
-        toggleSidebar: () => {
-            const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
-            const mainContent = document.getElementById('mainContent');
-            if (window.innerWidth <= 768) {
-                sidebar.classList.toggle('show');
-                overlay.classList.toggle('show');
-                document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
-            } else {
-                sidebar.classList.toggle('collapsed');
-                mainContent.classList.toggle('expanded');
-            }
-        }
-    };
-    
-    // ===================================
-    // LÓGICA DO MODAL DE HORAS
-    // ===================================
-    async function sendTimeEntryUpdate(action, taskId, observation, manualTimestamp = null) {
-        const userData = Auth.getUserData();
-        if (!userData) {
-            UI.showNotification('Sua sessão expirou. Por favor, faça login novamente.', 'error');
-            return;
-        }
-
-        let horaPayload;
-
-        try {
-            if (manualTimestamp) {
-                // Para data manual, usa o valor exato inserido pelo usuário sem conversões
-                horaPayload = manualTimestamp;
-                console.log('📅 Hora manual inserida:', horaPayload);
-            } else {
-                // Para data automática, busca a hora atual do webhook e usa exatamente como retornado
-                console.log('🔄 Buscando hora atual do servidor...');
-                const response = await fetch('https://n8n.dev.resolvrisk.com.br/webhook/dataHoraatual');
-                if (!response.ok) {
-                    throw new Error('Falha ao buscar a hora atual do servidor.');
-                }
-                const data = await response.json();
-                console.log('📡 Dados recebidos do /dataHoraatual:', data);
-                
-                if (data && data.length > 0 && data[0].currentDate) {
-                    // Usa exatamente o valor retornado pelo endpoint, sem conversões
-                    horaPayload = data[0].currentDate;
-                    console.log('✅ Hora automática extraída (valor idêntico):', horaPayload);
-                } else {
-                    throw new Error('Formato de data e hora inválido recebido do servidor.');
-                }
-            }
-        } catch(error) {
-             console.error('❌ Erro ao obter a hora:', error);
-             UI.showNotification('Erro ao processar a hora. Usando hora local como fallback.', 'warning');
-             // Fallback também sem conversões desnecessárias
-             horaPayload = new Date().toISOString();
-        }
-
-
-        const timeEntryPayload = {
-            action: action === 'start' ? 'start_time' : 'stop_time',
-            id_type: taskId,
-            type: "tarefa",
-            observacao: observation,
-            responsavel: userData.nome,
-            hora: horaPayload
-        };
-
-        if (action === 'stop' && activeTimeEntry) {
-            timeEntryPayload.id = activeTimeEntry.id;
-            
-            // Calcular duração em minutos
-            try {
-                const minutosCalculados = calculateDurationInMinutes(activeTimeEntry.hora_inicial, horaPayload);
-                timeEntryPayload.minutos_trabalhados = minutosCalculados;
-                console.log(`🕐 Duração calculada: ${minutosCalculados} minutos (${activeTimeEntry.hora_inicial} até ${horaPayload})`);
-            } catch (error) {
-                console.error('❌ Erro ao calcular minutos:', error);
-                timeEntryPayload.minutos_trabalhados = 0;
-            }
-            
-            console.log(`🔍 Finalizando registro específico ID: ${activeTimeEntry.id}`, activeTimeEntry);
-        } else if (action === 'stop' && !activeTimeEntry) {
-            console.error('⚠️ ERRO: Tentativa de finalizar sem activeTimeEntry definido!');
-            UI.showNotification('Erro: Nenhum registro ativo encontrado para finalizar.', 'error');
-            return;
-        }
-
-        try {
-            console.log("📤 Enviando dados para o webhook:", JSON.stringify(timeEntryPayload, null, 2));
-            const response = await fetch('https://n8n.dev.resolvrisk.com.br/webhook/salvatarefas', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(timeEntryPayload)
-            });
-
-            if (response.ok) {
-                UI.showNotification(`Ação de ${action === 'start' ? 'início' : 'fim'} registrada com sucesso!`, 'success');
-                setTimeout(async () => {
-                    await loadAndDisplayTimeEntries(taskId);
-                }, 4000); 
-            } else {
-                const errorText = await response.text();
-                throw new Error(`Falha ao registrar a ação de tempo: ${errorText}`);
-            }
-        } catch (error) {
-            console.error('Erro na ação de tempo:', error);
-            UI.showNotification('Erro ao processar sua solicitação.', 'error');
-        }
-    }
-
-
-    async function loadAndDisplayTimeEntries(taskId) {
-        const container = document.getElementById('timeEntriesTableContainer');
-        const actionBtnContainer = document.getElementById('timeActionButtons');
-        container.innerHTML = '<div class="d-flex justify-content-center"><div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-        activeTimeEntry = null;
-
-        // Verificar se a tarefa está concluída (apenas status CONCLUÍDO)
-        const task = tasks.find(t => String(t.id) === String(taskId));
-        const isTaskCompleted = task && task.status === 'CONCLUÍDO';
-        const disabledAttr = isTaskCompleted ? 'disabled' : '';
-        const disabledClass = isTaskCompleted ? 'disabled' : '';
-
-        try {
-            const response = await fetch(`https://n8n.dev.resolvrisk.com.br/webhook/consultadontrolehoras?id_type=${taskId}`);
-            if (!response.ok) throw new Error('Falha ao buscar registros de tempo');
-            
-            const entries = await response.json();
-            const taskEntries = Array.isArray(entries) ? entries.filter(e => String(e.id_type) === String(taskId)) : [];
-
-            if (taskEntries.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">Nenhum registro de horas para esta tarefa.</p>';
-                actionBtnContainer.innerHTML = `
-                    <button class="btn btn-success ${disabledClass}" id="startAutomaticBtn" data-task-id="${taskId}" ${disabledAttr}>Início Automático</button>
-                    <button class="btn btn-secondary ${disabledClass}" id="startManualBtn" data-task-id="${taskId}" ${disabledAttr}>Início Manual</button>
-                `;
-                return;
-            }
-
-            let tableHtml = `
-                <table class="table table-sm table-striped">
-                    <thead>
-                        <tr>
-                            <th>Início</th>
-                            <th>Fim</th>
-                            <th>Duração (min)</th>
-                            <th>Observação</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            `;
-
-            let hasOpenEntry = false;
-            let openEntries = [];
-            
-            // Identificar e listar todos os registros em aberto ANTES da ordenação
-            taskEntries.forEach(entry => {
-                if (!entry.hora_final) {
-                    openEntries.push(entry);
-                }
-            });
-
-            // Log para debug: verificar se há múltiplos registros em aberto
-            console.log(`📊 Registros em aberto encontrados: ${openEntries.length}`, openEntries);
-
-            // Definir o activeTimeEntry como o mais recente dos registros em aberto
-            if (openEntries.length > 0) {
-                // Ordenar registros em aberto por data decrescente e pegar o primeiro (mais recente)
-                openEntries.sort((a, b) => {
-                    const dateA = new Date(a.hora_inicial || 0);
-                    const dateB = new Date(b.hora_inicial || 0);
-                    return dateB - dateA;
-                });
-                
-                activeTimeEntry = openEntries[0];
-                hasOpenEntry = true;
-                
-                console.log('🎯 ActiveTimeEntry definido:', activeTimeEntry);
-                
-                // Se há múltiplos registros em aberto, alertar
-                if (openEntries.length > 1) {
-                    console.warn(`⚠️ ATENÇÃO: ${openEntries.length} registros em aberto simultaneamente! Usando o mais recente como ativo.`);
-                    UI.showNotification(`⚠️ Múltiplos registros em aberto! Usando o mais recente.`, 'warning');
-                }
-            } else {
-                activeTimeEntry = null;
-            }
-            
-            // Ordenar os registros com prioridade:
-            // 1º: Lançamentos em aberto (sem hora_final) no topo
-            // 2º: Lançamentos concluídos em ordem decrescente por data
-            taskEntries.sort((a, b) => {
-                const aIsOpen = !a.hora_final;
-                const bIsOpen = !b.hora_final;
-                
-                // Se um está em aberto e o outro não, priorizar o em aberto
-                if (aIsOpen && !bIsOpen) return -1;
-                if (!aIsOpen && bIsOpen) return 1;
-                
-                // Se ambos estão em aberto ou ambos estão concluídos, ordenar por data decrescente
-                const dateA = new Date(a.hora_inicial || 0);
-                const dateB = new Date(b.hora_inicial || 0);
-                return dateB - dateA; // Ordem decrescente (mais recente primeiro)
-            });
-            
-            taskEntries.forEach(entry => {
-                const startTime = formatDateTimeBrazilian(entry.hora_inicial); 
-                const endTime = entry.hora_final ? formatDateTimeBrazilian(entry.hora_final) : '---';
-                const duration = entry.hora_final && entry.hora_inicial ? 
-                    calculateDurationInMinutes(entry.hora_inicial, entry.hora_final) : '---';
-                const statusClass = entry.hora_final ? 'time-entry-completed' : 'time-entry-active';
-                const statusText = entry.hora_final ? 'Concluído' : 'Ativo';
-
-                tableHtml += `
-                    <tr>
-                        <td>${startTime}</td>
-                        <td>${endTime}</td>
-                        <td>${duration}</td>
-                        <td>${entry.observacao || ''}</td>
-                        <td><span class="time-entry-status ${statusClass}">${statusText}</span></td>
-                    </tr>
-                `;
-            });
-
-            tableHtml += '</tbody></table>';
-            container.innerHTML = tableHtml;
-
-            if (hasOpenEntry) {
-                actionBtnContainer.innerHTML = `
-                    <button class="btn btn-danger" id="stopAutomaticBtn" data-task-id="${taskId}">Fim Automático</button>
-                    <button class="btn btn-secondary" id="stopManualBtn" data-task-id="${taskId}">Fim Manual</button>
-                `;
-            } else {
-                actionBtnContainer.innerHTML = `
-                    <button class="btn btn-success ${disabledClass}" id="startAutomaticBtn" data-task-id="${taskId}" ${disabledAttr}>Início Automático</button>
-                    <button class="btn btn-secondary ${disabledClass}" id="startManualBtn" data-task-id="${taskId}" ${disabledAttr}>Início Manual</button>
-                `;
-            }
-
-        } catch (error) {
-            console.error(error);
-            container.innerHTML = '<p class="text-danger text-center">Erro ao carregar registros.</p>';
-        }
-    }
-    
-    function showFullResume(text) {
-        document.getElementById('fullResumeText').textContent = text;
-        new bootstrap.Modal(document.getElementById('resumeModal')).show();
-    }
-    
-    async function openTimeControlModal(taskId) {
-        console.log("Abrindo modal para tarefa:", taskId);
-        const task = tasks.find(t => String(t.id) === String(taskId));
-        if (!task) {
-            UI.showNotification('Tarefa não encontrada!', 'error');
-            return;
-        }
-
-        document.getElementById('timeControlTaskId').textContent = taskId;
-        document.getElementById('timeControlTaskDescription').textContent = task.description;
-        document.getElementById('timeControlTaskResponsible').textContent = task.responsible;
-        document.getElementById('timeControlTaskProject').textContent = task.project;
-        
-        document.getElementById('timeControlObservation').value = '';
-        document.getElementById('timeControlObservationSection').style.display = 'block';
-
-        await loadAndDisplayTimeEntries(taskId);
-
-        const timeControlModal = new bootstrap.Modal(document.getElementById('timeControlModal'));
-        timeControlModal.show();
-    }
-
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        // ===================================
-        // CONSTANTES DA APLICAÇÃO
-        // ===================================
-        const CONFIG_WEBHOOK_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consultaconfiguracoes';
-        const WEBHOOK_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/salvatarefas';
-        const WEBHOOK_GET_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consultadadosresolv';
-        const COLABORADORES_WEBHOOK_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consultacolaboradores';
-        const TIME_ENTRIES_GET_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consultadontrolehoras';
-        const TASK_TYPES_GET_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consulta_tarefas';
-        const NEW_TASK_TYPE_POST_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
-        const CLIENTS_GET_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consulta_clientes';
-        const NEW_CLIENT_POST_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
-        const COMPANIES_GET_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consulta_empresa';
-
-
-        const TASK_STATUSES = ["NÃO INICIADO", "EM ANDAMENTO", "CONCLUÍDO", "PARALIZADO"];
-
-        // ===================================
-        // LÓGICA PRINCIPAL DA APLICAÇÃO
-        // ===================================
-        async function initializeApplication() {
-            console.log('🚀 Iniciando lógica principal da aplicação...');
-            try {
-                await loadThemeConfig();
-                await loadTaskTypes();
-                await loadClients();
-                await loadCompanies();
-                populateDropdowns();
-                clearForm();
-                await loadColaboradores();
-                await loadTasks();
-                await loadAllTimeEntriesAndApplyStatus();
-                console.log('✅ Lógica da aplicação inicializada com sucesso');
-            } catch (error) {
-                console.error('❌ Erro durante inicialização da lógica:', error);
-                UI.showNotification('❌ Erro ao carregar dados da aplicação.', 'error');
-            }
-        }
-
-        function populateDropdowns() {
-            populateTaskTypeDropdowns();
-            populateClientDropdowns();
-            populateCompanyDropdowns();
-            populateStatusDropdowns();
-        }
-
-        function populateTaskTypeDropdowns() {
-            const taskTypeSelect = document.getElementById('taskType');
-            const filterTaskTypeSelect = document.getElementById('filterTaskType');
-            taskTypeSelect.innerHTML = '';
-            filterTaskTypeSelect.innerHTML = '<option value="">Todos</option>';
-            taskTypes.forEach(type => {
-                taskTypeSelect.add(new Option(type.tipo_tarefa, type.tipo_tarefa));
-                filterTaskTypeSelect.add(new Option(type.tipo_tarefa, type.tipo_tarefa));
-            });
-        }
-
-        function populateClientDropdowns() {
-            const clientSelect = document.getElementById('client');
-            const filterClientSelect = document.getElementById('filterClient');
-            clientSelect.innerHTML = '<option value="">Selecione um cliente</option>';
-            filterClientSelect.innerHTML = '<option value="">Todos</option>';
-            clients.forEach(client => {
-                clientSelect.add(new Option(client.nome, client.nome));
-                filterClientSelect.add(new Option(client.nome, client.nome));
-            });
-        }
-
-        function populateCompanyDropdowns() {
-            const companySelect = document.getElementById('company');
-            const filterCompanySelect = document.getElementById('filterCompany');
-            companySelect.innerHTML = '<option value="">Selecione uma empresa</option>';
-            filterCompanySelect.innerHTML = '<option value="">Todas</option>';
-            companies.forEach(company => {
-                companySelect.add(new Option(company.razao_social, company.razao_social));
-                filterCompanySelect.add(new Option(company.razao_social, company.razao_social));
-            });
-        }
-
-        function populateStatusDropdowns() {
-            const statusSelect = document.getElementById('status');
-            const filterStatusSelect = document.getElementById('filterStatus');
-            statusSelect.innerHTML = '';
-            filterStatusSelect.innerHTML = '<option value="">Todos</option>';
-            TASK_STATUSES.forEach(status => {
-                statusSelect.add(new Option(status, status));
-                filterStatusSelect.add(new Option(status, status));
-            });
-        }
-
-        function clearForm() {
-            document.getElementById('taskForm').reset();
-            document.getElementById('taskId').value = '';
-            editingTaskId = null;
-            document.getElementById('taskForm').classList.remove('was-validated');
-            document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
-
-            document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
-            document.getElementById('endDate').value = new Date().toISOString().split('T')[0];
-            document.getElementById('status').value = 'NÃO INICIADO';
-
-            document.getElementById('saveTaskBtn').innerHTML = '<i class="fas fa-save me-2"></i>Adicionar Tarefa';
-            document.getElementById('formTitle').textContent = 'Adicionar Nova Tarefa';
-
-            calculateDeviation();
-            UI.applyUIPermissions();
-            
-            // Reabilitar o botão de toggle ao limpar o formulário
-            document.querySelector('[data-bs-target="#formCollapse"]').disabled = false;
-        }
-
-        // ===================================
-        // MANIPULAÇÃO DE DADOS (FETCH, SAVE)
-        // ===================================
-        async function loadThemeConfig() {
-           try {
-               console.log('🎨 Carregando configurações de tema...');
-               const response = await fetch(CONFIG_WEBHOOK_URL);
-               if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-
-               const data = await response.json();
-               if (data && data.length > 0 && data[0].primary_color) {
-                   const primaryColor = data[0].primary_color;
-                   applyPrimaryColor(primaryColor);
-                   console.log(`✅ Cor primária aplicada: ${primaryColor}`);
-               } else {
-                   console.log('⚠️ Usando cor primária padrão');
-               }
-           } catch (error) {
-               console.error('❌ Erro ao carregar configurações de tema:', error);
-               console.log('⚠️ Usando cor primária padrão');
-           }
-        }
-
-        function applyPrimaryColor(color) {
-           document.documentElement.style.setProperty('--primary-color', color);
-           const dynamicStyles = document.createElement('style');
-           dynamicStyles.innerHTML = `
-               .btn-outline-primary { color: ${color}; border-color: ${color}; }
-               .btn-outline-primary:hover { background-color: ${color}; border-color: ${color}; color: white; }
-               .text-primary { color: ${color} !important; }
-               .form-control:focus, .form-select:focus { border-color: ${color}; box-shadow: 0 0 0 0.2rem ${hexToRgba(color, 0.25)}; }
-           `;
-           document.head.appendChild(dynamicStyles);
-        }
-
-        function hexToRgba(hex, alpha) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-
-
-        async function loadColaboradores() {
-            try {
-                console.log('🔄 Carregando colaboradores...');
-                const response = await fetch(COLABORADORES_WEBHOOK_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-                colaboradores = data.filter(c => c.status === true);
-                console.log(`✅ ${colaboradores.length} colaboradores ativos carregados.`);
-                updateResponsibleSelect();
-            } catch (error) {
-                console.error('❌ Erro ao carregar colaboradores:', error);
-                UI.showNotification(`❌ Erro ao carregar colaboradores.`, 'error');
-            }
-        }
-
-        async function loadClients() {
-            try {
-                console.log('🔄 Carregando clientes...');
-                const response = await fetch(CLIENTS_GET_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                clients = await response.json();
-                console.log(`✅ ${clients.length} clientes carregados.`);
-                populateClientDropdowns();
-            } catch (error) {
-                console.error('❌ Erro ao carregar clientes:', error);
-                UI.showNotification('❌ Erro ao carregar clientes.', 'error');
-            }
-        }
-
-        async function loadCompanies() {
-            try {
-                console.log('🔄 Carregando empresas...');
-                const response = await fetch(COMPANIES_GET_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                companies = await response.json();
-                console.log(`✅ ${companies.length} empresas carregadas.`);
-                populateCompanyDropdowns();
-            } catch (error) {
-                console.error('❌ Erro ao carregar empresas:', error);
-                UI.showNotification('❌ Erro ao carregar empresas.', 'error');
-            }
-        }
-
-        async function loadTaskTypes() {
-            try {
-                console.log('🔄 Carregando tipos de tarefa...');
-                const response = await fetch(TASK_TYPES_GET_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                taskTypes = await response.json();
-                console.log(`✅ ${taskTypes.length} tipos de tarefa carregados.`);
-                populateTaskTypeDropdowns();
-            } catch (error) {
-                console.error('❌ Erro ao carregar tipos de tarefa:', error);
-                UI.showNotification('❌ Erro ao carregar tipos de tarefa.', 'error');
-            }
-        }
-
-        function updateResponsibleSelect() {
-            const selects = [document.getElementById('responsible'), document.getElementById('filterResponsible')];
-            selects.forEach(select => {
-                const currentVal = select.value;
-                select.innerHTML = select.id.includes('filter') ? '<option value="">Todos</option>' : '<option value="">Selecione um responsável</option>';
-                colaboradores.forEach(c => select.add(new Option(c.nome, c.nome)));
-                select.value = currentVal;
-            });
-        }
-
-        async function loadTasks() {
-          try {
-              console.log('🔄 Carregando tarefas...');
-              UI.showNotification('🔄 Carregando tarefas do servidor...', 'info');
-              const response = await fetch(WEBHOOK_GET_URL);
-              if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-              const data = await response.json();
-
-              tasks = data.map(task => ({
-                  ...task,
-                  endDate: task.EndDate || '',
-                  startDate: task.startDate || '',
-                  completionDate: task.completionDate || '',
-                  estimatedHours: parseDecimalInput(task.estimatedHours),
-                  actualHours: parseDecimalInput(task.actualHours),
-                  deviation: parseDecimalInput(task.deviation)
-              }));
-
-              console.log(`✅ ${tasks.length} tarefas processadas e carregadas.`);
-              UI.showNotification('✅ Tarefas carregadas com sucesso!', 'success');
-
-              updateTaskTables();
-
-          } catch (error) {
-              console.error('❌ Erro ao carregar tarefas:', error);
-              UI.showNotification(`❌ Erro ao carregar tarefas: ${error.message}.`, 'error');
-              tasks = [];
-              updateTaskTables();
-          }
-        }
-
-        function updateTaskTables() {
-            const approvedTasks = tasks.filter(t => t.aguadando_aprovacao === null || t.aguadando_aprovacao === true || t.aguadando_aprovacao === 'true');
-            let pendingTasks = tasks.filter(t => t.aguadando_aprovacao === false || t.aguadando_aprovacao === 'false' || t.aguadando_aprovacao === 'Aguardando');
-            const canceledTasks = tasks.filter(t => t.aguadando_aprovacao === 'canceled');
-            const currentUser = Auth.getUserData();
-
-            updateApprovedTaskTable(approvedTasks);
-            updatePendingTaskTable(pendingTasks, canceledTasks);
-
-            if (currentUser.tipo === 'colaborador') {
-                const userPendingTasks = pendingTasks.filter(t => t.responsible === currentUser.nome);
-                document.getElementById('pending-count').textContent = userPendingTasks.length;
-            } else {
-                document.getElementById('pending-count').textContent = pendingTasks.length;
-            }
-        }
-
-        function updateApprovedTaskTable(filteredData) {
-            if ($.fn.DataTable.isDataTable('#taskTableApproved')) {
-                $('#taskTableApproved').DataTable().destroy();
-            }
-
-            const tableBody = document.querySelector('#taskTableApproved tbody');
-            tableBody.innerHTML = '';
-            const currentUser = Auth.getUserData();
-
-            filteredData.forEach(task => {
-                const taskIdStr = String(task.id);
-                const isTaskOpen = openTaskIds.has(taskIdStr);
-                const hasCompletedHours = completedTaskIds.has(taskIdStr);
-
-                let buttonClass = isTaskOpen ? 'btn-danger' : (hasCompletedHours ? 'btn-success' : 'btn-info');
-                let buttonText = isTaskOpen ? 'Em Andamento' : 'Adicionar';
-                const buttonTitle = isTaskOpen ? 'Tarefa com tempo em aberto!' : 'Controle de Horas';
-                const timeControlBtn = `<button class="btn btn-sm ${buttonClass} time-control-btn" data-task-id="${task.id}" title="${buttonTitle}"><i class="fas fa-clock"></i> ${buttonText}</button>`;
-
-                const isOwner = currentUser.nome === task.responsible;
-                const isAdmin = currentUser.tipo === 'admin';
-                let actionsHtml = '';
-                if (isAdmin) {
-                    actionsHtml = `
-                        <button class="btn btn-sm btn-primary edit-btn" data-id="${task.id}" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${task.id}" title="Excluir"><i class="fas fa-trash"></i></button>
-                    `;
-                } else if (isOwner) {
-                    actionsHtml = `<button class="btn btn-sm btn-primary edit-btn" data-id="${task.id}" title="Editar"><i class="fas fa-edit"></i></button>`;
-                } else {
-                    actionsHtml = `<button class="btn btn-sm btn-primary edit-btn" data-id="${task.id}" title="Editar" disabled><i class="fas fa-edit"></i></button>`;
-                }
-
-                const deviation = (task.actualHours || 0) - (task.estimatedHours || 0);
-                const deviationClass = deviation > 0 ? 'positive-deviation' : (deviation < 0 ? 'negative-deviation' : '');
-                const statusClass = `status-${(task.status || '').toLowerCase().replace(/\s+/g, '-').replace(/ã|ú|í/g, a => ({'ã':'a', 'ú':'u', 'í': 'i'}[a]))}`;
-                const truncatedDesc = truncateResume(task.description);
-                const isClickable = task.description && task.description.length > 18;
-
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${task.id || ''}</td>
-                    <td>${timeControlBtn}</td>
-                    <td>${task.type || ''}</td>
-                    <td ${isClickable ? `data-full-resume="${(task.description || '').replace(/"/g, "&quot;")}" class="resume-truncated"` : ''}>${truncatedDesc}</td>
-                    <td>${task.project || ''}</td>
-                    <td>${task.client || ''}</td>
-                    <td>${task.company || ''}</td>
-                    <td>${task.responsible || ''}</td>
-                    <td>${formatDate(task.startDate)}</td>
-                    <td>${formatDate(task.endDate)}</td>
-                    <td>${formatDate(task.completionDate)}</td>
-                    <td>${formatDecimalOutput(task.estimatedHours)}</td>
-                    <td>${formatDecimalOutput(task.actualHours)}</td>
-                    <td class="${deviationClass}">${formatDecimalOutput(deviation)}</td>
-                    <td><span class="status-badge ${statusClass}">${task.status || ''}</span></td>
-                    <td>${actionsHtml}</td>
-                `;
-                tableBody.appendChild(row);
-            });
-            
-            dataTableApproved = $('#taskTableApproved').DataTable({
-                language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json' },
-                responsive: true,
-                order: [[0, 'desc']],
-                columnDefs: [{ orderable: false, targets: [1, 15] }],
-                pageLength: 10,
-                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>><"row"<"col-sm-12"tr>><"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-            });
-            updateFilters(filteredData);
-        }
-
-        function updatePendingTaskTable(pendingData, canceledData) {
-            const currentUser = Auth.getUserData();
-            const filterValue = document.getElementById('filterPendingStatus').value;
-            let dataToShow = (filterValue === 'false') ? pendingData : canceledData;
-            
-            if (currentUser.tipo === 'colaborador') {
-                dataToShow = dataToShow.filter(t => t.responsible === currentUser.nome);
-            }
-
-            if ($.fn.DataTable.isDataTable('#taskTablePending')) {
-                $('#taskTablePending').DataTable().destroy();
-            }
-
-            const tableBody = document.querySelector('#taskTablePending tbody');
-            tableBody.innerHTML = '';
-
-            dataToShow.forEach(task => {
-                const row = document.createElement('tr');
-                const truncatedDesc = truncateResume(task.description);
-                const isClickable = task.description && task.description.length > 18;
-                const resumeTd = `<td ${isClickable ? `data-full-resume="${(task.description || '').replace(/"/g, "&quot;")}" class="resume-truncated"` : ''}>${truncatedDesc}</td>`;
-                const isColaborador = currentUser.tipo === 'colaborador';
-                const activateButtonDisabled = isColaborador ? 'disabled' : '';
-
-                let statusApprovalHtml, actionsHtml, motivoRecusaHtml;
-                if (task.aguadando_aprovacao === 'canceled') {
-                    statusApprovalHtml = `<span class="badge bg-danger">Cancelado</span>`;
-                    actionsHtml = `<button class="btn btn-sm btn-secondary view-btn" data-id="${task.id}" title="Visualizar Motivo"><i class="fas fa-eye"></i></button>`;
-                    motivoRecusaHtml = task.motivo_recusa || 'N/A';
-                } else {  
-                    statusApprovalHtml = `<span class="badge bg-warning text-dark">Aguardando Aprovação</span>`;
-                    actionsHtml = `<button class="btn btn-sm btn-primary activate-btn" data-id="${task.id}" title="Ativar Tarefa" ${activateButtonDisabled}><i class="fas fa-play"></i> Ativar</button>`;
-                    motivoRecusaHtml = '';  
-                }
-
-                row.innerHTML = `
-                    <td>${task.id || ''}</td>
-                    <td>${task.type || ''}</td>
-                    ${resumeTd}
-                    <td>${task.project || ''}</td>
-                    <td>${task.responsible || ''}</td>
-                    <td>${formatDate(task.startDate)}</td>
-                    <td>${formatDecimalOutput(task.estimatedHours)}</td>
-                    <td>${statusApprovalHtml}</td>
-                    <td>${motivoRecusaHtml}</td>
-                    <td>${actionsHtml}</td>
-                `;
-                tableBody.appendChild(row);
-            });
-            
-            dataTablePending = $('#taskTablePending').DataTable({
-                language: { url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json' },
-                responsive: true,
-                order: [[0, 'desc']],
-                pageLength: 10,
-                lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-                dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>><"row"<"col-sm-12"tr>><"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-            });
-        }
-
-
-        async function loadAllTimeEntriesAndApplyStatus() {
-            try {
-                console.log('🔄 Buscando status de todas as entradas de tempo...');
-                const response = await fetch(TIME_ENTRIES_GET_URL);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-                const contentType = response.headers.get("content-type");
-                if (!contentType || !contentType.includes("application/json")) {
-                    throw new TypeError("A resposta não é um JSON. A sessão pode ter expirado.");
-                }
-
-                const allEntries = await response.json();
-                if (!Array.isArray(allEntries)) return;
-
-                openTaskIds.clear();
-                completedTaskIds.clear();
-
-                const entriesByTask = {};
-                allEntries.forEach(entry => {
-                    if (entry && entry.id_type) {
-                        const taskId = String(entry.id_type);
-                        if (!entriesByTask[taskId]) {
-                            entriesByTask[taskId] = [];
-                        }
-                        entriesByTask[taskId].push(entry);
-                    }
-                });
-
-                Object.keys(entriesByTask).forEach(taskId => {
-                    const taskEntries = entriesByTask[taskId];
-                    const hasOpenEntry = taskEntries.some(e => e.hora_final === null);
-                    const hasCompletedEntries = taskEntries.some(e => e.hora_final !== null);
-
-                    if (hasOpenEntry) {
-                        openTaskIds.add(taskId);
-                    } else if (hasCompletedEntries) {
-                        completedTaskIds.add(taskId);
-                    }
-                });
-
-                console.log('✅ Status de tempo processado. Tarefas em aberto:', openTaskIds);
-                console.log('✅ Tarefas com horas completas:', completedTaskIds);
-                updateTaskTables();
-
-            } catch (error) {
-                console.error('❌ Erro ao buscar todos os registros de tempo:', error);
-                UI.showNotification('Erro ao buscar registros de tempo. Tente recarregar a página.', 'error');
-            }
-        }
-
-        async function sendToWebhook(data, action) {
-            try {
-                const payload = {
-                    ...data,
-                    action,
-                    timestamp: new Date().toISOString()
-                };
-
-                console.log('📡 Enviando para webhook:', payload);
-                const response = await fetch(WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    console.log(`✅ Webhook [${action}] bem-sucedido para tarefa ${data.id}.`);
-                    return { success: true };
-                } else {
-                    const responseText = await response.text();
-                    console.error(`❌ Webhook [${action}] respondeu com status ${response.status}. Resposta: ${responseText}`);
-                    return { success: false, error: `Erro do servidor (Status ${response.status})`, message: responseText };
-                }
-            } catch (error) {
-                console.error(`❌ Erro ao enviar para webhook [${action}]:`, error);
-                return { success: false, error: 'Erro de rede', message: error.message };
-            }
-        }
-
-        function updateFilters(currentData = tasks) {
-            const projectFilter = document.getElementById('filterProject');
-            const clientFilter = document.getElementById('filterClient');
-            const companyFilter = document.getElementById('filterCompany');
-
-            const selectedProject = projectFilter.value;
-            const selectedClient = clientFilter.value;
-            const selectedCompany = companyFilter.value;
-
-            const projects = [...new Set(currentData.map(t => t.project).filter(p => p))].sort();
-            projectFilter.innerHTML = '<option value="">Todos</option>';
-            projects.forEach(p => {
-                const option = new Option(p, p);
-                projectFilter.add(option);
-            });
-            if (projects.includes(selectedProject)) projectFilter.value = selectedProject;
-
-            const clients = [...new Set(currentData.map(t => t.client).filter(c => c))].sort();
-            clientFilter.innerHTML = '<option value="">Todos</option>';
-            clients.forEach(c => {
-                const option = new Option(c, c);
-                clientFilter.add(option);
-            });
-            if (clients.includes(selectedClient)) clientFilter.value = selectedClient;
-
-            const companies = [...new Set(currentData.map(t => t.company).filter(c => c))].sort();
-            companyFilter.innerHTML = '<option value="">Todos</option>';
-            companies.forEach(c => {
-                const option = new Option(c, c);
-                companyFilter.add(option);
-            });
-            if (companies.includes(selectedCompany)) companyFilter.value = selectedCompany;
-        }
-
-        function getDailyHoursForCollaborator(responsible, dateStr, excludeTaskId = null) {
-          let totalHours = 0;
-          const targetDate = parseDate(dateStr);
-          if (!targetDate) return 0;
-          const targetDateStr = targetDate.toISOString().split('T')[0];
-
-          for (const task of tasks) {
-              if (task.responsible === responsible && task.id != excludeTaskId) {
-                  const taskStartDate = parseDate(task.startDate);
-                  if (taskStartDate) {
-                      const taskStartDateStr = taskStartDate.toISOString().split('T')[0];
-                      if (taskStartDateStr === targetDateStr) {
-                          totalHours += parseFloat(task.estimatedHours) || 0;
-                      }
-                  }
-              }
-          }
-          return totalHours;
-        }
-
-        function splitTaskByHourLimit(baseTask, startDateStr, totalHoursToAllocate) {
-            const newTasks = [];
-            let remainingHours = totalHoursToAllocate;
-            let currentDate = new Date(startDateStr + 'T00:00:00'); // Ensure it's parsed as local time
-            if (isNaN(currentDate.getTime())) {
-                UI.showNotification("Data de início inválida.", "error");
-                return [];
-            }
-
-            globalEndDate = document.getElementById('endDate').value;
-            const baseTimestamp = Date.now();
-
-            console.log('✅ Deadline da tarefa capturada para consolidação:', globalEndDate);
-
-            while (remainingHours > 0) {
-                const currentDateStr = currentDate.toISOString().split('T')[0];
-                const allocatedHours = getDailyHoursForCollaborator(baseTask.responsible, currentDateStr, null);
-                const availableHours = Math.max(0, 8 - allocatedHours);
-
-                if (availableHours > 0) {
-                    const hoursForThisDay = Math.min(remainingHours, availableHours);
-
-                    const newTask = {
-                        ...baseTask,
-                        id: `new_${baseTimestamp}_${newTasks.length}`,
-                        startDate: currentDateStr,
-                        endDate: globalEndDate,
-                        estimatedHours: hoursForThisDay,
-                        actualHours: 0,
-                        deviation: -hoursForThisDay,
-                        completionDate: '',
-                    };
-
-                    newTasks.push(newTask);
-                    remainingHours -= hoursForThisDay;
-                }
-
-                currentDate.setDate(currentDate.getDate() + 1);
-
-                if (newTasks.length > 365) {
-                    console.error("Task splitting loop exceeded 365 iterations. Aborting.");
-                    UI.showNotification("Erro: Não foi possível alocar todas as horas da tarefa. Verifique a disponibilidade.", "error");
-                    return [];
-                }
-            }
-
-            console.log(`✅ ${newTasks.length} tarefas criadas. Período de trabalho: ${newTasks[0].startDate} até ${newTasks[newTasks.length - 1].startDate}. Deadline: ${globalEndDate}`);
-            return newTasks;
-        }
-        
-        function parseDate(dateString) {
-            if (!dateString || typeof dateString !== 'string') return null;
-            // Parse date without timezone manipulations
-            const parts = dateString.split('-');
-            return new Date(parts[0], parts[1] - 1, parts[2]);
-        }
-
-        // ===================================
-        // SETUP DOS EVENT LISTENERS
-        // ===================================
-        function setupEventListeners() {
-            document.getElementById('logoutButton').addEventListener('click', Auth.logout);
-            document.getElementById('sidebarToggle').addEventListener('click', UI.toggleSidebar);
-            if(document.getElementById('sidebarOverlay')) {
-                document.getElementById('sidebarOverlay').addEventListener('click', UI.toggleSidebar);
-            }
-            
-            document.getElementById('estimatedHours').addEventListener('input', calculateDeviation);
-            document.getElementById('actualHours').addEventListener('input', calculateDeviation);
-
-
-            document.getElementById('taskForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                if (!this.checkValidity()) {
-                    UI.showNotification('Por favor, preencha todos os campos obrigatórios.', 'warning');
-                    this.classList.add('was-validated');
-                    return;
-                }
-
-                const completionDateVal = document.getElementById('completionDate').value;
-                const startDateVal = document.getElementById('startDate').value;
-                if (completionDateVal && startDateVal && completionDateVal < startDateVal) {
-                    UI.showNotification('A "Data de Finalização" não pode ser anterior à "Data Início".', 'error');
-                    document.getElementById('completionDate').classList.add('is-invalid');
-                    return;
-                }
-                document.getElementById('completionDate').classList.remove('is-invalid');
-
-                const isEditing = !!editingTaskId;
-
-                if (isEditing) {
-                    const deviation = parseDecimalInput(document.getElementById('actualHours').value) - parseDecimalInput(document.getElementById('estimatedHours').value);
-                    const userData = Auth.getUserData();
-
-                    tempTasksData = [{
-                        id: editingTaskId,
-                        type: document.getElementById('taskType').value,
-                        description: document.getElementById('taskDescription').value,
-                        project: document.getElementById('project').value,
-                        client: document.getElementById('client').value,
-                        company: document.getElementById('company').value,
-                        responsible: document.getElementById('responsible').value,
-                        startDate: document.getElementById('startDate').value,
-                        endDate: document.getElementById('endDate').value,
-                        completionDate: completionDateVal,
-                        estimatedHours: parseDecimalInput(document.getElementById('estimatedHours').value),
-                        actualHours: parseDecimalInput(document.getElementById('actualHours').value),
-                        deviation: deviation,
-                        status: document.getElementById('status').value,
-                        modificadoPor: userData.nome,
-                        modificadoPorTipo: userData.tipo
-                    }];
-                } else {
-                    const commonTaskData = {
-                        type: document.getElementById('taskType').value,
-                        description: document.getElementById('taskDescription').value,
-                        project: document.getElementById('project').value,
-                        client: document.getElementById('client').value,
-                        company: document.getElementById('company').value,
-                        responsible: document.getElementById('responsible').value,
-                        status: 'NÃO INICIADO',
-                    };
-                    const estimatedHours = parseDecimalInput(document.getElementById('estimatedHours').value);
-
-                    console.log('🔢 Criando tarefas:', estimatedHours, 'horas para', commonTaskData.responsible);
-
-                    tempTasksData = splitTaskByHourLimit(commonTaskData, document.getElementById('startDate').value, estimatedHours);
-                }
-
-                if (!tempTasksData || tempTasksData.length === 0) {
-                    UI.showNotification('Não há horas disponíveis nas datas selecionadas para alocar a tarefa.', 'error');
-                    return;
-                }
-
-                console.log('📋 Criadas', tempTasksData.length, 'tarefas para exibição no modal');
-
-                fillConfirmationModal(tempTasksData);
-                new bootstrap.Modal(document.getElementById('confirmTaskModal')).show();
-            });
-
-            document.getElementById('clearFormBtn').addEventListener('click', clearForm);
-            document.getElementById('applyFiltersBtn').addEventListener('click', applyFilters);
-            document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
-            document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
-
-            $('#taskTableApproved').on('click', '.edit-btn', function() {
-                const taskId = $(this).data('id');
-                const taskToEdit = tasks.find(t => t.id == taskId);
-                if (taskToEdit) fillFormWithTask(taskToEdit);
-            });
-
-            $('#taskTableApproved').on('click', '.delete-btn', function() {
-                const taskId = $(this).data('id');
-                document.getElementById('confirmDeleteBtn').dataset.id = taskId;
-                new bootstrap.Modal(document.getElementById('deleteModal')).show();
-            });
-
-            $('#taskTableApproved').on('click', '.time-control-btn', function() {
-                const taskId = $(this).data('task-id');
-                openTimeControlModal(taskId);
-            });
-
-            $('#taskTableApproved').on('click', '.resume-truncated', function() {
-                const fullResume = $(this).data('full-resume');
-                showFullResume(fullResume);
-            });
-            
-            $('#taskTablePending').on('click', '.resume-truncated', function() {
-                const fullResume = $(this).data('full-resume');
-                showFullResume(fullResume);
-            });
-
-            document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
-                const taskId = this.dataset.id;
-                const webhookResult = await sendToWebhook({ id: taskId }, 'delete');
-
-                if (webhookResult.success) {
-                    tasks = tasks.filter(t => t.id != taskId);
-                    updateTaskTables();
-                    UI.showNotification(`✅ Tarefa ID ${taskId} excluída!`, 'success');
-                    await reloadTaskDataAfterOperation('exclusão');
-                } else {
-                    UI.showNotification(`❌ Falha ao excluir tarefa. ${webhookResult.error}: ${webhookResult.message}`, 'error');
-                }
-                bootstrap.Modal.getInstance(document.getElementById('deleteModal'))?.hide();
-            });
-            
-            document.getElementById('confirmTaskBtn').addEventListener('click', async function() {
-                bootstrap.Modal.getInstance(document.getElementById('confirmTaskModal'))?.hide();
-
-                const isEditing = !!editingTaskId;
-                const action = isEditing ? 'update' : 'create';
-                let webhookResult;
-
-                if (isEditing) {
-                    const taskToUpdate = tempTasksData[0];
-                    webhookResult = await sendToWebhook(taskToUpdate, action);
-
-                    if (webhookResult.success) {
-                        const index = tasks.findIndex(t => t.id == editingTaskId);
-                        if (index !== -1) {
-                            tasks[index] = taskToUpdate;
-                        }
-                        UI.showNotification(`✅ Tarefa atualizada com sucesso! Recarregando dados...`, 'success');
-                        await reloadTaskDataAfterOperation('atualização');
-                    } else {
-                        const errorMessage = `❌ Falha ao atualizar tarefa. ${webhookResult.error || ''}: ${webhookResult.message || ''}`;
-                        UI.showNotification(errorMessage, 'error', 10000);
-                    }
-                } else {
-                    console.log('📡 Enviando tarefa consolidada com detalhes baseada em', tempTasksData.length, 'divisões');
-
-                    const totalHours = tempTasksData.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
-                    const totalDeviation = -totalHours;
-                    const firstTaskDate = tempTasksData[0].startDate;
-                    const finalPeriodEndDate = tempTasksData[tempTasksData.length - 1].startDate;
-                    const userData = Auth.getUserData();
-
-                    const dailyBreakdown = tempTasksData.map(task => ({
-                        dataInicio: task.startDate,
-                        dataFinal: task.endDate,
-                        horasEstimadasInicio: task.estimatedHours,
-                        horasEstimadasFinal: task.estimatedHours
-                    }))
-                    .sort((a, b) => new Date(a.dataInicio) - new Date(b.dataInicio))
-                    .map(item => {
-                        if (new Date(item.dataFinal) < new Date(item.dataInicio)) {
-                            item.dataFinal = item.dataInicio;
-                        }
-                        return item;
-                    });
-
-                    const consolidatedTask = {
-                        type: document.getElementById('taskType').value,
-                        description: document.getElementById('taskDescription').value,
-                        project: document.getElementById('project').value,
-                        client: document.getElementById('client').value,
-                        company: document.getElementById('company').value,
-                        responsible: document.getElementById('responsible').value,
-                        status: 'NÃO INICIADO',
-                        aguadando_aprovacao: false,
-                        startDate: firstTaskDate,
-                        endDate: finalPeriodEndDate,
-                        estimatedHours: totalHours,
-                        actualHours: 0,
-                        deviation: totalDeviation,
-                        completionDate: '',
-                        id: `new_${Date.now()}_consolidated`,
-                        criadoPor: userData.nome,
-                        criadoPorTipo: userData.tipo,
-                        data: dailyBreakdown
-                    };
-
-                    console.log('📡 Tarefa consolidada com detalhes:', consolidatedTask);
-                    webhookResult = await sendToWebhook(consolidatedTask, action);
-
-                    if (webhookResult.success) {
-                        UI.showNotification(`✅ Tarefa consolidada adicionada com sucesso! Recarregando dados...`, 'success');
-                        await reloadTaskDataAfterOperation('adição');
-                    } else {
-                        const errorMessage = `❌ Falha ao adicionar tarefa consolidada. ${webhookResult.error || ''}`;
-                        UI.showNotification(errorMessage, 'error', 10000);
-                    }
-                }
-
-                clearForm();
-                tempTasksData = null;
-            });
-
-            document.getElementById('addNewTaskTypeBtn').addEventListener('click', () => {
-                new bootstrap.Modal(document.getElementById('newTaskTypeModal')).show();
-            });
-
-            document.getElementById('saveNewTaskTypeBtn').addEventListener('click', async () => {
-                const newTaskTypeName = document.getElementById('newTaskTypeName').value.toUpperCase().trim();
-                if (!newTaskTypeName) {
-                    UI.showNotification('O nome do tipo de tarefa não pode estar vazio.', 'warning');
-                    return;
-                }
-
-                const payload = {
-                    action: 'add_nova_tarefa',
-                    tipo_tarefa: newTaskTypeName
-                };
-
-                try {
-                    const response = await fetch(NEW_TASK_TYPE_POST_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        UI.showNotification('Novo tipo de tarefa adicionado com sucesso!', 'success');
-                        bootstrap.Modal.getInstance(document.getElementById('newTaskTypeModal')).hide();
-                        document.getElementById('newTaskTypeForm').reset();
-                        
-                        const newType = { tipo_tarefa: newTaskTypeName };
-                        taskTypes.push(newType);
-                        taskTypes.sort((a, b) => a.tipo_tarefa.localeCompare(b.tipo_tarefa));
-                        populateTaskTypeDropdowns();
-                        document.getElementById('taskType').value = newTaskTypeName;
-
-                    } else {
-                        const errorText = await response.text();
-                        UI.showNotification(`Erro ao salvar: ${errorText}`, 'error');
-                    }
-                } catch (error) {
-                    UI.showNotification(`Erro de rede: ${error.message}`, 'error');
-                }
-            });
-
-            document.getElementById('addNewClientBtn').addEventListener('click', () => {
-                new bootstrap.Modal(document.getElementById('newClientModal')).show();
-            });
-
-            document.getElementById('saveNewClientBtn').addEventListener('click', async () => {
-                const newClientName = document.getElementById('newClientName').value.toUpperCase().trim();
-                if (!newClientName) {
-                    UI.showNotification('O nome do cliente é obrigatório.', 'warning');
-                    return;
-                }
-
-                const payload = {
-                    action: 'add_cliente',
-                    nome: newClientName,
-                    cnpj: document.getElementById('newClientCnpj').value,
-                    email: document.getElementById('newClientEmail').value.toLowerCase(),
-                    telefone: document.getElementById('newClientPhone').value,
-                    ativo: document.getElementById('newClientActive').checked
-                };
-
-                try {
-                    const response = await fetch(NEW_CLIENT_POST_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (response.ok) {
-                        UI.showNotification('Novo cliente adicionado com sucesso!', 'success');
-                        bootstrap.Modal.getInstance(document.getElementById('newClientModal')).hide();
-                        document.getElementById('newClientForm').reset();
-                        
-                        const newClient = { nome: newClientName };
-                        clients.push(newClient);
-                        clients.sort((a, b) => a.nome.localeCompare(b.nome));
-                        populateClientDropdowns();
-                        document.getElementById('client').value = newClientName;
-
-                    } else {
-                        const errorText = await response.text();
-                        UI.showNotification(`Erro ao salvar cliente: ${errorText}`, 'error');
-                    }
-                } catch (error) {
-                    UI.showNotification(`Erro de rede: ${error.message}`, 'error');
-                }
-            });
-
-            window.addEventListener('resize', () => {
-                setTimeout(() => {
-                    try {
-                        if ($.fn.DataTable.isDataTable('#taskTableApproved') && $('#taskTableApproved').is(':visible')) {
-                             $('#taskTableApproved').DataTable().columns.adjust().responsive.recalc();
-                        }
-                        if ($.fn.DataTable.isDataTable('#taskTablePending') && $('#taskTablePending').is(':visible')) {
-                             $('#taskTablePending').DataTable().columns.adjust().responsive.recalc();
-                        }
-                    } catch(e) {
-                        console.error("Error recalculating datatable:", e);
-                    }
-                }, 300);
-            });
-            
-            document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
-                tab.addEventListener('shown.bs.tab', () => {
-                     try {
-                        if ($.fn.DataTable.isDataTable('#taskTableApproved')) {
-                            $('#taskTableApproved').DataTable().columns.adjust().responsive.recalc();
-                        }
-                         if ($.fn.DataTable.isDataTable('#taskTablePending')) {
-                            $('#taskTablePending').DataTable().columns.adjust().responsive.recalc();
-                        }
-                    } catch(e) {
-                        console.error("Error recalculating datatable on tab change:", e);
-                    }
-                });
-            });
-
-            document.getElementById('filterPendingStatus').addEventListener('change', () => {
-                updateTaskTables();
-            });
-
-            $('#taskTablePending').on('click', '.activate-btn', function() {
-                const taskId = $(this).data('id');
-                const task = tasks.find(t => t.id == taskId);
-                openApprovalActionModal(task);
-            });
-            
-            document.getElementById('showCancelReasonBtn').addEventListener('click', () => {
-                document.getElementById('initialButtons').style.display = 'none';
-                document.getElementById('cancelReasonSection').style.display = 'block';
-                document.getElementById('confirmCancelButtons').style.display = 'block';
-            });
-
-            document.getElementById('backToOptionsBtn').addEventListener('click', () => {
-                document.getElementById('initialButtons').style.display = 'block';
-                document.getElementById('cancelReasonSection').style.display = 'none';
-                document.getElementById('confirmCancelButtons').style.display = 'none';
-            });
-
-            document.getElementById('confirmApproveBtn').addEventListener('click', async function() {
-                const taskId = this.dataset.id;
-                const task = tasks.find(t => t.id == taskId);
-                const webhookResult = await sendToWebhook({ ...task, aguadando_aprovacao: true }, 'status_task_true');
-
-                 if (webhookResult.success) {
-                      UI.showNotification(`✅ Tarefa ID ${taskId} aprovada!`, 'success');
-                      await reloadTaskDataAfterOperation('aprovação');
-                 } else {
-                      UI.showNotification(`❌ Falha ao aprovar tarefa.`, 'error');
-                 }
-                 bootstrap.Modal.getInstance(document.getElementById('approvalActionModal')).hide();
-            });
-
-            document.getElementById('confirmCancelBtn').addEventListener('click', async function() {
-                const taskId = this.dataset.id;
-                const reason = document.getElementById('cancelReason').value;
-                if (!reason.trim()) {
-                    UI.showNotification('O motivo do cancelamento é obrigatório.', 'warning');
-                    return;
-                }
-
-                const task = tasks.find(t => t.id == taskId);
-                const payload = { ...task, aguadando_aprovacao: 'canceled', motivo_recusa: reason };
-                const webhookResult = await sendToWebhook(payload, 'status_task_false');
-
-                if (webhookResult.success) {
-                    UI.showNotification(`✅ Tarefa ID ${taskId} cancelada!`, 'success');
-                    await reloadTaskDataAfterOperation('cancelamento');
-                } else {
-                    UI.showNotification(`❌ Falha ao cancelar tarefa.`, 'error');
-                }
-                bootstrap.Modal.getInstance(document.getElementById('approvalActionModal')).hide();
-            });
-        }
-
-        function fillFormWithTask(task) {
-            editingTaskId = task.id;
-            document.getElementById('taskId').value = task.id;
-            document.getElementById('taskType').value = task.type;
-            document.getElementById('taskDescription').value = task.description;
-            document.getElementById('project').value = task.project;
-            document.getElementById('client').value = task.client || '';
-            document.getElementById('company').value = task.company || '';
-            document.getElementById('responsible').value = task.responsible;
-            document.getElementById('startDate').value = task.startDate;
-            document.getElementById('endDate').value = task.endDate;
-            document.getElementById('completionDate').value = task.completionDate || '';
-            document.getElementById('estimatedHours').value = formatDecimalOutput(task.estimatedHours);
-            document.getElementById('actualHours').value = formatDecimalOutput(task.actualHours);
-            document.getElementById('status').value = task.status;
-
-            document.getElementById('saveTaskBtn').innerHTML = '<i class="fas fa-save me-2"></i>Atualizar Tarefa';
-            document.getElementById('formTitle').textContent = 'Editando Tarefa ID: ' + task.id;
-
-            calculateDeviation();
-
-            const userData = Auth.getUserData();
-            const isColaborador = (userData?.tipo || 'colaborador') === 'colaborador';
-            
-            const fieldsToDisableForColaborador = {
-                taskType: true, taskDescription: true, project: true, client: true, company: true,
-                responsible: true, startDate: true, endDate: true, completionDate: false, 
-                estimatedHours: true, actualHours: false, deviation: true, status: false
-            };
-
-            for (const fieldId in fieldsToDisableForColaborador) {
-                const el = document.getElementById(fieldId);
-                if (el) {
-                    if (isColaborador) {
-                        el.disabled = fieldsToDisableForColaborador[fieldId];
-                    } else {
-                        el.disabled = (fieldId === 'deviation');
-                    }
-                }
-            }
-            document.getElementById('deviation').disabled = true;
-            
-            const formCollapseEl = document.getElementById('formCollapse');
-            const bsCollapse = bootstrap.Collapse.getOrCreateInstance(formCollapseEl);
-            bsCollapse.show();
-
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-
-        function fillConfirmationModal(tasksToConfirm) {
-            const isSingleTask = tasksToConfirm.length === 1;
-            const task = tasksToConfirm[0];
-
-            const modalTitle = document.getElementById('confirmTaskModalTitle');
-            const modalBody = document.querySelector('#confirmTaskModal .modal-body');
-            modalBody.innerHTML = '';
-
-            if (isSingleTask && editingTaskId) {
-                modalTitle.textContent = `Confirmar Edição da Tarefa ID: ${task.id}`;
-            } else if (isSingleTask) {
-                modalTitle.textContent = 'Confirmar Nova Tarefa';
-            } else {
-                modalTitle.textContent = `Confirmar Criação de Tarefa Consolidada`;
-            }
-
-            const commonInfoHtml = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6 class="text-primary">Informações Básicas</h6>
-                        <table class="table table-sm">
-                            <tr><td><strong>Tipo de Tarefa:</strong></td><td>${task.type || 'N/A'}</td></tr>
-                            <tr><td><strong>Descrição:</strong></td><td>${task.description || 'N/A'}</td></tr>
-                            <tr><td><strong>Projeto:</strong></td><td>${task.project || 'N/A'}</td></tr>
-                            <tr><td><strong>Cliente:</strong></td><td>${task.client || 'N/A'}</td></tr>
-                            <tr><td><strong>Empresa:</strong></td><td>${task.company || 'N/A'}</td></tr>
-                            <tr><td><strong>Responsável:</strong></td><td>${task.responsible || 'N/A'}</td></tr>
-                        </table>
-                    </div>
-                    <div class="col-md-6" id="details-container"></div>
-                </div>`;
-            modalBody.insertAdjacentHTML('beforeend', commonInfoHtml);
-
-            const detailsContainer = modalBody.querySelector('#details-container');
-
-            if (isSingleTask) {
-                const deviation = (task.actualHours || 0) - (task.estimatedHours || 0);
-                const statusClass = `status-${(task.status || '').toLowerCase().replace(/\s+/g, '-').replace(/ã|ú|í/g, a => ({'ã':'a', 'ú':'u'}[a]))}`;
-                detailsContainer.innerHTML = `
-                    <h6 class="text-primary">Prazos e Horas</h6>
-                    <table class="table table-sm">
-                        <tr><td><strong>Data Início:</strong></td><td>${formatDate(task.startDate)}</td></tr>
-                        <tr><td><strong>Data Final:</strong></td><td>${formatDate(task.endDate)}</td></tr>
-                        <tr><td><strong>Data Finalizada:</strong></td><td>${formatDate(task.completionDate)}</td></tr>
-                        <tr><td><strong>Horas Estimadas:</strong></td><td>${formatDecimalOutput(task.estimatedHours)}</td></tr>
-                        <tr><td><strong>Horas Realizadas:</strong></td><td>${formatDecimalOutput(task.actualHours)}</td></tr>
-                        <tr><td><strong>Desvio (Horas):</strong></td><td>${formatDecimalOutput(deviation)}</td></tr>
-                        <tr><td><strong>Situação:</strong></td><td><span class="badge ${statusClass}">${task.status}</span></td></tr>
-                    </table>`;
-            } else {
-                const firstDate = tasksToConfirm[0].startDate;
-                const lastDate = tasksToConfirm[tasksToConfirm.length - 1].startDate;
-                const totalHours = tasksToConfirm.reduce((sum, t) => sum + t.estimatedHours, 0);
-                const totalDeviation = -totalHours;
-
-                let splitTableHtml = `
-                    <h6 class="text-primary">Tarefas a Serem Criadas (Detalhes)</h6>
-                    <div class="alert alert-info mb-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Informação:</strong> Será enviada uma única tarefa consolidada abrangendo todo o período.
-                    </div>
-                    <div style="max-height: 200px; overflow-y: auto;">
-                        <table class="table table-sm table-striped">
-                            <thead><tr><th>Data Início</th><th>Horas Estimadas</th></tr></thead>
-                            <tbody>`;
-                tasksToConfirm.forEach(splitTask => {
-                    splitTableHtml += `<tr><td>${formatDate(splitTask.startDate)}</td><td>${formatDecimalOutput(splitTask.estimatedHours)}</td></tr>`;
-                });
-
-                splitTableHtml += `</tbody></table></div>
-                                <div class="alert alert-success mb-2">
-                                    <strong>Tarefa Consolidada a ser enviada:</strong><br>
-                                    <strong>Período:</strong> ${formatDate(firstDate)} até ${formatDate(lastDate)}<br>
-                                    <strong>Total de Horas:</strong> ${formatDecimalOutput(totalHours)}<br>
-                                    <strong>Desvio (Horas):</strong> ${formatDecimalOutput(totalDeviation)}
-                                </div>`;
-                detailsContainer.innerHTML = splitTableHtml;
-            }
-        }
-        
-        function getFilteredTasks() {
-            const responsible = document.getElementById('filterResponsible').value;
-            const project = document.getElementById('filterProject').value;
-            const client = document.getElementById('filterClient').value;
-            const company = document.getElementById('filterCompany').value;
-            const status = document.getElementById('filterStatus').value;
-            const type = document.getElementById('filterTaskType').value;
-            const startDate = document.getElementById('filterStartDate').value;
-            const endDate = document.getElementById('filterEndDate').value;
-
-            const approvedTasks = tasks.filter(t => t.aguadando_aprovacao === null || t.aguadando_aprovacao === true || t.aguadando_aprovacao === 'true');
-
-            return approvedTasks.filter(task => {
-                const matchesResponsible = !responsible || task.responsible === responsible;
-                const matchesProject = !project || task.project === project;
-                const matchesClient = !client || task.client === client;
-                const matchesCompany = !company || task.company === company;
-                const matchesStatus = !status || task.status === status;
-                const matchesType = !type || task.type === type;
-
-                let matchesDateRange = true;
-                if (startDate || endDate) {
-                    if (!task.startDate) {
-                        matchesDateRange = false;
-                    } else {
-                        const taskDateStr = task.startDate.split('T')[0];
-                        if (startDate && taskDateStr < startDate) {
-                            matchesDateRange = false;
-                        }
-                        if (endDate && taskDateStr > endDate) {
-                            matchesDateRange = false;
-                        }
-                    }
-                }
-
-                return matchesResponsible && matchesProject && matchesClient &&
-                        matchesCompany && matchesStatus && matchesType && matchesDateRange;
-            });
-        }
-
-        function applyFilters() {
-            const filteredTasks = getFilteredTasks();
-            updateApprovedTaskTable(filteredTasks);
-            UI.showNotification(`🔍 ${filteredTasks.length} tarefas encontradas.`, 'info');
-        }
-
-        function clearFilters() {
-            document.querySelectorAll('#filtersCollapse select, #filtersCollapse input').forEach(el => el.value = '');
-            updateTaskTables();
-            UI.showNotification('✅ Filtros limpos.', 'success');
-        }
-
-        function exportToExcel() {
-            const hasFilters = !!(document.getElementById('filterResponsible').value ||
-                                  document.getElementById('filterProject').value ||
-                                  document.getElementById('filterClient').value ||
-                                  document.getElementById('filterCompany').value ||
-                                  document.getElementById('filterStatus').value ||
-                                  document.getElementById('filterTaskType').value ||
-                                  document.getElementById('filterStartDate').value ||
-                                  document.getElementById('filterEndDate').value);
-
-            const tasksForExport = hasFilters ? getFilteredTasks() : tasks.filter(t => t.aguadando_aprovacao === null || t.aguadando_aprovacao === true || t.aguadando_aprovacao === 'true');
-
-            if (tasksForExport.length === 0) {
-                UI.showNotification('⚠️ Nenhuma tarefa para exportar com os filtros atuais.', 'warning');
-                return;
-            }
-
-            const dataToExport = tasksForExport.map(task => ({
-                'ID': task.id || '',
-                'Tipo de Tarefa': task.type || '',
-                'Resumo': task.description || '',
-                'Projeto': task.project || '',
-                'Cliente': task.client || '',
-                'Empresa': task.company || '',
-                'Responsável': task.responsible || '',
-                'Data Início': formatDate(task.startDate),
-                'Data Final': formatDate(task.endDate),
-                'Data Finalizada': formatDate(task.completionDate),
-                'Estimativa (h)': formatDecimalOutput(task.estimatedHours),
-                'Realizado (h)': formatDecimalOutput(task.actualHours),
-                'Desvio (h)': formatDecimalOutput((task.actualHours || 0) - (task.estimatedHours || 0)),
-                'Situação': task.status || ''
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Tarefas");
-
-            const fileName = hasFilters ? "Tarefas_Filtradas_ResolvTask.xlsx" : "Todas_Tarefas_ResolvTask.xlsx";
-            XLSX.writeFile(workbook, fileName);
-
-            UI.showNotification(`✅ ${dataToExport.length} tarefa(s) exportada(s) para Excel.`, 'success');
-        }
-        
-        async function reloadTaskDataAfterOperation(operation = 'atualização') {
-            try {
-                console.log(`🔄 Iniciando recarregamento de dados após ${operation}...`);
-                UI.showNotification(`🔄 Recarregando dados após ${operation}...`, 'info', 2000);
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                console.log('📋 Recarregando lista de tarefas...');
-                await loadTasks();
-                console.log('⏰ Recarregando status de controle de horas...');
-                await loadAllTimeEntriesAndApplyStatus();
-                console.log(`✅ Recarregamento completo após ${operation} finalizado.`);
-                UI.showNotification(`✅ Dados atualizados com sucesso após ${operation}!`, 'success');
-            } catch (error) {
-                console.error(`❌ Erro durante recarregamento após ${operation}:`, error);
-                UI.showNotification(`⚠️ Erro ao recarregar dados após ${operation}. Tente atualizar a página.`, 'warning');
-            }
-        }
-
-        function openApprovalActionModal(task) {
-            const modalBody = document.getElementById('approvalTaskDetails');
-            modalBody.innerHTML = `
-                <p><strong>ID:</strong> ${task.id}</p>
-                <p><strong>Descrição:</strong> ${task.description}</p>
-                <p><strong>Responsável:</strong> ${task.responsible}</p>
-                <p><strong>Projeto:</strong> ${task.project}</p>
-            `;
-            
-            document.getElementById('cancelReason').value = '';
-            document.getElementById('initialButtons').style.display = 'block';
-            document.getElementById('cancelReasonSection').style.display = 'none';
-            document.getElementById('confirmCancelButtons').style.display = 'none';
-
-            document.getElementById('confirmApproveBtn').dataset.id = task.id;
-            document.getElementById('confirmCancelBtn').dataset.id = task.id;
-
-            new bootstrap.Modal(document.getElementById('approvalActionModal')).show();
-        }
-
-        function setupTimeControlListeners() {
-            const timeControlModalEl = document.getElementById('timeControlModal');
-            const manualTimeModal = new bootstrap.Modal(document.getElementById('manualTimeModal'));
-            const confirmationModal = new bootstrap.Modal(document.getElementById('timeConfirmationModal'));
-            const observationSection = document.getElementById('timeControlObservationSection');
-            const observationInput = document.getElementById('timeControlObservation');
-
-            // Estado para a ação de confirmação
-            let _pendingAction = null;
-
-            document.body.addEventListener('click', async (event) => {
-                const target = event.target.closest('button');
-                if (!target) return;
-
-                const taskId = target.dataset.taskId;
-
-                // Função para mostrar modal de confirmação
-                const showConfirmationModal = (actionType, message) => {
-                    document.getElementById('timeConfirmationMessage').textContent = message;
-                    _pendingAction = { type: actionType, taskId: taskId };
-                    confirmationModal.show();
-                };
-
-                if (target.id === 'startAutomaticBtn') {
-                    if (!observationInput.value.trim()) {
-                        UI.showNotification('A observação é obrigatória para iniciar a tarefa.', 'warning');
-                        observationInput.focus();
-                        return;
-                    }
-                    showConfirmationModal('startAutomatic', 'Iniciar automaticamente o controle de horas para esta tarefa?');
-                } 
-                else if (target.id === 'startManualBtn') {
-                    if (!observationInput.value.trim()) {
-                        UI.showNotification('A observação é obrigatória para iniciar um registro manual.', 'warning');
-                        observationInput.focus();
-                        return;
-                    }
-                    showConfirmationModal('startManual', 'Iniciar manualmente o controle de horas para esta tarefa?');
-                }
-                else if (target.id === 'stopAutomaticBtn') {
-                    showConfirmationModal('stopAutomatic', 'Finalizar automaticamente o controle de horas para esta tarefa?');
-                } 
-                else if (target.id === 'stopManualBtn') {
-                    showConfirmationModal('stopManual', 'Finalizar manualmente o controle de horas para esta tarefa?');
-                }
-            });
-
-            // Event listener do botão de confirmação
-            document.getElementById('confirmTimeActionBtn').addEventListener('click', async () => {
-                if (!_pendingAction) return;
-
-                confirmationModal.hide();
-
-                const { type, taskId } = _pendingAction;
-                _pendingAction = null;
-
-                switch (type) {
-                    case 'startAutomatic':
-                        await sendTimeEntryUpdate('start', taskId, observationInput.value, null);
-                        break;
-                    case 'startManual':
-                        _timeControlState.action = 'start';
-                        _timeControlState.taskId = taskId;
-                        document.getElementById('manualTimeModalTitle').textContent = 'Inserir Horário de Início Manual';
-                        manualTimeModal.show();
-                        break;
-                    case 'stopAutomatic':
-                        await sendTimeEntryUpdate('stop', taskId, observationInput.value || "", null);
-                        break;
-                    case 'stopManual':
-                        _timeControlState.action = 'stop';
-                        _timeControlState.taskId = taskId;
-                        document.getElementById('manualTimeModalTitle').textContent = 'Inserir Horário de Fim Manual';
-                        manualTimeModal.show();
-                        break;
-                }
-            });
-
-            document.getElementById('confirmManualTimeBtn').addEventListener('click', async () => {
-                const manualDateTimeInput = document.getElementById('manualDateTimeInput');
-                if (!manualDateTimeInput.value) {
-                    UI.showNotification('Por favor, insira data e hora.', 'warning');
-                    return;
-                }
-                const manualTimestamp = manualDateTimeInput.value;
-                manualTimeModal.hide();
-                
-                const observation = document.getElementById('timeControlObservation').value;
-                
-                await sendTimeEntryUpdate(_timeControlState.action, _timeControlState.taskId, observation, manualTimestamp);
-            });
-            
-            if (timeControlModalEl) {
-                timeControlModalEl.addEventListener('hidden.bs.modal', () => {
-                    console.log('Modal de horas fechado, atualizando a lista de tarefas.');
-                    reloadTaskDataAfterOperation('fechamento do modal');
-                });
-            }
-        }
-
-
-        // ===================================
-        // INICIALIZAÇÃO DA APLICAÇÃO
-        // ===================================
-        const App = {
-            initialize: async () => {
-                console.log('🚀 Iniciando ResolvTask Dashboard...');
-                if (!Auth.checkAuth()) {
-                    Auth.redirectToLogin();
-                    return;
-                }
-
-                UI.showAuthenticatedInterface();
-                UI.updateUserInfo();
-                UI.applyUIPermissions();
-
-                await initializeApplication();
-                setupEventListeners();
-                setupTimeControlListeners();
-                
-                const timeControlModalEl = document.getElementById('timeControlModal');
-                if (timeControlModalEl) {
-                    timeControlModalEl.addEventListener('hidden.bs.modal', () => {
-                        console.log('Modal de horas fechado, atualizando a lista de tarefas.');
-                        reloadTaskDataAfterOperation('fechamento do modal');
-                    });
-                }
-            }
-        };
-
-        await App.initialize();
+    // Sidebar toggle
+    document.getElementById('sidebarToggle').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('show');
     });
+    
+    // Buttons
+    document.getElementById('btnNovoFluxo').addEventListener('click', openNovoFluxoModal);
+    document.getElementById('btnAdicionarColuna').addEventListener('click', openAdicionarColunaModal);
+    document.getElementById('btnAdicionarLinha').addEventListener('click', openAdicionarLinhaModal);
+    document.getElementById('btnSalvarFluxo').addEventListener('click', salvarNovoFluxo);
+    document.getElementById('btnSalvarColuna').addEventListener('click', salvarNovaColuna);
+    document.getElementById('btnSalvarLinha').addEventListener('click', salvarLinha);
+    
+    // Filters
+    document.getElementById('filterForm').addEventListener('submit', handleFilter);
+    document.getElementById('btnLimparFiltros').addEventListener('click', limparFiltros);
+    document.getElementById('filterTabela').addEventListener('change', (e) => {
+        currentTable = e.target.value;
+        loadData();
+    });
+}
+
+// ===================================
+// LOGIN
+// ===================================
+
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const loginButton = document.getElementById('loginButton');
+    const spinner = loginButton.querySelector('.spinner-border');
+    const errorDiv = document.getElementById('loginError');
+
+    if (!email || !password) {
+        showNotification('Por favor, preencha e-mail e senha.', 'warning');
+        return;
+    }
+
+    loginButton.disabled = true;
+    spinner.classList.remove('d-none');
+    errorDiv.style.display = 'none';
+
+    try {
+        const response = await fetch(WEBHOOK_AUTHENTICATE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, senha: password })
+        });
+
+        const responseText = await response.text();
+
+        if (!response.ok) {
+            throw new Error(responseText || 'Credenciais inválidas ou erro no servidor.');
+        }
+
+        let userDataString = null;
+
+        try {
+            const result = JSON.parse(responseText);
+            if (Array.isArray(result) && result.length > 0 && result[0].data) {
+                userDataString = result[0].data;
+            }
+        } catch (jsonError) {
+            console.log("A resposta não é JSON. Tratando como texto simples:", responseText);
+        }
+        
+        if (userDataString === null && responseText.includes('Status:')) {
+            userDataString = responseText;
+        }
+
+        if (userDataString) {
+            const parsedData = parseUserData(userDataString);
+
+            if (parsedData.Status === 'True') {
+                saveUserSession(email, parsedData);
+                showNotification('Login bem-sucedido! Redirecionando...', 'success');
+                
+                setTimeout(() => { 
+                    showDashboard();
+                }, 1500);
+
+            } else {
+                showNotification('E-mail ou senha incorretos.', 'danger');
+            }
+        } else {
+            console.error("Formato de resposta do servidor inválido:", responseText);
+            throw new Error("Formato de resposta do servidor inválido.");
+        }
+        
+    } catch (error) {
+        console.error('Erro durante o login:', error);
+        errorDiv.textContent = error.message || 'Ocorreu um erro ao tentar fazer login.';
+        errorDiv.style.display = 'block';
+    } finally {
+        loginButton.disabled = false;
+        spinner.classList.add('d-none');
+    }
+}
+
+function parseUserData(dataString) {
+    const userData = {};
+    const pairs = dataString.split(/,\s*/);
+    pairs.forEach(pair => {
+        const delimiterIndex = pair.indexOf(':');
+        if (delimiterIndex > -1) {
+            const key = pair.substring(0, delimiterIndex).trim();
+            const value = pair.substring(delimiterIndex + 1).trim();
+            userData[key] = value;
+        }
+    });
+    return userData;
+}
+
+function saveUserSession(email, userData) {
+    const sessionToken = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    const sessionData = {
+        email: email,
+        nome: userData.Nome || email.split('@')[0],
+        tipo: userData.Tipo || 'colaborador',
+        loginTime: new Date().toISOString(),
+        token: sessionToken
+    };
+    
+    localStorage.clear();
+    localStorage.setItem('authToken', sessionToken);
+    localStorage.setItem('userSession', JSON.stringify(sessionData));
+    localStorage.setItem('loggedInUserEmail', email);
+    localStorage.setItem('loggedInUserName', sessionData.nome);
+    localStorage.setItem('loggedInUserTipo', sessionData.tipo);
+    
+    currentUser = sessionData;
+}
+
+function handleLogout(e) {
+    e.preventDefault();
+    localStorage.clear();
+    currentUser = null;
+    showLogin();
+}
+
+// ===================================
+// NOTIFICAÇÕES
+// ===================================
+
+function showNotification(message, type = 'success') {
+    const notificationArea = document.getElementById('notificationArea');
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.role = 'alert';
+    alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+    notificationArea.appendChild(alertDiv);
+    
+    setTimeout(() => {
+        const alertInstance = bootstrap.Alert.getOrCreateInstance(alertDiv);
+        if (alertInstance) { 
+            alertInstance.close(); 
+        }
+    }, 5000);
+}
+
+// ===================================
+// CARREGAR DADOS
+// ===================================
+
+async function loadData() {
+    const loading = document.getElementById('dataLoading');
+    const dataGrid = document.getElementById('dataGrid');
+    const emptyState = document.getElementById('emptyState');
+    
+    loading.style.display = 'flex';
+    dataGrid.style.display = 'none';
+    emptyState.style.display = 'none';
+    
+    try {
+        if (!supabaseClient) {
+            // Demo mode
+            currentData = generateSampleData();
+        } else {
+            const { data, error } = await supabaseClient
+                .from(currentTable)
+                .select('*')
+                .order('id', { ascending: false })
+                .limit(100);
+            
+            if (error) throw error;
+            currentData = data || [];
+        }
+        
+        renderDataTable(currentData);
+        await loadFluxos();
+        
+        if (currentData.length === 0) {
+            emptyState.style.display = 'block';
+        } else {
+            dataGrid.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading data:', error);
+        showNotification('Erro ao carregar dados: ' + error.message, 'danger');
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+async function loadStats() {
+    try {
+        if (supabaseClient) {
+            const [fluxos, fase1, dw] = await Promise.all([
+                supabaseClient.from('fluxo_lab3d').select('id', { count: 'exact', head: true }),
+                supabaseClient.from('lab3d_fase_1').select('id', { count: 'exact', head: true }),
+                supabaseClient.from('lab3d_dw').select('id', { count: 'exact', head: true })
+            ]);
+            
+            document.getElementById('totalFluxos').textContent = fluxos.count || 0;
+            document.getElementById('totalFase1').textContent = fase1.count || 0;
+            document.getElementById('totalDW').textContent = dw.count || 0;
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+function generateSampleData() {
+    const samples = [];
+    for (let i = 1; i <= 5; i++) {
+        if (currentTable === 'lab3d_fase_1') {
+            samples.push({
+                id: i,
+                customer_id: `CX00${i}`,
+                atividade_evento: `Desenvolvimento de ações voltadas para CX e IM ${i}`,
+                origem_o: `Formulário Google, Zendesk, Rede Wilson ${i}`,
+                drive_origem: `Google Drive CX/IM ${i}`,
+                guarda_g: `Zendesk, Rede Wilson ${i}`,
+                drive_guarda: `Google Drive - Pasta CX ${i}`,
+                transformacao_t: `Elaboração de Treinamentos e Indicadores ${i}`,
+                drive_transformacao: `Google Drive Apresentações ${i}`,
+                consumo_c: `Times Wilson, Time Qualidade ${i}`,
+                drive_consumo: `Zendesk Tickets ${i}`,
+                drive_evidencias: `Rede Wilson Evidências ${i}`,
+                created_at: new Date().toISOString()
+            });
+        } else {
+            samples.push({
+                id: i,
+                customer_id: `DW00${i}`,
+                sistema_origem: i % 2 === 0 ? 'TECON' : 'SISTEMA_ORIGEM',
+                sistema_destino: i % 2 === 0 ? 'ADMBILOG' : 'SISTEMA_DESTINO',
+                tipo: i % 3 === 0 ? 'Dimensão' : 'Fato',
+                nome_tabela: `Tabela Exemplo ${i}`,
+                origem_informacao: i % 2 === 0 ? 'Faturamento' : 'Operacional',
+                periodicidade: i % 2 === 0 ? 'Diária' : 'Mensal',
+                metodo_de_carga: 'Windows Services / .NET',
+                criterio: i % 2 === 0 ? 'Full' : 'Incremental',
+                objetos_colunas_origem: `ORIGEM.VW_TABELA_${i}[ID, DESCRICAO]`,
+                objeto_destino: `DESTINO.DIM_TABELA_${i}[ID, NOME]`,
+                transformacao: i % 3 === 0 ? 'Sim' : 'Não',
+                area: 'TI',
+                responsavel: `Responsável ${i}`,
+                registros: 100 * i + 75,
+                tamanho: `${i * 10 + 5} KB`,
+                funcao: `Armazenar dados de ${i % 2 === 0 ? 'dimensão' : 'fato'}`,
+                pre_requisitos: `Conexão com sistema ${i}`,
+                area_2: `Área Operacional ${i}`,
+                camadas_acesso_seguranca: `Nível ${i}`,
+                created_at: new Date().toISOString()
+            });
+        }
+    }
+    return samples;
+}
+
+// ===================================
+// RENDERIZAR TABELA
+// ===================================
+
+function renderDataTable(data) {
+    const tableHeaders = document.getElementById('tableHeaders');
+    const tableBody = document.getElementById('tableBody');
+    
+    tableHeaders.innerHTML = '';
+    tableBody.innerHTML = '';
+    
+    if (data.length === 0) return;
+    
+    const firstRow = data[0];
+    const columns = Object.keys(firstRow).filter(key => typeof firstRow[key] !== 'object');
+    
+    const headerRow = document.createElement('tr');
+    columns.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = formatColumnName(col);
+        headerRow.appendChild(th);
+    });
+    
+    const actionTh = document.createElement('th');
+    actionTh.textContent = 'Ações';
+    actionTh.style.width = '120px';
+    headerRow.appendChild(actionTh);
+    
+    tableHeaders.appendChild(headerRow);
+    
+    data.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        columns.forEach(col => {
+            const td = document.createElement('td');
+            td.textContent = row[col] || '-';
+            tr.appendChild(td);
+        });
+        
+        const actionTd = document.createElement('td');
+        actionTd.innerHTML = `
+            <button class="btn btn-sm btn-info" onclick="openDiagramaModal('${row.customer_id}')" title="Ver Diagrama">
+                <i class="fas fa-diagram-project"></i>
+            </button>
+        `;
+        tr.appendChild(actionTd);
+        
+        tableBody.appendChild(tr);
+    });
+}
+
+function formatColumnName(name) {
+    return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// ===================================
+// FLUXOS
+// ===================================
+
+async function loadFluxos() {
+    try {
+        if (!supabaseClient) {
+            fluxosList = [
+                { id: '1', nome_fluxo: 'Fluxo Demo 1' },
+                { id: '2', nome_fluxo: 'Fluxo Demo 2' }
+            ];
+        } else {
+            const { data, error } = await supabaseClient
+                .from('fluxo_lab3d')
+                .select('id, nome_fluxo')
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            fluxosList = data || [];
+        }
+        
+        const filterFluxo = document.getElementById('filterFluxo');
+        filterFluxo.innerHTML = '<option value="">Todos</option>';
+        fluxosList.forEach(fluxo => {
+            const option = document.createElement('option');
+            option.value = fluxo.id;
+            option.textContent = fluxo.nome_fluxo;
+            filterFluxo.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading fluxos:', error);
+    }
+}
+
+async function openNovoFluxoModal() {
+    const modal = new bootstrap.Modal(document.getElementById('modalNovoFluxo'));
+    
+    const selectCliente = document.getElementById('selectCliente');
+    const selectEmpresa = document.getElementById('selectEmpresa');
+    
+    selectCliente.innerHTML = '<option value="">Carregando...</option>';
+    selectEmpresa.innerHTML = '<option value="">Carregando...</option>';
+    
+    modal.show();
+    
+    try {
+        // Carregar clientes do n8n
+        const clientesResponse = await fetch(WEBHOOK_CLIENTES_URL);
+        const clientesData = await clientesResponse.json();
+        
+        selectCliente.innerHTML = '<option value="">Selecione...</option>';
+        clientesData.forEach(cliente => {
+            selectCliente.innerHTML += `<option value="${cliente.id}">${cliente.nome}</option>`;
+        });
+        
+        // Carregar empresas do n8n
+        const empresasResponse = await fetch(WEBHOOK_EMPRESAS_URL);
+        const empresasData = await empresasResponse.json();
+        
+        selectEmpresa.innerHTML = '<option value="">Selecione...</option>';
+        empresasData.forEach(empresa => {
+            selectEmpresa.innerHTML += `<option value="${empresa.id}">${empresa.razao_social}</option>`;
+        });
+    } catch (error) {
+        console.error('Error loading dropdown data:', error);
+        showNotification('Erro ao carregar clientes e empresas', 'danger');
+    }
+}
+
+async function salvarNovoFluxo() {
+    const nomeFluxo = document.getElementById('nomeFluxo').value;
+    const idCliente = document.getElementById('selectCliente').value;
+    const idEmpresa = document.getElementById('selectEmpresa').value;
+    
+    if (!nomeFluxo || !idCliente || !idEmpresa) {
+        showNotification('Por favor, preencha todos os campos', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(WEBHOOK_CRIAR_FLUXO_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                nome_fluxo: nomeFluxo,
+                id_cliente: parseInt(idCliente),
+                id_empresa_prestadora: parseInt(idEmpresa),
+                id_colaborador_criador: currentUser.email
+            })
+        });
+        
+        if (!response.ok) throw new Error('Erro ao criar fluxo');
+        
+        showNotification('Fluxo criado com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('modalNovoFluxo')).hide();
+        document.getElementById('formNovoFluxo').reset();
+        loadFluxos();
+        loadStats();
+    } catch (error) {
+        console.error('Error creating fluxo:', error);
+        showNotification('Erro ao criar fluxo: ' + error.message, 'danger');
+    }
+}
+
+// ===================================
+// ADICIONAR COLUNA
+// ===================================
+
+function openAdicionarColunaModal() {
+    const modal = new bootstrap.Modal(document.getElementById('modalAdicionarColuna'));
+    document.getElementById('selectTabelaColuna').value = currentTable;
+    modal.show();
+}
+
+async function salvarNovaColuna() {
+    const tabela = document.getElementById('selectTabelaColuna').value;
+    const nomeColuna = document.getElementById('nomeColuna').value;
+    const tipoColuna = document.getElementById('tipoColuna').value;
+    
+    if (!nomeColuna || !tipoColuna) {
+        showNotification('Por favor, preencha todos os campos', 'warning');
+        return;
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(nomeColuna)) {
+        showNotification('Nome da coluna inválido. Use apenas letras, números e underscores.', 'danger');
+        return;
+    }
+    
+    try {
+        if (supabaseClient) {
+            const { data, error } = await supabaseClient
+                .rpc('add_column_secure', {
+                    target_table_name: tabela,
+                    new_column_name: nomeColuna,
+                    column_type: tipoColuna
+                });
+            
+            if (error) throw error;
+        }
+        
+        showNotification('Coluna adicionada com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('modalAdicionarColuna')).hide();
+        document.getElementById('formAdicionarColuna').reset();
+        loadData();
+    } catch (error) {
+        console.error('Error adding column:', error);
+        showNotification('Erro ao adicionar coluna: ' + error.message, 'danger');
+    }
+}
+
+// ===================================
+// ADICIONAR LINHA
+// ===================================
+
+function openAdicionarLinhaModal() {
+    const modal = new bootstrap.Modal(document.getElementById('modalEditarLinha'));
+    document.getElementById('modalEditarLinhaTitle').innerHTML = '<i class="fas fa-plus me-2"></i>Adicionar Nova Linha';
+    
+    const form = document.getElementById('formEditarLinha');
+    form.innerHTML = '';
+    
+    if (currentData.length > 0) {
+        const firstRow = currentData[0];
+        const columns = Object.keys(firstRow).filter(key => 
+            key !== 'id' && typeof firstRow[key] !== 'object'
+        );
+        
+        columns.forEach(col => {
+            const div = document.createElement('div');
+            div.className = 'mb-3';
+            div.innerHTML = `
+                <label for="field_${col}" class="form-label">${formatColumnName(col)}</label>
+                <input type="text" class="form-control" id="field_${col}" name="${col}">
+            `;
+            form.appendChild(div);
+        });
+    } else {
+        form.innerHTML = '<p>Carregue dados primeiro para ver a estrutura da tabela</p>';
+    }
+    
+    modal.show();
+}
+
+async function salvarLinha() {
+    const form = document.getElementById('formEditarLinha');
+    const formData = new FormData(form);
+    const rowData = {};
+    
+    for (let [key, value] of formData.entries()) {
+        rowData[key] = value;
+    }
+    
+    try {
+        if (supabaseClient) {
+            const { data, error } = await supabaseClient
+                .from(currentTable)
+                .insert([rowData]);
+            
+            if (error) throw error;
+        }
+        
+        showNotification('Linha adicionada com sucesso!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('modalEditarLinha')).hide();
+        loadData();
+        loadStats();
+    } catch (error) {
+        console.error('Error saving row:', error);
+        showNotification('Erro ao salvar linha: ' + error.message, 'danger');
+    }
+}
+
+// ===================================
+// DIAGRAMA
+// ===================================
+
+async function openDiagramaModal(customerId) {
+    const modal = new bootstrap.Modal(document.getElementById('modalDiagrama'));
+    const content = document.getElementById('diagramaContent');
+    
+    content.innerHTML = '<div class="loading"><div class="spinner"></div><p class="mt-2">Carregando diagrama...</p></div>';
+    modal.show();
+    
+    try {
+        let fase1Data = [];
+        let dwData = [];
+        
+        if (!supabaseClient) {
+            fase1Data = currentData.filter(d => d.customer_id === customerId);
+        } else {
+            const [fase1, dw] = await Promise.all([
+                supabaseClient.from('lab3d_fase_1').select('*').eq('customer_id', customerId),
+                supabaseClient.from('lab3d_dw').select('*').eq('customer_id', customerId)
+            ]);
+            
+            fase1Data = fase1.data || [];
+            dwData = dw.data || [];
+        }
+        
+        content.innerHTML = `
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                <h5 style="color: #0d6efd; margin-bottom: 15px;"><i class="fas fa-info-circle me-2"></i>Informações</h5>
+                <p><strong>Customer ID:</strong> ${customerId}</p>
+            </div>
+            
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
+                <h5 style="color: #0d6efd; margin-bottom: 15px;"><i class="fas fa-database me-2"></i>Dados - Fase 1 (${fase1Data.length} registros)</h5>
+                ${renderDiagramTable(fase1Data)}
+            </div>
+            
+            <div style="background: #f8f9fa; border-radius: 8px; padding: 15px;">
+                <h5 style="color: #0d6efd; margin-bottom: 15px;"><i class="fas fa-database me-2"></i>Dados - DW (${dwData.length} registros)</h5>
+                ${renderDiagramTable(dwData)}
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading diagram:', error);
+        content.innerHTML = `<div class="alert alert-danger">Erro ao carregar diagrama: ${error.message}</div>`;
+    }
+}
+
+function renderDiagramTable(data) {
+    if (data.length === 0) {
+        return '<p class="text-muted">Nenhum dado encontrado</p>';
+    }
+    
+    const columns = Object.keys(data[0]).filter(key => key !== 'id' && typeof data[0][key] !== 'object');
+    
+    let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
+    html += '<thead><tr>';
+    columns.forEach(col => {
+        html += `<th>${formatColumnName(col)}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+    
+    data.forEach(row => {
+        html += '<tr>';
+        columns.forEach(col => {
+            html += `<td>${row[col] || '-'}</td>`;
+        });
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    return html;
+}
+
+// ===================================
+// FILTROS
+// ===================================
+
+async function handleFilter(e) {
+    e.preventDefault();
+    
+    const customerId = document.getElementById('filterCustomerId').value;
+    const fluxoId = document.getElementById('filterFluxo').value;
+    
+    const loading = document.getElementById('dataLoading');
+    loading.style.display = 'flex';
+    
+    try {
+        if (!supabaseClient) {
+            // Demo mode
+            currentData = generateSampleData().filter(d => {
+                if (customerId && d.customer_id !== customerId) return false;
+                return true;
+            });
+        } else {
+            let query = supabaseClient.from(currentTable).select('*');
+            
+            if (customerId) {
+                query = query.eq('customer_id', customerId);
+            }
+            
+            if (fluxoId) {
+                query = query.eq('id_fluxo_lab3d', fluxoId);
+            }
+            
+            const { data, error } = await query;
+            
+            if (error) throw error;
+            
+            currentData = data || [];
+        }
+        
+        renderDataTable(currentData);
+        document.getElementById('dataGrid').style.display = 'block';
+    } catch (error) {
+        console.error('Error filtering data:', error);
+        showNotification('Erro ao filtrar dados: ' + error.message, 'danger');
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+function limparFiltros() {
+    document.getElementById('filterForm').reset();
+    loadData();
+}
+
+// Make functions globally available
+window.openDiagramaModal = openDiagramaModal;
+window.showDashboardView = showDashboardView;
     </script>
+
 </body>
 </html>
-
