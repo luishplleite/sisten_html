@@ -376,6 +376,7 @@
                     Login
                 </button>
             </form>
+            <a href="https://n8n.dev.resolvrisk.com.br/webhook/res/cadastro" class="signup-link" style="display: block; margin-top: 20px; color: #0d6efd; text-decoration: none;">Não tem uma conta? Cadastre-se</a>
             <div id="loginError" class="alert alert-danger mt-3" style="display: none;"></div>
         </div>
     </div>
@@ -386,30 +387,15 @@
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo">
-                <h1><i class="fas fa-bolt me-2"></i>Task</h1>
+                <h1><i class="fas fa-flask me-2"></i>Lab3D</h1>
                 <small class="text-light">Sistema Integrado de Gestão</small>
             </div>
             <div class="sidebar-menu" id="sidebarMenu">
-                <button class="menu-item" onclick="window.location.href='WEBHOOK_DASHBOARD'" data-menu="dashboard">
-                    <i class="fas fa-chart-line"></i>Dashboard
-                </button>
-                <button class="menu-item" onclick="window.location.href='WEBHOOK_TAREFAS'" data-menu="tasks">
-                    <i class="fas fa-tasks"></i>Gerenciador de Tarefas
-                </button>
-                <button class="menu-item" onclick="window.location.href='WEBHOOK_HORAS'" data-menu="hours">
-                    <i class="fas fa-clock"></i>Gerenciador de Horas
-                </button>
-                <button class="menu-item" onclick="window.location.href='WEBHOOK_CLIENTES'" data-menu="clients">
-                    <i class="fas fa-handshake"></i>Gestão de Clientes
-                </button>
-                <button class="menu-item" onclick="window.location.href='WEBHOOK_PARCEIROS'" data-menu="partners">
-                    <i class="fas fa-handshake-angle"></i>Gestão de Parceiros
+                <button class="menu-item active" onclick="showDashboardView()" data-menu="lab3d">
+                    <i class="fas fa-flask"></i>Lab3d
                 </button>
                 <button class="menu-item" onclick="window.location.href='WEBHOOK_EQUIPE'" data-menu="team">
                     <i class="fas fa-users"></i>Equipe
-                </button>
-                <button class="menu-item active" onclick="showDashboardView()" data-menu="lab3d">
-                    <i class="fas fa-flask"></i>Lab3d
                 </button>
                 <button class="menu-item" onclick="window.location.href='WEBHOOK_CONFIGURACOES'" data-menu="settings">
                     <i class="fas fa-cog"></i>Configurações
@@ -702,11 +688,13 @@
 // CONFIGURAÇÃO E VARIÁVEIS GLOBAIS
 // ===================================
 
-// URLs dos Webhooks n8n (SUBSTITUIR PELOS SEUS WEBHOOKS)
-const WEBHOOK_AUTHENTICATE_URL = 'URL_WEBHOOK_AUTENTICAR';  // POST /autenticar
-const WEBHOOK_CLIENTES_URL = 'URL_WEBHOOK_CLIENTES';       // GET /clientes-resolv
-const WEBHOOK_EMPRESAS_URL = 'URL_WEBHOOK_EMPRESAS';       // GET /empresas-resolv
-const WEBHOOK_CRIAR_FLUXO_URL = 'URL_WEBHOOK_CRIAR_FLUXO'; // POST /criar-fluxo
+// URLs dos Webhooks n8n
+const WEBHOOK_AUTHENTICATE_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/autenticar';
+const WEBHOOK_CADASTRO_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/res/cadastro';
+const WEBHOOK_LAB3D_INFO_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/lab3d_info';
+const WEBHOOK_CLIENTES_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/clientes-resolv';
+const WEBHOOK_EMPRESAS_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/empresas-resolv';
+const WEBHOOK_CRIAR_FLUXO_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/criar-fluxo';
 
 // Configuração Supabase (será preenchida dinamicamente)
 let supabaseClient = null;
@@ -731,12 +719,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initSupabase() {
     try {
-        // Aqui você deve configurar as credenciais do Supabase
-        const SUPABASE_URL = 'SEU_SUPABASE_URL';
-        const SUPABASE_ANON_KEY = 'SEU_SUPABASE_ANON_KEY';
+        const response = await fetch('/api/supabase-config');
+        const config = await response.json();
         
-        if (SUPABASE_URL && SUPABASE_ANON_KEY) {
-            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        if (config.url && config.key) {
+            supabaseClient = supabase.createClient(config.url, config.key);
             console.log('Supabase initialized successfully');
         } else {
             console.warn('Supabase credentials not configured. Using demo mode.');
@@ -874,6 +861,8 @@ async function handleLogin(event) {
                     showDashboard();
                 }, 1500);
 
+            } else if (parsedData.Status === 'inactive') {
+                showNotification('Aguardando ativação do cadastro. Por favor, entre em contato com o administrador.', 'warning');
             } else {
                 showNotification('E-mail ou senha incorretos.', 'danger');
             }
@@ -967,18 +956,33 @@ async function loadData() {
     emptyState.style.display = 'none';
     
     try {
-        if (!supabaseClient) {
-            // Demo mode
-            currentData = generateSampleData();
-        } else {
-            const { data, error } = await supabaseClient
-                .from(currentTable)
-                .select('*')
-                .order('id', { ascending: false })
-                .limit(100);
+        // Buscar dados do webhook
+        const response = await fetch(WEBHOOK_LAB3D_INFO_URL, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao carregar dados do servidor');
+        }
+        
+        const data = await response.json();
+        
+        // O webhook retorna um array com objeto contendo consulta_fluxo e consulta_DW
+        if (data && data.length > 0) {
+            const dataObj = data[0];
             
-            if (error) throw error;
-            currentData = data || [];
+            if (currentTable === 'lab3d_fase_1' && dataObj.consulta_fluxo) {
+                // Extrai o array de fluxos (está dentro de um array duplo)
+                currentData = dataObj.consulta_fluxo[0] || [];
+            } else if (currentTable === 'lab3d_dw' && dataObj.consulta_DW) {
+                // Extrai o array de DW (está dentro de um array duplo)
+                currentData = dataObj.consulta_DW[0] || [];
+            } else {
+                currentData = [];
+            }
+        } else {
+            currentData = [];
         }
         
         renderDataTable(currentData);
@@ -999,16 +1003,24 @@ async function loadData() {
 
 async function loadStats() {
     try {
-        if (supabaseClient) {
-            const [fluxos, fase1, dw] = await Promise.all([
-                supabaseClient.from('fluxo_lab3d').select('id', { count: 'exact', head: true }),
-                supabaseClient.from('lab3d_fase_1').select('id', { count: 'exact', head: true }),
-                supabaseClient.from('lab3d_dw').select('id', { count: 'exact', head: true })
-            ]);
-            
-            document.getElementById('totalFluxos').textContent = fluxos.count || 0;
-            document.getElementById('totalFase1').textContent = fase1.count || 0;
-            document.getElementById('totalDW').textContent = dw.count || 0;
+        const response = await fetch(WEBHOOK_LAB3D_INFO_URL, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0) {
+                const dataObj = data[0];
+                
+                const totalFluxos = (dataObj.consulta_fluxo && dataObj.consulta_fluxo[0]) ? dataObj.consulta_fluxo[0].length : 0;
+                const totalFase1 = totalFluxos; // Fase 1 = consulta_fluxo
+                const totalDW = (dataObj.consulta_DW && dataObj.consulta_DW[0]) ? dataObj.consulta_DW[0].length : 0;
+                
+                document.getElementById('totalFluxos').textContent = totalFluxos;
+                document.getElementById('totalFase1').textContent = totalFase1;
+                document.getElementById('totalDW').textContent = totalDW;
+            }
         }
     } catch (error) {
         console.error('Error loading stats:', error);
@@ -1125,19 +1137,20 @@ function formatColumnName(name) {
 
 async function loadFluxos() {
     try {
-        if (!supabaseClient) {
-            fluxosList = [
-                { id: '1', nome_fluxo: 'Fluxo Demo 1' },
-                { id: '2', nome_fluxo: 'Fluxo Demo 2' }
-            ];
+        const response = await fetch(WEBHOOK_LAB3D_INFO_URL, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data && data.length > 0 && data[0].consulta_fluxo) {
+                fluxosList = data[0].consulta_fluxo[0] || [];
+            } else {
+                fluxosList = [];
+            }
         } else {
-            const { data, error } = await supabaseClient
-                .from('fluxo_lab3d')
-                .select('id, nome_fluxo')
-                .order('created_at', { ascending: false });
-            
-            if (error) throw error;
-            fluxosList = data || [];
+            fluxosList = [];
         }
         
         const filterFluxo = document.getElementById('filterFluxo');
