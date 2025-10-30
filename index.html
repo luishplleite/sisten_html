@@ -277,7 +277,7 @@
         }
         
         .table-responsive {
-            max-height: 600px;
+            /* max-height: 600px; */ /* Removido para a tabela principal não ter scroll interno */
             overflow-y: auto;
         }
         
@@ -309,6 +309,78 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Estilo Planilha (Excel) - Usado no Modal de Preencher */
+        .spreadsheet-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+        .modal-fullscreen .spreadsheet-container {
+            max-height: 65vh; 
+        }
+        .spreadsheet-container table {
+            margin-bottom: 0; 
+        }
+        .spreadsheet-container thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .spreadsheet-container .form-control-sm {
+            padding: 0.2rem 0.4rem;
+            font-size: 0.875rem;
+            border-radius: 4px;
+        }
+        .spreadsheet-container th {
+            min-width: 150px;
+        }
+        .spreadsheet-container td {
+            padding: 0.25rem;
+        }
+        .spreadsheet-container th:last-child,
+        .spreadsheet-container td:last-child {
+            width: 50px;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        /* ATUALIZADO: Estilo para o Tooltip de Digitação (caixa preta, texto branco, quebra de linha) */
+        .typing-tooltip {
+            display: none;
+            position: absolute;
+            background-color: #000; /* Cor preta explícita */
+            color: #FFF; /* Texto branco */
+            padding: 10px; /* Mais espaço */
+            border-radius: 6px;
+            font-size: 1rem; /* Um pouco maior para "enxergar maior" */
+            z-index: 1070; /* Mais alto que o modal (1055) */
+            max-width: 400px; /* Mais largo que o campo */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            pointer-events: none; /* Para não bloquear o mouse */
+            
+            /* Chave para quebras de linha e texto longo */
+            white-space: pre-wrap; 
+            overflow-wrap: break-word; /* Garante quebra de palavras longas */
+        }
+
+        /* Estilos para Edição Inline */
+        .inline-edit-input {
+            width: 100%;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+        }
+
+        /* NOVO: Estilo para forçar botões na mesma linha */
+        .action-buttons {
+            display: flex;
+            flex-wrap: nowrap; /* Impede que os botões quebrem a linha */
+            gap: 5px; /* Adiciona um pequeno espaço entre os botões */
+            justify-content: flex-start;
         }
         
         /* Responsive */
@@ -443,7 +515,7 @@
                             <div class="card stat-card success">
                                 <div class="position-relative">
                                     <div class="stat-number" id="totalFase1">0</div>
-                                    <div class="stat-label">Registros Fase 1</div>
+                                    <div class="stat-label">Registros Fase</div>
                                     <i class="fas fa-database stat-icon"></i>
                                 </div>
                             </div>
@@ -467,11 +539,8 @@
                                     <h5 class="mb-0"><i class="fas fa-database me-2"></i>Dados do Lab3d</h5>
                                 </div>
                                 <div class="col-md-6 text-md-end">
-                                    <button class="btn btn-success me-2" id="btnNovoFluxo">
+                                    <button class="btn btn-success" id="btnNovoFluxo">
                                         <i class="fas fa-plus me-2"></i>Criar Novo Fluxo
-                                    </button>
-                                    <button class="btn btn-info" id="btnAdicionarColuna">
-                                        <i class="fas fa-columns me-2"></i>Adicionar Coluna
                                     </button>
                                 </div>
                             </div>
@@ -484,6 +553,7 @@
                             <h5><i class="fas fa-filter me-2"></i>Filtros</h5>
                             <form id="filterForm" class="row g-3">
                                 <div class="col-md-3">
+                                    <!-- ATUALIZADO: Label do filtro de Customer ID -->
                                     <label for="filterCustomerId" class="form-label">Customer ID</label>
                                     <input type="text" class="form-control" id="filterCustomerId">
                                 </div>
@@ -493,11 +563,13 @@
                                         <option value="">Todos</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <!-- ATUALIZADO: Div da Tabela ocultada -->
+                                <div class="col-md-3" style="display: none;">
                                     <label for="filterTabela" class="form-label">Tabela</label>
                                     <select class="form-select" id="filterTabela">
-                                        <option value="lab3d_fase_1">Fase 1</option>
-                                        <option value="lab3d_dw">DW</option>
+                                        <option value="fluxo">Fluxo</option> <!-- Default para fluxo -->
+                                        <option value="fase">Fase</option>
+                                        <option value="tabela_dw">Tabela DW</option>
                                     </select>
                                 </div>
                                 <div class="col-md-3 d-flex align-items-end">
@@ -529,7 +601,8 @@
                                 </table>
                             </div>
                             
-                            <div class="mt-3">
+                            <!-- ATUALIZADO: Botão "Adicionar Linha" oculto -->
+                            <div class="mt-3" style="display: none;">
                                 <button class="btn btn-primary" id="btnAdicionarLinha">
                                     <i class="fas fa-plus me-2"></i>Adicionar Nova Linha
                                 </button>
@@ -585,54 +658,51 @@
         </div>
     </div>
 
-    <!-- Modal: Adicionar Coluna -->
-    <div class="modal fade" id="modalAdicionarColuna" tabindex="-1">
-        <div class="modal-dialog">
+    <!-- NOVO: Modal "Visualizar Fluxo" (Detalhes do Fluxo) -->
+    <div class="modal fade" id="modalVisualizarFluxo" tabindex="-1">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="fas fa-columns me-2"></i>Adicionar Nova Coluna</h5>
+                    <h5 class="modal-title" id="modalVisualizarFluxoTitle"><i class="fas fa-eye me-2"></i>Visualizar Fluxo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modalVisualizarFluxoBody">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p class="mt-2">Carregando detalhes do fluxo...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO: Modal "Confirmar Exclusão" -->
+    <div class="modal fade" id="modalConfirmarExclusao" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header" style="background: var(--danger-color);">
+                    <h5 class="modal-title"><i class="fas fa-triangle-exclamation me-2"></i>Confirmar Exclusão</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="formAdicionarColuna">
-                        <div class="mb-3">
-                            <label for="selectTabelaColuna" class="form-label">Tabela</label>
-                            <select class="form-select" id="selectTabelaColuna" required>
-                                <option value="lab3d_fase_1">Fase 1</option>
-                                <option value="lab3d_dw">DW</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="nomeColuna" class="form-label">Nome da Coluna</label>
-                            <input type="text" class="form-control" id="nomeColuna" 
-                                   pattern="[a-zA-Z0-9_]+" 
-                                   title="Use apenas letras, números e underscores"
-                                   required>
-                            <small class="form-text text-muted">Use apenas letras, números e underscores</small>
-                        </div>
-                        <div class="mb-3">
-                            <label for="tipoColuna" class="form-label">Tipo da Coluna</label>
-                            <select class="form-select" id="tipoColuna" required>
-                                <option value="text">Texto (text)</option>
-                                <option value="integer">Número Inteiro (integer)</option>
-                                <option value="numeric">Número Decimal (numeric)</option>
-                                <option value="date">Data (date)</option>
-                                <option value="boolean">Verdadeiro/Falso (boolean)</option>
-                            </select>
-                        </div>
-                    </form>
+                    <p>Você tem certeza que deseja excluir este fluxo?</p>
+                    <p class="text-danger"><strong>Atenção:</strong> Todos os registros de "Fase" e "Tabela DW" associados a este fluxo também serão excluídos. Esta ação não pode ser desfeita.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="btnSalvarColuna">
-                        <i class="fas fa-save me-2"></i>Adicionar Coluna
+                    <button type="button" class="btn btn-danger" id="btnConfirmarExclusao">
+                        <i class="fas fa-trash-alt me-2"></i>Excluir Permanentemente
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal: Diagrama -->
+
+    <!-- Modal: Diagrama (Oculto - A lógica agora está no "Visualizar Fluxo") -->
     <div class="modal fade" id="modalDiagrama" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -653,7 +723,106 @@
         </div>
     </div>
 
-    <!-- Modal: Adicionar/Editar Linha -->
+    <!-- Modal: Preencher Dados do Fluxo -->
+    <div class="modal fade" id="modalPreencherDados" tabindex="-1">
+        <div class="modal-dialog modal-fullscreen">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-database me-2"></i>Preencher Dados do Fluxo</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- NOVO: Tooltip de digitação. Fica posicionado aqui -->
+                    <div id="typingTooltip" class="typing-tooltip"></div>
+                    
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs mb-3" id="tabelasTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="fase-tab" data-bs-toggle="tab" data-bs-target="#fase-content" type="button" role="tab">
+                                <i class="fas fa-layer-group me-2"></i>Fase
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="dw-tab" data-bs-toggle="tab" data-bs-target="#dw-content" type="button" role="tab">
+                                <i class="fas fa-database me-2"></i>Tabela DW
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tabs Content -->
+                    <div class="tab-content" id="tabelasTabContent">
+                        
+                        <!-- Tab Fase com layout de planilha -->
+                        <div class="tab-pane fade show active" id="fase-content" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Campos da Tabela "Fase"</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAdicionarCampoDinamico('fase')">
+                                    <i class="fas fa-plus me-1"></i> Adicionar Nova Coluna
+                                </button>
+                            </div>
+                            <!-- Layout de Planilha (Excel) -->
+                            <div class="spreadsheet-container table-responsive">
+                                <table class="table table-bordered table-striped table-sm" id="tableFase">
+                                    <thead class="table-light">
+                                        <tr id="tableFaseHead">
+                                            <!-- Cabeçalhos das colunas serão injetados aqui -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableFaseBody">
+                                        <!-- Linhas (inputs) serão injetadas aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-success" id="btnAdicionarLinhaFase">
+                                    <i class="fas fa-plus me-1"></i> Adicionar Linha
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Tab Tabela DW com layout de planilha -->
+                        <div class="tab-pane fade" id="dw-content" role="tabpanel">
+                             <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5>Campos da Tabela "DW"</h5>
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAdicionarCampoDinamico('dw')">
+                                    <i class="fas fa-plus me-1"></i> Adicionar Nova Coluna
+                                </button>
+                            </div>
+                            <!-- Layout de Planilha (Excel) -->
+                            <div class="spreadsheet-container table-responsive">
+                                <table class="table table-bordered table-striped table-sm" id="tableDW">
+                                    <thead class="table-light">
+                                        <tr id="tableDWHead">
+                                            <!-- Cabeçalhos das colunas serão injetados aqui -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableDWBody">
+                                        <!-- Linhas (inputs) serão injetadas aqui -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-sm btn-success" id="btnAdicionarLinhaDW">
+                                    <i class="fas fa-plus me-1"></i> Adicionar Linha
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-success" id="btnSalvarFase">
+                        <i class="fas fa-save me-2"></i>Salvar Fase
+                    </button>
+                    <button type="button" class="btn btn-success" id="btnSalvarTabelaDW">
+                        <i class="fas fa-save me-2"></i>Salvar Tabela DW
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Adicionar/Editar Linha (Oculto - Lógica antiga mantida, mas botão principal escondido) -->
     <div class="modal fade" id="modalEditarLinha" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
@@ -664,12 +833,57 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="formEditarLinha"></form>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="mb-0">Dados Principais</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openAdicionarCampoDinamico('linha')">
+                            <i class="fas fa-plus me-1"></i> Adicionar Campo
+                        </button>
+                    </div>
+
+                    <!-- Formulário para campos padrão e dinâmicos (será construído) -->
+                    <form id="formEditarLinha" class="row g-3">
+                        <div class="col-12 loading-form"><div class="spinner"></div></div>
+                    </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnSalvarLinha">
                         <i class="fas fa-save me-2"></i>Salvar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Adicionar Coluna (Campo Dinâmico) -->
+    <div class="modal fade" id="modalAdicionarCampoDinamico" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-plus me-2"></i>Adicionar Nova Coluna</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAdicionarCampoDinamico">
+                        <div class="mb-3">
+                            <label for="nomeNovoCampo" class="form-label">Nome da Nova Coluna</label>
+                            <input type="text" class="form-control" id="nomeNovoCampo" placeholder="Ex: email_responsavel" required>
+                            <small class="form-text text-muted">Use apenas letras minúsculas, números e underscore (_).</small>
+                        </div>
+                        <div class="mb-3" id="divSelectTabelaCampo" style="display: none;">
+                            <label for="selectTabelaCampo" class="form-label">Adicionar em qual tabela?</label>
+                            <select class="form-select" id="selectTabelaCampo">
+                                <option value="fase">Fase</option>
+                                <option value="tabela_dw">Tabela DW</option>
+                                <option value="fluxo">Fluxo</option> <!-- Adicionado Fluxo -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarNovoCampo">
+                        <i class="fas fa-check me-2"></i>Adicionar Coluna
                     </button>
                 </div>
             </div>
@@ -688,20 +902,28 @@
 // CONFIGURAÇÃO E VARIÁVEIS GLOBAIS
 // ===================================
 
-// URLs dos Webhooks n8n
+// URLs dos Webhooks n8n (para login)
 const WEBHOOK_AUTHENTICATE_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/autenticar';
-const WEBHOOK_CADASTRO_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/res/cadastro';
-const WEBHOOK_LAB3D_INFO_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/lab3d_info';
-const WEBHOOK_CLIENTES_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/clientes-resolv';
-const WEBHOOK_EMPRESAS_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/empresas-resolv';
-const WEBHOOK_CRIAR_FLUXO_URL = 'https://n8n.hackathon.souamigu.org.br/webhook/criar-fluxo';
+const WEBHOOK_CLIENTES_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consulta_clientes';
+const WEBHOOK_EMPRESAS_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consulta_empresa';
 
-// Configuração Supabase (será preenchida dinamicamente)
+// Configuração PostgreSQL/Supabase
+const SUPABASE_URL = 'https://laqihgfqymniexceactd.supabase.co';
+// !!! ATENÇÃO: SUBSTITUA O PLACEHOLDER PELA SUA SUPABASE ANON KEY REAL !!!
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhcWloZ2ZxeW1uaWV4Y2VhY3RkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3NjQ0MTQsImV4cCI6MjA3NzM0MDQxNH0.7fwZMFSbEpNCFFIgTOi_lphVvnBc85EK9ofobsVGUrk'; 
+
 let supabaseClient = null;
 let currentUser = null;
-let currentTable = 'lab3d_fase_1';
+let currentTable = 'fluxo'; // ATUALIZADO: Tabela principal agora é 'fluxo'
 let currentData = [];
 let fluxosList = [];
+let currentFluxoId = null; 
+let currentClienteId = null; 
+let currentEmpresaId = null; 
+let currentDynamicFieldContext = null; 
+let modalAdicionarCampo = null; 
+let modalConfirmarExclusao = null; // NOVO: Referência do modal de exclusão
+let allTableColumns = { fase: [], tabela_dw: [], fluxo: [] }; // Cache para colunas
 
 // ===================================
 // INICIALIZAÇÃO
@@ -711,6 +933,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     await initSupabase();
     checkUserSession();
     setupEventListeners();
+    modalAdicionarCampo = new bootstrap.Modal(document.getElementById('modalAdicionarCampoDinamico'));
+    // NOVO: Inicializa o modal de exclusão
+    modalConfirmarExclusao = new bootstrap.Modal(document.getElementById('modalConfirmarExclusao'));
 });
 
 // ===================================
@@ -718,18 +943,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ===================================
 
 async function initSupabase() {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.includes('PLACEHOLDER')) {
+        console.error('Supabase URL ou ANON KEY não configuradas!');
+        showNotification('Supabase URL ou ANON KEY não configuradas. Por favor, edite o script HTML e insira suas credenciais.', 'danger');
+        return;
+    }
     try {
-        const response = await fetch('/api/supabase-config');
-        const config = await response.json();
-        
-        if (config.url && config.key) {
-            supabaseClient = supabase.createClient(config.url, config.key);
-            console.log('Supabase initialized successfully');
-        } else {
-            console.warn('Supabase credentials not configured. Using demo mode.');
-        }
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase initialized successfully.');
     } catch (error) {
         console.error('Error initializing Supabase:', error);
+        showNotification('Erro ao inicializar Supabase: ' + error.message, 'danger');
     }
 }
 
@@ -785,23 +1009,31 @@ function setupEventListeners() {
     
     // Buttons
     document.getElementById('btnNovoFluxo').addEventListener('click', openNovoFluxoModal);
-    document.getElementById('btnAdicionarColuna').addEventListener('click', openAdicionarColunaModal);
-    document.getElementById('btnAdicionarLinha').addEventListener('click', openAdicionarLinhaModal);
+    // document.getElementById('btnAdicionarLinha').addEventListener('click', openAdicionarLinhaModal); // Botão agora está oculto
     document.getElementById('btnSalvarFluxo').addEventListener('click', salvarNovoFluxo);
-    document.getElementById('btnSalvarColuna').addEventListener('click', salvarNovaColuna);
-    document.getElementById('btnSalvarLinha').addEventListener('click', salvarLinha);
+    // document.getElementById('btnSalvarLinha').addEventListener('click', salvarLinha); // Lógica antiga mantida
+    document.getElementById('btnSalvarFase').addEventListener('click', salvarDadosFase);
+    document.getElementById('btnSalvarTabelaDW').addEventListener('click', salvarDadosTabelaDW);
     
+    document.getElementById('btnSalvarNovoCampo').addEventListener('click', salvarNovoCampoDinamico);
+    
+    // NOVO: Listener para o botão de confirmação de exclusão
+    document.getElementById('btnConfirmarExclusao').addEventListener('click', deleteFluxo);
+
+    // ATUALIZADO: Listeners para os botões de adicionar linha da planilha
+    document.getElementById('btnAdicionarLinhaFase').addEventListener('click', () => addNewExcelRow('fase'));
+    document.getElementById('btnAdicionarLinhaDW').addEventListener('click', () => addNewExcelRow('tabela_dw'));
+
     // Filters
     document.getElementById('filterForm').addEventListener('submit', handleFilter);
     document.getElementById('btnLimparFiltros').addEventListener('click', limparFiltros);
-    document.getElementById('filterTabela').addEventListener('change', (e) => {
-        currentTable = e.target.value;
-        loadData();
-    });
+    
+    // O listener de 'filterTabela' foi removido, pois a tabela principal é fixa
+    // document.getElementById('filterTabela').addEventListener('change', (e) => { ... });
 }
 
 // ===================================
-// LOGIN
+// LOGIN (Sem alterações)
 // ===================================
 
 async function handleLogin(event) {
@@ -923,7 +1155,7 @@ function handleLogout(e) {
 }
 
 // ===================================
-// NOTIFICAÇÕES
+// NOTIFICAÇÕES (Sem alterações)
 // ===================================
 
 function showNotification(message, type = 'success') {
@@ -955,28 +1187,34 @@ async function loadData() {
     dataGrid.style.display = 'none';
     emptyState.style.display = 'none';
     
+    // ATUALIZADO: Oculta o botão 'Adicionar Linha' que era para fase/dw
+    document.getElementById('btnAdicionarLinha').style.display = 'none';
+    
     try {
-        let endpoint = '';
-        if (currentTable === 'lab3d_fase_1') {
-            endpoint = '/api/fluxos';
-        } else if (currentTable === 'lab3d_dw') {
-            endpoint = '/api/lab3d-dw';
+        if (!supabaseClient) {
+            console.warn('Supabase não inicializado. Usando dados de demonstração.');
+            showNotification('Supabase não configurado. Exibindo dados de demonstração.', 'warning');
+            currentData = generateSampleFluxoData(); // Usa dados de fluxo
+        } else {
+            // ATUALIZADO: Query principal agora busca fluxos com JOIN
+            const { data, error } = await supabaseClient
+                .from('fluxo')
+                .select('*, cliente(nome_cliente), empresa(nome_empresa_prestadora)')
+                .order('id_fluxo', { ascending: false }); // Ordena por mais recente
+            
+            if (error) throw error;
+            
+            currentData = data || [];
         }
         
-        const response = await fetch(endpoint, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
+        // Cache das colunas (mesmo que não sejam usadas no form principal, é bom ter)
+        await fetchAndCacheTableColumns('fase');
+        await fetchAndCacheTableColumns('tabela_dw');
+        await fetchAndCacheTableColumns('fluxo');
         
-        if (!response.ok) {
-            throw new Error('Erro ao carregar dados do PostgreSQL');
-        }
-        
-        const result = await response.json();
-        currentData = result.data || [];
-        
-        renderDataTable(currentData);
-        await loadFluxos();
+        // ATUALIZADO: Chama o novo renderizador da tabela de fluxo
+        renderFluxoTable(currentData); 
+        await loadFluxos(); // Carrega fluxos para o dropdown de filtro
         
         if (currentData.length === 0) {
             emptyState.style.display = 'block';
@@ -993,18 +1231,28 @@ async function loadData() {
 
 async function loadStats() {
     try {
-        const [fluxosResp, dwResp] = await Promise.all([
-            fetch('/api/fluxos'),
-            fetch('/api/lab3d-dw')
+        if (!supabaseClient) {
+            console.warn('Supabase not init for stats. Using 0s.');
+            document.getElementById('totalFluxos').textContent = 0;
+            document.getElementById('totalFase1').textContent = 0;
+            document.getElementById('totalDW').textContent = 0;
+            return;
+        }
+
+        const [fluxosCountResp, faseCountResp, dwCountResp] = await Promise.all([
+            supabaseClient.from('fluxo').select('id_fluxo', { count: 'exact', head: true }),
+            supabaseClient.from('fase').select('id_fase', { count: 'exact', head: true }),
+            supabaseClient.from('tabela_dw').select('id_dw', { count: 'exact', head: true })
         ]);
-        
-        const fluxosData = await fluxosResp.json();
-        const dwData = await dwResp.json();
-        
-        const totalFluxos = (fluxosData.data || []).length;
-        const totalFase1 = totalFluxos;
-        const totalDW = (dwData.data || []).length;
-        
+
+        if (fluxosCountResp.error) console.error('Erro stats fluxos:', fluxosCountResp.error.message);
+        if (faseCountResp.error) console.error('Erro stats fase:', faseCountResp.error.message);
+        if (dwCountResp.error) console.error('Erro stats dw:', dwCountResp.error.message);
+
+        const totalFluxos = fluxosCountResp.count || 0;
+        const totalFase1 = faseCountResp.count || 0;
+        const totalDW = dwCountResp.count || 0;
+
         document.getElementById('totalFluxos').textContent = totalFluxos;
         document.getElementById('totalFase1').textContent = totalFase1;
         document.getElementById('totalDW').textContent = totalDW;
@@ -1013,125 +1261,368 @@ async function loadStats() {
     }
 }
 
-function generateSampleData() {
-    const samples = [];
-    for (let i = 1; i <= 5; i++) {
-        if (currentTable === 'lab3d_fase_1') {
-            samples.push({
-                id: i,
-                customer_id: `CX00${i}`,
-                atividade_evento: `Desenvolvimento de ações voltadas para CX e IM ${i}`,
-                origem_o: `Formulário Google, Zendesk, Rede Wilson ${i}`,
-                drive_origem: `Google Drive CX/IM ${i}`,
-                guarda_g: `Zendesk, Rede Wilson ${i}`,
-                drive_guarda: `Google Drive - Pasta CX ${i}`,
-                transformacao_t: `Elaboração de Treinamentos e Indicadores ${i}`,
-                drive_transformacao: `Google Drive Apresentações ${i}`,
-                consumo_c: `Times Wilson, Time Qualidade ${i}`,
-                drive_consumo: `Zendesk Tickets ${i}`,
-                drive_evidencias: `Rede Wilson Evidências ${i}`,
-                created_at: new Date().toISOString()
-            });
-        } else {
-            samples.push({
-                id: i,
-                customer_id: `DW00${i}`,
-                sistema_origem: i % 2 === 0 ? 'TECON' : 'SISTEMA_ORIGEM',
-                sistema_destino: i % 2 === 0 ? 'ADMBILOG' : 'SISTEMA_DESTINO',
-                tipo: i % 3 === 0 ? 'Dimensão' : 'Fato',
-                nome_tabela: `Tabela Exemplo ${i}`,
-                origem_informacao: i % 2 === 0 ? 'Faturamento' : 'Operacional',
-                periodicidade: i % 2 === 0 ? 'Diária' : 'Mensal',
-                metodo_de_carga: 'Windows Services / .NET',
-                criterio: i % 2 === 0 ? 'Full' : 'Incremental',
-                objetos_colunas_origem: `ORIGEM.VW_TABELA_${i}[ID, DESCRICAO]`,
-                objeto_destino: `DESTINO.DIM_TABELA_${i}[ID, NOME]`,
-                transformacao: i % 3 === 0 ? 'Sim' : 'Não',
-                area: 'TI',
-                responsavel: `Responsável ${i}`,
-                registros: 100 * i + 75,
-                tamanho: `${i * 10 + 5} KB`,
-                funcao: `Armazenar dados de ${i % 2 === 0 ? 'dimensão' : 'fato'}`,
-                pre_requisitos: `Conexão com sistema ${i}`,
-                area_2: `Área Operacional ${i}`,
-                camadas_acesso_seguranca: `Nível ${i}`,
-                created_at: new Date().toISOString()
-            });
+// ATUALIZADO: Função de dados de exemplo para fluxo
+function generateSampleFluxoData() {
+    return [
+        {
+            id_fluxo: 1,
+            nome_fluxo: "Fluxo de Demonstração 1",
+            id_cliente: 1,
+            id_empresa: 1,
+            status: "Pendente",
+            cliente: { nome_cliente: "Cliente Demo A" },
+            empresa: { nome_empresa_prestadora: "Empresa Demo X" }
+        },
+        {
+            id_fluxo: 2,
+            nome_fluxo: "Fluxo de Demonstração 2",
+            id_cliente: 2,
+            id_empresa: 1,
+            status: "Concluído",
+            cliente: { nome_cliente: "Cliente Demo B" },
+            empresa: { nome_empresa_prestadora: "Empresa Demo X" }
         }
-    }
-    return samples;
+    ];
 }
 
 // ===================================
-// RENDERIZAR TABELA
+// RENDERIZAR TABELA (ATUALIZADO PARA FLUXO)
 // ===================================
 
-function renderDataTable(data) {
+// ATUALIZADO: Nova função para renderizar a tabela de FLUXOS
+function renderFluxoTable(data) {
     const tableHeaders = document.getElementById('tableHeaders');
     const tableBody = document.getElementById('tableBody');
     
     tableHeaders.innerHTML = '';
     tableBody.innerHTML = '';
     
-    if (data.length === 0) return;
-    
-    const firstRow = data[0];
-    const columns = Object.keys(firstRow).filter(key => typeof firstRow[key] !== 'object');
-    
+    // Definir cabeçalhos fixos para a tabela de fluxo
+    const headers = [
+        { text: "Fluxo", width: "10%" },
+        { text: "Nome Fluxo", width: "30%" }, // Ajustado
+        { text: "Cliente", width: "20%" },
+        { text: "Empresa", width: "20%" },
+        { text: "Ações", width: "20%" } // Ajustado
+    ];
     const headerRow = document.createElement('tr');
-    columns.forEach(col => {
+    headers.forEach(header => {
         const th = document.createElement('th');
-        th.textContent = formatColumnName(col);
+        th.textContent = header.text;
+        th.style.width = header.width;
         headerRow.appendChild(th);
     });
-    
-    const actionTh = document.createElement('th');
-    actionTh.textContent = 'Ações';
-    actionTh.style.width = '120px';
-    headerRow.appendChild(actionTh);
-    
     tableHeaders.appendChild(headerRow);
     
-    data.forEach(row => {
+    if (data.length === 0) return;
+    
+    data.forEach(fluxo => {
         const tr = document.createElement('tr');
+        tr.id = `fluxo-row-${fluxo.id_fluxo}`; // ID para facilitar a edição
         
-        columns.forEach(col => {
-            const td = document.createElement('td');
-            td.textContent = row[col] || '-';
-            tr.appendChild(td);
-        });
+        const nomeCliente = (fluxo.cliente && fluxo.cliente.nome_cliente) ? fluxo.cliente.nome_cliente : 'N/A';
+        const nomeEmpresa = (fluxo.empresa && fluxo.empresa.nome_empresa_prestadora) ? fluxo.empresa.nome_empresa_prestadora : 'N/A';
         
-        const actionTd = document.createElement('td');
-        actionTd.innerHTML = `
-            <button class="btn btn-sm btn-info" onclick="openDiagramaModal('${row.customer_id}')" title="Ver Diagrama">
-                <i class="fas fa-diagram-project"></i>
+        // Células de dados (ATUALIZADO: Criadas manualmente para garantir a ordem)
+        
+        // Célula 1: Fluxo ID
+        const tdId = document.createElement('td');
+        tdId.textContent = fluxo.id_fluxo;
+        tr.appendChild(tdId);
+        
+        // Célula 2: Nome Fluxo
+        const tdNome = document.createElement('td');
+        tdNome.dataset.field = 'nome_fluxo';
+        tdNome.textContent = fluxo.nome_fluxo || '-';
+        tr.appendChild(tdNome);
+        
+        // Célula 3: Cliente
+        const tdCliente = document.createElement('td');
+        tdCliente.dataset.field = 'nome_cliente';
+        tdCliente.textContent = nomeCliente;
+        tr.appendChild(tdCliente);
+        
+        // Célula 4: Empresa
+        const tdEmpresa = document.createElement('td');
+        tdEmpresa.dataset.field = 'nome_empresa';
+        tdEmpresa.textContent = nomeEmpresa;
+        tr.appendChild(tdEmpresa);
+        
+        // Célula 5: Ações
+        const tdAcoes = document.createElement('td');
+        tdAcoes.className = 'action-buttons';
+        tdAcoes.innerHTML = `
+            <!-- Botões de Ação -->
+            <button class="btn btn-sm btn-info btn-visualizar" onclick="visualizarFluxo(${fluxo.id_fluxo}, '${(fluxo.nome_fluxo || '').replace(/'/g, "\\'")}')" title="Visualizar Detalhes">
+                <i class="fas fa-eye"></i>
+            </button>
+            <button class="btn btn-sm btn-warning btn-editar" onclick="toggleFluxoEdit(this, ${fluxo.id_fluxo})" title="Editar Fluxo">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn btn-sm btn-danger btn-excluir" onclick="confirmarExclusao(${fluxo.id_fluxo})" title="Excluir Fluxo">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            
+            <!-- Botões de Edição (Ocultos) -->
+            <button class="btn btn-sm btn-success btn-salvar" onclick="saveFluxoEdit(this, ${fluxo.id_fluxo})" title="Salvar" style="display: none;">
+                <i class="fas fa-save"></i>
+            </button>
+            <button class="btn btn-sm btn-secondary btn-cancelar" onclick="cancelFluxoEdit(this, ${fluxo.id_fluxo})" title="Cancelar" style="display: none;">
+                <i class="fas fa-times"></i>
             </button>
         `;
-        tr.appendChild(actionTd);
+        tr.appendChild(tdAcoes);
         
         tableBody.appendChild(tr);
     });
 }
 
-function formatColumnName(name) {
-    return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+// ===================================
+// AÇÕES DA TABELA FLUXO (NOVAS FUNÇÕES)
+// ===================================
+
+/**
+ * NOVO: Abre o modal de visualização com detalhes do fluxo (fase e dw).
+ */
+async function visualizarFluxo(id_fluxo, nome_fluxo) {
+    const modal = new bootstrap.Modal(document.getElementById('modalVisualizarFluxo'));
+    const modalTitle = document.getElementById('modalVisualizarFluxoTitle');
+    const modalBody = document.getElementById('modalVisualizarFluxoBody');
+
+    modalTitle.textContent = `Visualizar Fluxo: ${nome_fluxo} (ID: ${id_fluxo})`;
+    modalBody.innerHTML = '<div class="loading"><div class="spinner"></div><p class="mt-2">Carregando detalhes...</p></div>';
+    modal.show();
+
+    try {
+        if (!supabaseClient) {
+            throw new Error("Supabase não conectado.");
+        }
+
+        const [faseData, dwData] = await Promise.all([
+            supabaseClient.from('fase').select('*').eq('id_fluxo', id_fluxo),
+            supabaseClient.from('tabela_dw').select('*').eq('id_fluxo', id_fluxo)
+        ]);
+
+        if (faseData.error) throw faseData.error;
+        if (dwData.error) throw dwData.error;
+
+        modalBody.innerHTML = `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Registros de Fase (${faseData.data.length})</h5>
+                </div>
+                <div class="card-body">
+                    ${renderDiagramTable(faseData.data)}
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Registros de Tabela DW (${dwData.data.length})</h5>
+                </div>
+                <div class="card-body">
+                    ${renderDiagramTable(dwData.data)}
+                </div>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Error loading fluxo details:', error);
+        modalBody.innerHTML = `<div class="alert alert-danger">Erro ao carregar detalhes: ${error.message}</div>`;
+    }
 }
 
+/**
+ * NOVO: Ativa o modo de edição inline para uma linha de fluxo.
+ */
+function toggleFluxoEdit(buttonEl, id_fluxo) {
+    const tr = document.getElementById(`fluxo-row-${id_fluxo}`);
+    if (!tr) return;
+
+    // Salvar valores originais
+    const nomeCell = tr.querySelector('td[data-field="nome_fluxo"]');
+    // const statusCell = tr.querySelector('td[data-field="status"]'); // REMOVIDO
+    
+    tr.dataset.originalNome = nomeCell.textContent;
+    // tr.dataset.originalStatus = statusCell.textContent; // REMOVIDO
+
+    // Criar inputs
+    nomeCell.innerHTML = `<input type="text" class="form-control form-control-sm" value="${tr.dataset.originalNome}">`;
+    
+    /* REMOVIDO
+    // Criar select para status
+    const statusOptions = ['Pendente', 'Em Andamento', 'Concluído', 'Erro'];
+    let statusSelect = `<select class="form-select form-select-sm">`;
+    statusOptions.forEach(opt => {
+        statusSelect += `<option value="${opt}" ${opt === tr.dataset.originalStatus ? 'selected' : ''}>${opt}</option>`;
+    });
+    statusSelect += `</select>`;
+    statusCell.innerHTML = statusSelect;
+    */
+
+    // Ocultar/Mostrar botões
+    const actionsCell = buttonEl.closest('.action-buttons');
+    actionsCell.querySelector('.btn-visualizar').style.display = 'none';
+    actionsCell.querySelector('.btn-editar').style.display = 'none';
+    actionsCell.querySelector('.btn-excluir').style.display = 'none';
+    actionsCell.querySelector('.btn-salvar').style.display = 'inline-block';
+    actionsCell.querySelector('.btn-cancelar').style.display = 'inline-block';
+}
+
+/**
+ * NOVO: Cancela a edição inline.
+ */
+function cancelFluxoEdit(buttonEl, id_fluxo) {
+    const tr = document.getElementById(`fluxo-row-${id_fluxo}`);
+    if (!tr || !tr.dataset.originalNome) return;
+
+    // Restaurar valores originais
+    tr.querySelector('td[data-field="nome_fluxo"]').textContent = tr.dataset.originalNome;
+    // tr.querySelector('td[data-field="status"]').textContent = tr.dataset.originalStatus; // REMOVIDO
+
+    // Limpar dados salvos
+    delete tr.dataset.originalNome;
+    // delete tr.dataset.originalStatus; // REMOVIDO
+
+    // Ocultar/Mostrar botões
+    const actionsCell = buttonEl.closest('.action-buttons');
+    actionsCell.querySelector('.btn-visualizar').style.display = 'inline-block';
+    actionsCell.querySelector('.btn-editar').style.display = 'inline-block';
+    actionsCell.querySelector('.btn-excluir').style.display = 'inline-block';
+    actionsCell.querySelector('.btn-salvar').style.display = 'none';
+    actionsCell.querySelector('.btn-cancelar').style.display = 'none';
+}
+
+/**
+ * NOVO: Salva a edição inline no Supabase.
+ */
+async function saveFluxoEdit(buttonEl, id_fluxo) {
+    const tr = document.getElementById(`fluxo-row-${id_fluxo}`);
+    if (!tr) return;
+
+    const nomeInput = tr.querySelector('td[data-field="nome_fluxo"] input');
+    // const statusSelect = tr.querySelector('td[data-field="status"] select'); // REMOVIDO
+
+    const novoNome = nomeInput.value;
+    // const novoStatus = statusSelect.value; // REMOVIDO
+
+    if (!novoNome) {
+        showNotification('O nome do fluxo não pode ficar em branco.', 'warning');
+        return;
+    }
+
+    const saveButton = buttonEl;
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    try {
+        if (!supabaseClient) throw new Error("Supabase não conectado.");
+
+        const { error } = await supabaseClient
+            .from('fluxo')
+            .update({ nome_fluxo: novoNome }) // ATUALIZADO: remove novoStatus
+            .eq('id_fluxo', id_fluxo);
+
+        if (error) throw error;
+
+        // Atualização bem-sucedida. Sair do modo de edição.
+        tr.querySelector('td[data-field="nome_fluxo"]').textContent = novoNome;
+        // tr.querySelector('td[data-field="status"]').textContent = novoStatus; // REMOVIDO
+        
+        showNotification('Fluxo atualizado com sucesso!', 'success');
+        cancelFluxoEdit(buttonEl, id_fluxo); // Usa a lógica de "cancelar" para limpar a UI
+
+    } catch (error) {
+        console.error('Error saving fluxo:', error);
+        showNotification('Erro ao salvar: ' + error.message, 'danger');
+    } finally {
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-save"></i>';
+    }
+}
+
+/**
+ * NOVO: Abre o modal de confirmação de exclusão.
+ */
+function confirmarExclusao(id_fluxo) {
+    const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+    btnConfirmar.dataset.idFluxo = id_fluxo; // Armazena o ID no botão
+    modalConfirmarExclusao.show();
+}
+
+/**
+ * NOVO: Executa a exclusão após confirmação.
+ */
+async function deleteFluxo() {
+    const btnConfirmar = document.getElementById('btnConfirmarExclusao');
+    const id_fluxo = btnConfirmar.dataset.idFluxo;
+
+    if (!id_fluxo) return;
+
+    btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Excluindo...';
+
+    try {
+        if (!supabaseClient) throw new Error("Supabase não conectado.");
+
+        // ATENÇÃO: Isso exige que o 'ON DELETE CASCADE' esteja configurado
+        // no Supabase nas tabelas 'fase' e 'tabela_dw' para a FK 'id_fluxo'.
+        // Se não estiver, temos que excluir 'fase' e 'tabela_dw' manualmente primeiro.
+        
+        // Assumindo que o CASCADE não está habilitado, vamos deletar manualmente:
+        
+        // 1. Deletar da tabela_dw
+        const { error: dwError } = await supabaseClient.from('tabela_dw').delete().eq('id_fluxo', id_fluxo);
+        if (dwError) throw new Error(`Erro ao excluir de Tabela DW: ${dwError.message}`);
+        
+        // 2. Deletar da fase
+        const { error: faseError } = await supabaseClient.from('fase').delete().eq('id_fluxo', id_fluxo);
+        if (faseError) throw new Error(`Erro ao excluir de Fase: ${faseError.message}`);
+        
+        // 3. Deletar o fluxo
+        const { error: fluxoError } = await supabaseClient.from('fluxo').delete().eq('id_fluxo', id_fluxo);
+        if (fluxoError) throw new Error(`Erro ao excluir Fluxo: ${fluxoError.message}`);
+
+        showNotification('Fluxo e todos os dados associados foram excluídos!', 'success');
+        modalConfirmarExclusao.hide();
+        
+        // Remover a linha da tabela na UI
+        document.getElementById(`fluxo-row-${id_fluxo}`).remove();
+        loadStats(); // Atualizar estatísticas
+
+    } catch (error) {
+        console.error('Error deleting fluxo:', error);
+        showNotification('Erro ao excluir: ' + error.message, 'danger');
+    } finally {
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = '<i class="fas fa-trash-alt me-2"></i>Excluir Permanentemente';
+        delete btnConfirmar.dataset.idFluxo;
+    }
+}
+
+
 // ===================================
-// FLUXOS
+// FLUXOS (Criação)
 // ===================================
 
 async function loadFluxos() {
     try {
-        const response = await fetch('/api/fluxos');
-        const result = await response.json();
-        fluxosList = result.data || [];
+        if (!supabaseClient) {
+            console.warn('Supabase not set, cannot load fluxos.');
+            return;
+        }
+        const { data, error } = await supabaseClient
+            .from('fluxo')
+            .select('id_fluxo, nome_fluxo, id_cliente, id_empresa'); 
+        
+        if (error) throw error;
+        
+        fluxosList = data || []; 
         
         const filterFluxo = document.getElementById('filterFluxo');
         filterFluxo.innerHTML = '<option value="">Todos</option>';
         fluxosList.forEach(fluxo => {
             const option = document.createElement('option');
-            option.value = fluxo.id;
+            option.value = fluxo.id_fluxo;
             option.textContent = fluxo.nome_fluxo;
             filterFluxo.appendChild(option);
         });
@@ -1152,7 +1643,7 @@ async function openNovoFluxoModal() {
     modal.show();
     
     try {
-        // Carregar clientes do n8n
+        // Carregar clientes do n8n (Webhook)
         const clientesResponse = await fetch(WEBHOOK_CLIENTES_URL);
         const clientesData = await clientesResponse.json();
         
@@ -1161,7 +1652,7 @@ async function openNovoFluxoModal() {
             selectCliente.innerHTML += `<option value="${cliente.id}">${cliente.nome}</option>`;
         });
         
-        // Carregar empresas do n8n
+        // Carregar empresas do n8n (Webhook)
         const empresasResponse = await fetch(WEBHOOK_EMPRESAS_URL);
         const empresasData = await empresasResponse.json();
         
@@ -1175,163 +1666,635 @@ async function openNovoFluxoModal() {
     }
 }
 
+
 async function salvarNovoFluxo() {
+    // 1. Pegar todos os dados do formulário (IDs e Nomes de Texto)
     const nomeFluxo = document.getElementById('nomeFluxo').value;
-    const idCliente = document.getElementById('selectCliente').value;
-    const idEmpresa = document.getElementById('selectEmpresa').value;
     
+    const selectClienteEl = document.getElementById('selectCliente');
+    const idCliente = selectClienteEl.value;
+    const nomeCliente = selectClienteEl.options[selectClienteEl.selectedIndex] ? selectClienteEl.options[selectClienteEl.selectedIndex].text : '';
+
+    const selectEmpresaEl = document.getElementById('selectEmpresa');
+    const idEmpresa = selectEmpresaEl.value;
+    const nomeEmpresa = selectEmpresaEl.options[selectEmpresaEl.selectedIndex] ? selectEmpresaEl.options[selectEmpresaEl.selectedIndex].text : '';
+
+    // 2. Validação
     if (!nomeFluxo || !idCliente || !idEmpresa) {
         showNotification('Por favor, preencha todos os campos', 'warning');
         return;
     }
     
+    if (!supabaseClient) {
+        showNotification('Supabase não está configurado. Por favor, configure a ANON KEY.', 'danger');
+        return;
+    }
+
+    const saveButton = document.getElementById('btnSalvarFluxo');
+    saveButton.disabled = true;
+    saveButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...';
+
     try {
-        const userIdPlaceholder = '00000000-0000-0000-0000-000000000000';
+        // 3. UPSERT CLIENTE
+        const { error: clienteError } = await supabaseClient
+            .from('cliente')
+            .upsert(
+                { id_cliente: parseInt(idCliente), nome_cliente: nomeCliente },
+                { onConflict: 'id_cliente' } 
+            );
         
-        const response = await fetch('/api/fluxos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                nome_fluxo: nomeFluxo,
-                id_cliente: parseInt(idCliente),
-                id_empresa_prestadora: parseInt(idEmpresa),
-                id_colaborador_criador: userIdPlaceholder
-            })
-        });
+        if (clienteError) {
+            console.error("Erro no Upsert do Cliente:", clienteError);
+            throw new Error(`Falha ao sincronizar cliente: ${clienteError.message}`);
+        }
+
+        // 4. UPSERT EMPRESA
+        const { error: empresaError } = await supabaseClient
+            .from('empresa')
+            .upsert(
+                { id_empresa: parseInt(idEmpresa), nome_empresa_prestadora: nomeEmpresa },
+                { onConflict: 'id_empresa' } 
+            );
+
+        if (empresaError) {
+            console.error("Erro no Upsert da Empresa:", empresaError);
+            throw new Error(`Falha ao sincronizar empresa: ${empresaError.message}`);
+        }
+
+        // 5. INSERIR FLUXO
+        const { data, error } = await supabaseClient
+            .from('fluxo')
+            .insert([
+                {
+                    nome_fluxo: nomeFluxo,
+                    id_cliente: parseInt(idCliente),
+                    id_empresa: parseInt(idEmpresa),
+                    status: 'Pendente'
+                }
+            ])
+            .select();
         
-        const result = await response.json();
+        if (error) {
+             console.error("Erro ao inserir Fluxo:", error);
+            throw new Error(`Falha ao criar fluxo: ${error.message}`);
+        }
         
-        if (!response.ok) throw new Error(result.error || 'Erro ao criar fluxo');
-        
-        showNotification('Fluxo criado com sucesso!', 'success');
-        bootstrap.Modal.getInstance(document.getElementById('modalNovoFluxo')).hide();
-        document.getElementById('formNovoFluxo').reset();
-        loadFluxos();
-        loadStats();
+        // 6. Sucesso
+        if (data && data.length > 0) {
+            currentFluxoId = data[0].id_fluxo;
+            currentClienteId = parseInt(idCliente);
+            currentEmpresaId = parseInt(idEmpresa);
+            
+            showNotification('Fluxo criado e dados sincronizados com sucesso!', 'success');
+            
+            bootstrap.Modal.getInstance(document.getElementById('modalNovoFluxo')).hide();
+            document.getElementById('formNovoFluxo').reset();
+            
+            const modalPreencher = new bootstrap.Modal(document.getElementById('modalPreencherDados'));
+            
+            // Limpa e mostra loading nas planilhas
+            document.getElementById('tableFaseHead').innerHTML = '';
+            document.getElementById('tableFaseBody').innerHTML = '<tr><td><div class="spinner"></div></td></tr>';
+            document.getElementById('tableDWHead').innerHTML = '';
+            document.getElementById('tableDWBody').innerHTML = '<tr><td><div class="spinner"></div></td></tr>';
+            modalPreencher.show();
+
+            // ATUALIZADO: Constrói as planilhas (Excel)
+            await buildExcelGrid('fase');
+            await buildExcelGrid('tabela_dw');
+            
+            loadData(); // Recarrega a tabela principal (fluxos)
+            loadStats();
+        }
     } catch (error) {
         console.error('Error creating fluxo:', error);
         showNotification('Erro ao criar fluxo: ' + error.message, 'danger');
+    } finally {
+        saveButton.disabled = false;
+        saveButton.innerHTML = '<i class="fas fa-save me-2"></i>Salvar Fluxo';
     }
 }
 
 // ===================================
-// ADICIONAR COLUNA
+// SALVAR DADOS NAS TABELAS (PLANILHA) (Sem alterações)
 // ===================================
 
-function openAdicionarColunaModal() {
-    const modal = new bootstrap.Modal(document.getElementById('modalAdicionarColuna'));
-    document.getElementById('selectTabelaColuna').value = currentTable;
-    modal.show();
-}
+async function salvarDadosFase() {
+    if (!currentFluxoId) {
+        showNotification('Erro: ID do fluxo não encontrado. Crie um fluxo primeiro.', 'danger');
+        return;
+    }
+    if (!supabaseClient) {
+        showNotification('Supabase não está configurado.', 'danger');
+        return;
+    }
+    
+    const tableBody = document.getElementById('tableFaseBody');
+    const rows = tableBody.querySelectorAll('tr');
+    const rowsToInsert = [];
+    const saveButton = document.getElementById('btnSalvarFase');
 
-async function salvarNovaColuna() {
-    const tabela = document.getElementById('selectTabelaColuna').value;
-    const nomeColuna = document.getElementById('nomeColuna').value;
-    const tipoColuna = document.getElementById('tipoColuna').value;
-    
-    if (!nomeColuna || !tipoColuna) {
-        showNotification('Por favor, preencha todos os campos', 'warning');
+    if (rows.length === 0) {
+        showNotification('Nenhuma linha para salvar.', 'warning');
         return;
     }
-    
-    if (!/^[a-zA-Z0-9_]+$/.test(nomeColuna)) {
-        showNotification('Nome da coluna inválido. Use apenas letras, números e underscores.', 'danger');
-        return;
-    }
-    
-    try {
-        if (supabaseClient) {
-            const { data, error } = await supabaseClient
-                .rpc('add_column_secure', {
-                    target_table_name: tabela,
-                    new_column_name: nomeColuna,
-                    column_type: tipoColuna
-                });
-            
-            if (error) throw error;
-        }
+
+    let hasData = false;
+    for (const tr of rows) {
+        const rowData = {
+            id_fluxo: currentFluxoId,
+            id_cliente: currentClienteId,
+            id_empresa: currentEmpresaId
+        };
         
-        showNotification('Coluna adicionada com sucesso!', 'success');
-        bootstrap.Modal.getInstance(document.getElementById('modalAdicionarColuna')).hide();
-        document.getElementById('formAdicionarColuna').reset();
-        loadData();
+        const inputs = tr.querySelectorAll('input[data-column-name]');
+        let rowHasValues = false; 
+
+        inputs.forEach(input => {
+            const colName = input.dataset.columnName;
+            const value = input.value.trim();
+            if (value) {
+                rowData[colName] = value;
+                // Considera a linha válida se qualquer campo estiver preenchido (ou customer_id se quiser ser mais estrito)
+                rowHasValues = true; 
+            }
+        });
+
+        if (rowHasValues) {
+            rowsToInsert.push(rowData);
+            hasData = true;
+        }
+    }
+
+    if (!hasData) {
+        showNotification('Nenhum dado válido para salvar. Preencha pelo menos um campo por linha.', 'warning');
+        return;
+    }
+    
+    saveButton.disabled = true;
+
+    try {
+        const { data, error } = await supabaseClient.from('fase').insert(rowsToInsert).select();
+        if (error) throw error;
+        
+        showNotification(`Dados da Fase salvos com sucesso (${rowsToInsert.length} linhas)!`, 'success');
+        // Limpa a tabela e adiciona uma nova linha em branco
+        tableBody.innerHTML = '';
+        addNewExcelRow('fase');
+        // loadData(); // Não precisa recarregar a tabela principal (fluxo)
+        loadStats(); // Apenas atualiza as estatísticas
     } catch (error) {
-        console.error('Error adding column:', error);
+        console.error('Error saving fase data:', error);
+        showNotification('Erro ao salvar dados da Fase: ' + error.message, 'danger');
+    } finally {
+        saveButton.disabled = false;
+    }
+}
+
+async function salvarDadosTabelaDW() {
+    if (!currentFluxoId) {
+        showNotification('Erro: ID do fluxo não encontrado. Crie um fluxo primeiro.', 'danger');
+        return;
+    }
+    if (!supabaseClient) {
+        showNotification('Supabase não está configurado.', 'danger');
+        return;
+    }
+
+    const tableBody = document.getElementById('tableDWBody');
+    const rows = tableBody.querySelectorAll('tr');
+    const rowsToInsert = [];
+    const saveButton = document.getElementById('btnSalvarTabelaDW');
+
+    if (rows.length === 0) {
+        showNotification('Nenhuma linha para salvar.', 'warning');
+        return;
+    }
+
+    let hasData = false;
+    for (const tr of rows) {
+        const rowData = {
+            id_fluxo: currentFluxoId,
+            id_cliente: currentClienteId,
+            id_empresa: currentEmpresaId
+        };
+        
+        const inputs = tr.querySelectorAll('input[data-column-name]');
+        let rowHasValues = false;
+
+        inputs.forEach(input => {
+            const colName = input.dataset.columnName;
+            const value = input.value.trim();
+            if (value) {
+                if (colName === 'registros' && parseInt(value)) {
+                     rowData[colName] = parseInt(value);
+                } else {
+                     rowData[colName] = value;
+                }
+                rowHasValues = true;
+            }
+        });
+
+        if (rowHasValues) {
+            rowsToInsert.push(rowData);
+            hasData = true;
+        }
+    }
+    
+    if (!hasData) {
+        showNotification('Nenhum dado válido para salvar. Preencha pelo menos um campo por linha.', 'warning');
+        return;
+    }
+    
+    saveButton.disabled = true;
+
+    try {
+        const { data, error } = await supabaseClient.from('tabela_dw').insert(rowsToInsert).select();
+        if (error) throw error;
+
+        showNotification(`Dados da Tabela DW salvos com sucesso (${rowsToInsert.length} linhas)!`, 'success');
+        tableBody.innerHTML = '';
+        addNewExcelRow('tabela_dw');
+        // loadData(); // Não precisa recarregar a tabela principal (fluxo)
+        loadStats(); // Apenas atualiza as estatísticas
+    } catch (error) {
+        console.error('Error saving tabela_dw data:', error);
+        showNotification('Erro ao salvar dados da Tabela DW: ' + error.message, 'danger');
+    } finally {
+        saveButton.disabled = false;
+    }
+}
+
+
+// ===================================
+// CAMPOS DINÂMICOS (COLUNAS REAIS) (Sem grandes alterações)
+// ===================================
+
+/**
+ * Busca colunas da tabela no Supabase e armazena em cache
+ * @param {string} tableName - O nome da tabela ('fase' ou 'tabela_dw').
+ */
+async function fetchAndCacheTableColumns(tableName) {
+    if (!supabaseClient) return; 
+    try {
+        const { data: columnNames, error } = await supabaseClient
+            .rpc('get_table_columns', {
+                p_table_name: tableName
+            });
+        if (error) throw error;
+        
+        allTableColumns[tableName] = columnNames || []; 
+    } catch (error) {
+         console.error(`Erro ao buscar colunas para ${tableName}:`, error);
+         allTableColumns[tableName] = []; 
+    }
+}
+
+/**
+ * Constrói o formulário de LINHA ÚNICA dinamicamente (para "Adicionar Nova Linha").
+ * @param {string} tableName - O nome da tabela ('fase' ou 'tabela_dw').
+ * @param {string} containerId - O ID do elemento <form> onde os campos serão inseridos.
+ */
+async function buildDynamicForm(tableName, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.error(`Container de formulário não encontrado: ${containerId}`);
+        return;
+    }
+    
+    container.innerHTML = ''; // Limpa o container
+
+    if (allTableColumns[tableName].length === 0) {
+        await fetchAndCacheTableColumns(tableName);
+    }
+    
+    const columnNames = allTableColumns[tableName];
+    
+    if (!columnNames || columnNames.length === 0) {
+        console.warn(`Nenhuma coluna encontrada para a tabela: ${tableName}`);
+        container.innerHTML = '<p class="text-danger">Nenhuma coluna de formulário encontrada. Adicione uma usando o botão +.</p>';
+        return;
+    }
+
+    // Constrói o HTML do formulário
+    columnNames.forEach(colName => {
+        const friendlyName = formatColumnName(colName);
+        const div = document.createElement('div');
+        
+        // Layout: Textareas ocupam 12 colunas, inputs 6.
+        if (colName.includes('atividade') || colName.includes('origem') || colName.includes('guarda') || colName.includes('transformacao') || colName.includes('consumo') || colName.includes('objetos') || colName.includes('funcao') || colName.includes('requisitos')) {
+            div.className = 'col-md-12';
+            div.innerHTML = `
+                <label for="form_edit_${colName}" class="form-label">${friendlyName}</label>
+                <textarea class="form-control" id="form_edit_${colName}" name="${colName}" rows="2"></textarea>
+            `;
+        } else {
+            div.className = 'col-md-6';
+            div.innerHTML = `
+                <label for="form_edit_${colName}" class="form-label">${friendlyName}</label>
+                <input type="${colName === 'registros' ? 'number' : 'text'}" class="form-control" id="form_edit_${colName}" name="${colName}" ${colName === 'customer_id' ? 'required' : ''}>
+            `;
+        }
+        container.appendChild(div);
+    });
+}
+
+/**
+ * Constrói o cabeçalho da planilha dinâmica (Excel-style).
+ * @param {string} tableName - O nome da tabela ('fase' ou 'tabela_dw').
+ */
+async function buildExcelGrid(tableName) {
+    const tableHeadId = (tableName === 'fase') ? 'tableFaseHead' : 'tableDWHead';
+    const tableBodyId = (tableName === 'fase') ? 'tableFaseBody' : 'tableDWBody';
+    
+    const tableHead = document.getElementById(tableHeadId);
+    const tableBody = document.getElementById(tableBodyId);
+
+    if (!tableHead || !tableBody) {
+        console.error(`Elementos da tabela não encontrados para: ${tableName}`);
+        return;
+    }
+
+    // Pega as colunas do cache. Se o cache estiver vazio, busca novamente.
+    if (allTableColumns[tableName].length === 0) {
+        await fetchAndCacheTableColumns(tableName);
+    }
+    
+    const columnNames = allTableColumns[tableName];
+    
+    tableHead.innerHTML = ''; // Limpa o cabeçalho
+    tableBody.innerHTML = ''; // Limpa o corpo
+    
+    if (!columnNames || columnNames.length === 0) {
+        console.warn(`Nenhuma coluna encontrada para a tabela: ${tableName}`);
+        tableBody.innerHTML = '<tr><td class="text-danger">Nenhuma coluna de formulário encontrada. Adicione uma usando o botão "+ Adicionar Nova Coluna".</td></tr>';
+        return;
+    }
+
+    // Constrói o Cabeçalho (thead)
+    columnNames.forEach(colName => {
+        const th = document.createElement('th');
+        th.textContent = formatColumnName(colName);
+        tableHead.appendChild(th);
+    });
+    const thAction = document.createElement('th');
+    thAction.textContent = 'Ação';
+    tableHead.appendChild(thAction);
+
+    // Adiciona a primeira linha em branco
+    addNewExcelRow(tableName);
+}
+
+/**
+ * Adiciona uma nova linha em branco (estilo Excel) à tabela especificada.
+ * @param {string} tableName - O nome da tabela ('fase' ou 'tabela_dw').
+ */
+function addNewExcelRow(tableName) {
+    const tableBodyId = (tableName === 'fase') ? 'tableFaseBody' : 'tableDWBody';
+    const tableBody = document.getElementById(tableBodyId);
+    const columnNames = allTableColumns[tableName];
+
+    if (!columnNames || columnNames.length === 0) {
+        if(tableBody.innerHTML.includes('Nenhuma coluna')) return;
+        showNotification(`Não é possível adicionar linha: Colunas para '${tableName}' não carregadas.`, 'warning');
+        return;
+    }
+
+    const tr = document.createElement('tr');
+    
+    // Adiciona célula de input para cada coluna
+    columnNames.forEach(colName => {
+        const td = document.createElement('td');
+        // ATUALIZAÇÃO: Adicionados os eventos onfocus, oninput, onblur
+        td.innerHTML = `<input type="text" 
+                                class="form-control form-control-sm" 
+                                data-column-name="${colName}" 
+                                name="${colName}"
+                                onfocus="showTypingTooltip(this)"
+                                oninput="updateTypingTooltip(this)"
+                                onblur="hideTypingTooltip()">`;
+        tr.appendChild(td);
+    });
+
+    // Adiciona célula de Ação (remover)
+    const tdAction = document.createElement('td');
+    tdAction.innerHTML = `<button type="button" class="btn btn-danger btn-sm" onclick="removeExcelRow(this)" title="Remover Linha">
+                            <i class="fas fa-trash-alt"></i>
+                          </button>`;
+    tr.appendChild(tdAction);
+
+    tableBody.appendChild(tr);
+}
+
+/**
+ * Remove uma linha da planilha (Excel-style).
+ * @param {HTMLElement} buttonElement - O botão 'remover' que foi clicado.
+ */
+function removeExcelRow(buttonElement) {
+    const tr = buttonElement.closest('tr');
+    if (tr) {
+        tr.remove();
+    }
+}
+
+/**
+ * ATUALIZADO: Funções de ajuda para o tooltip de digitação
+ */
+function showTypingTooltip(inputElement) {
+    const tooltip = document.getElementById('typingTooltip');
+    const rect = inputElement.getBoundingClientRect();
+    
+    tooltip.textContent = inputElement.value;
+    tooltip.style.left = rect.left + 'px';
+    tooltip.style.top = (rect.bottom + 5) + 'px'; // 5px abaixo do campo
+    tooltip.style.display = 'block';
+}
+function updateTypingTooltip(inputElement) {
+    const tooltip = document.getElementById('typingTooltip');
+    if (tooltip.style.display === 'block') {
+        tooltip.textContent = inputElement.value;
+    }
+}
+function hideTypingTooltip() {
+    const tooltip = document.getElementById('typingTooltip');
+    tooltip.style.display = 'none';
+}
+
+
+/**
+ * Abre o modal para adicionar um novo campo dinâmico (nova coluna).
+ * @param {string} context - Onde o campo será adicionado ('fase', 'dw', ou 'linha').
+ */
+function openAdicionarCampoDinamico(context) {
+    currentDynamicFieldContext = context; 
+    document.getElementById('formAdicionarCampoDinamico').reset(); 
+
+    const divSelectTabela = document.getElementById('divSelectTabelaCampo');
+    const selectTabela = document.getElementById('selectTabelaCampo');
+
+    if (context === 'linha') {
+        divSelectTabela.style.display = 'block';
+        selectTabela.value = currentTable; // currentTable (agora 'fluxo') será o padrão
+    } else {
+        divSelectTabela.style.display = 'none';
+    }
+    
+    modalAdicionarCampo.show(); 
+}
+
+/**
+ * Chama o RPC para criar a coluna e reconstrói o formulário/planilha.
+ */
+async function salvarNovoCampoDinamico() {
+    const nomeCampoInput = document.getElementById('nomeNovoCampo');
+    const friendlyName = nomeCampoInput.value.trim();
+    
+    if (!friendlyName) {
+        showNotification('Por favor, insira um nome para o campo.', 'warning');
+        return;
+    }
+
+    const sanitizedName = friendlyName.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, '_');
+     if (!/^[a-z_][a-z0-9_]*$/.test(sanitizedName)) {
+         showNotification('Nome de campo inválido. Use apenas letras minúsculas, números e underscores, começando com uma letra ou underscore.', 'danger');
+         return;
+    }
+
+    let tabela;
+
+    if (currentDynamicFieldContext === 'fase') {
+        tabela = 'fase';
+    } else if (currentDynamicFieldContext === 'dw') {
+        tabela = 'tabela_dw';
+    } else if (currentDynamicFieldContext === 'linha') {
+        tabela = document.getElementById('selectTabelaCampo').value;
+    } else {
+        console.error('Contexto desconhecido:', currentDynamicFieldContext);
+        return;
+    }
+
+    try {
+        if (!supabaseClient) { showNotification('Supabase não conectado.', 'danger'); return; }
+
+        // 1. Chama o RPC para adicionar a coluna
+        const { data, error } = await supabaseClient
+            .rpc('adicionar_coluna_dinamica', {
+                nome_tabela: tabela,
+                nome_coluna: sanitizedName
+            });
+
+        if (error) throw error;
+        
+        modalAdicionarCampo.hide(); 
+        nomeCampoInput.value = ''; 
+        showNotification(data, 'success'); 
+
+        // 2. Limpa o cache de colunas
+        allTableColumns[tabela] = [];
+
+        // 3. Reconstrói a UI correta
+        if (currentDynamicFieldContext === 'fase' || currentDynamicFieldContext === 'dw') {
+            await buildExcelGrid(tabela); // Reconstrói a planilha
+        } else if (currentDynamicFieldContext === 'linha') {
+            // Se a tabela principal (fluxo) foi editada, recarrega
+            if (tabela === 'fluxo') {
+                await loadData();
+            } else {
+                // Se foi o form de 'Adicionar Linha' (agora oculto), reconstrói ele
+                await buildDynamicForm(tabela, 'formEditarLinha');
+            }
+        }
+
+    } catch (error) {
+        console.error('Erro ao adicionar coluna:', error);
         showNotification('Erro ao adicionar coluna: ' + error.message, 'danger');
     }
 }
 
 // ===================================
-// ADICIONAR LINHA
+// ADICIONAR LINHA (FORMULÁRIO ÚNICO) - Lógica antiga mantida
 // ===================================
 
-function openAdicionarLinhaModal() {
+async function openAdicionarLinhaModal() {
     const modal = new bootstrap.Modal(document.getElementById('modalEditarLinha'));
     document.getElementById('modalEditarLinhaTitle').innerHTML = '<i class="fas fa-plus me-2"></i>Adicionar Nova Linha';
     
     const form = document.getElementById('formEditarLinha');
-    form.innerHTML = '';
+    form.innerHTML = '<div class="col-12 loading-form"><div class="spinner"></div></div>'; 
     
-    if (currentData.length > 0) {
-        const firstRow = currentData[0];
-        const columns = Object.keys(firstRow).filter(key => 
-            key !== 'id' && typeof firstRow[key] !== 'object'
-        );
-        
-        columns.forEach(col => {
-            const div = document.createElement('div');
-            div.className = 'mb-3';
-            div.innerHTML = `
-                <label for="field_${col}" class="form-label">${formatColumnName(col)}</label>
-                <input type="text" class="form-control" id="field_${col}" name="${col}">
-            `;
-            form.appendChild(div);
-        });
-    } else {
-        form.innerHTML = '<p>Carregue dados primeiro para ver a estrutura da tabela</p>';
-    }
-    
-    modal.show();
+    modal.show(); 
+
+    // Constrói o formulário dinâmico de ENTRADA ÚNICA
+    // currentTable será 'fluxo' por padrão
+    await buildDynamicForm(currentTable, 'formEditarLinha');
 }
 
+
 async function salvarLinha() {
+    const rowData = {};
+
+    // 1. Coletar dados (TODOS os campos do formulário 'formEditarLinha')
     const form = document.getElementById('formEditarLinha');
     const formData = new FormData(form);
-    const rowData = {};
-    
     for (let [key, value] of formData.entries()) {
         if (value.trim()) {
-            rowData[key] = value;
+            rowData[key] = value.trim();
         }
     }
     
-    try {
-        if (currentTable === 'lab3d_dw') {
-            const response = await fetch('/api/lab3d-dw', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(rowData)
-            });
-            
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Erro ao salvar');
-            
-            showNotification('Linha adicionada com sucesso!', 'success');
-        } else {
-            showNotification('Adicionar linhas só está disponível para a tabela DW no momento', 'warning');
+    // 2. Adicionar Chaves Estrangeiras (Se for 'fase' ou 'dw')
+    if (currentTable === 'fase' || currentTable === 'tabela_dw') {
+        const selectedFluxoId = document.getElementById('filterFluxo').value;
+        
+        if (!selectedFluxoId) {
+            showNotification('Por favor, selecione um Fluxo no filtro antes de adicionar uma linha.', 'warning');
+            return;
         }
         
+        const fluxoDetails = fluxosList.find(f => f.id_fluxo == selectedFluxoId);
+        
+        if (fluxoDetails) {
+            rowData['id_fluxo'] = fluxoDetails.id_fluxo;
+            rowData['id_cliente'] = fluxoDetails.id_cliente;
+            rowData['id_empresa'] = fluxoDetails.id_empresa;
+        } else {
+            showNotification('Erro: Detalhes do fluxo selecionado não encontrados.', 'danger');
+            return;
+        }
+        
+        if (!rowData.customer_id) {
+             showNotification('O campo "Customer Id" é obrigatório.', 'warning');
+             return;
+        }
+    }
+    
+    // 3. Salva no Supabase
+    try {
+        if (!supabaseClient) {
+             showNotification('Supabase não configurado.', 'danger');
+             return;
+        }
+        
+        const { data, error } = await supabaseClient
+            .from(currentTable) // Salva na tabela que o form foi construído (deve ser 'fluxo' agora)
+            .insert([rowData])
+            .select();
+            
+        if (error) throw error;
+        
+        showNotification('Linha adicionada com sucesso!', 'success');
         bootstrap.Modal.getInstance(document.getElementById('modalEditarLinha')).hide();
-        loadData();
-        loadStats();
+        loadData(); 
+        loadStats(); 
     } catch (error) {
         console.error('Error saving row:', error);
         showNotification('Erro ao salvar linha: ' + error.message, 'danger');
     }
 }
 
+
 // ===================================
-// DIAGRAMA
+// DIAGRAMA (Lógica antiga, agora usado pelo 'Visualizar')
 // ===================================
 
 async function openDiagramaModal(customerId) {
@@ -1346,11 +2309,13 @@ async function openDiagramaModal(customerId) {
         let dwData = [];
         
         if (!supabaseClient) {
-            fase1Data = currentData.filter(d => d.customer_id === customerId);
+            // Demo data
+            fase1Data = []; // Simplificado
+            dwData = [];
         } else {
             const [fase1, dw] = await Promise.all([
-                supabaseClient.from('lab3d_fase_1').select('*').eq('customer_id', customerId),
-                supabaseClient.from('lab3d_dw').select('*').eq('customer_id', customerId)
+                supabaseClient.from('fase').select('*').eq('customer_id', customerId),
+                supabaseClient.from('tabela_dw').select('*').eq('customer_id', customerId)
             ]);
             
             fase1Data = fase1.data || [];
@@ -1364,7 +2329,7 @@ async function openDiagramaModal(customerId) {
             </div>
             
             <div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                <h5 style="color: #0d6efd; margin-bottom: 15px;"><i class="fas fa-database me-2"></i>Dados - Fase 1 (${fase1Data.length} registros)</h5>
+                <h5 style="color: #0d6efd; margin-bottom: 15px;"><i class="fas fa-database me-2"></i>Dados - Fase (${fase1Data.length} registros)</h5>
                 ${renderDiagramTable(fase1Data)}
             </div>
             
@@ -1379,16 +2344,18 @@ async function openDiagramaModal(customerId) {
     }
 }
 
+
 function renderDiagramTable(data) {
     if (data.length === 0) {
         return '<p class="text-muted">Nenhum dado encontrado</p>';
     }
     
-    const columns = Object.keys(data[0]).filter(key => key !== 'id' && typeof data[0][key] !== 'object');
+    const columns = Object.keys(data[0]);
     
-    let html = '<div class="table-responsive"><table class="table table-sm table-bordered">';
-    html += '<thead><tr>';
+    let html = '<div class="table-responsive" style="max-height: 300px;"><table class="table table-sm table-bordered table-striped">';
+    html += '<thead class="table-light" style="position: sticky; top: 0; z-index: 1;"><tr>';
     columns.forEach(col => {
+        if (col === 'campos_dinamicos' || col === 'campos_customizados') return;
         html += `<th>${formatColumnName(col)}</th>`;
     });
     html += '</tr></thead><tbody>';
@@ -1396,7 +2363,12 @@ function renderDiagramTable(data) {
     data.forEach(row => {
         html += '<tr>';
         columns.forEach(col => {
-            html += `<td>${row[col] || '-'}</td>`;
+            if (col === 'campos_dinamicos' || col === 'campos_customizados') return;
+            let value = row[col];
+            if (typeof value === 'object' && value !== null) {
+                value = JSON.stringify(value);
+            }
+            html += `<td>${value || '-'}</td>`;
         });
         html += '</tr>';
     });
@@ -1406,7 +2378,7 @@ function renderDiagramTable(data) {
 }
 
 // ===================================
-// FILTROS
+// FILTROS (ATUALIZADO)
 // ===================================
 
 async function handleFilter(e) {
@@ -1420,20 +2392,52 @@ async function handleFilter(e) {
     
     try {
         if (!supabaseClient) {
-            // Demo mode
-            currentData = generateSampleData().filter(d => {
-                if (customerId && d.customer_id !== customerId) return false;
+            // Modo Demo
+            currentData = generateSampleFluxoData().filter(d => {
+                if (fluxoId && d.id_fluxo != fluxoId) return false;
+                // Filtro de customer ID no modo demo não é suportado
                 return true;
             });
         } else {
-            let query = supabaseClient.from(currentTable).select('*');
-            
-            if (customerId) {
-                query = query.eq('customer_id', customerId);
-            }
+            // Modo Supabase
+            // ATUALIZADO: Query base é sempre fluxo + joins
+            let query = supabaseClient
+                .from('fluxo')
+                .select('*, cliente(nome_cliente), empresa(nome_empresa_prestadora)');
             
             if (fluxoId) {
-                query = query.eq('id_fluxo_lab3d', fluxoId);
+                query = query.eq('id_fluxo', fluxoId);
+            }
+            
+            // ATUALIZADO: Filtro por Customer ID (requer sub-consultas)
+            if (customerId) {
+                // 1. Encontrar IDs de fluxo em 'fase'
+                const { data: faseMatches, error: faseError } = await supabaseClient
+                    .from('fase')
+                    .select('id_fluxo')
+                    .ilike('customer_id', `%${customerId}%`);
+                if (faseError) throw new Error(`Erro ao buscar fase: ${faseError.message}`);
+
+                // 2. Encontrar IDs de fluxo em 'tabela_dw'
+                const { data: dwMatches, error: dwError } = await supabaseClient
+                    .from('tabela_dw')
+                    .select('id_fluxo')
+                    .ilike('customer_id', `%${customerId}%`);
+                if (dwError) throw new Error(`Erro ao buscar dw: ${dwError.message}`);
+
+                // 3. Combinar IDs únicos
+                const idSet = new Set([
+                    ...faseMatches.map(f => f.id_fluxo),
+                    ...dwMatches.map(d => d.id_fluxo)
+                ]);
+                const idList = Array.from(idSet);
+
+                if (idList.length > 0) {
+                    query = query.in('id_fluxo', idList);
+                } else {
+                    // Se nenhum ID for encontrado, força a consulta a não retornar nada
+                    query = query.eq('id_fluxo', -1); 
+                }
             }
             
             const { data, error } = await query;
@@ -1443,7 +2447,7 @@ async function handleFilter(e) {
             currentData = data || [];
         }
         
-        renderDataTable(currentData);
+        renderFluxoTable(currentData); // Usa o renderizador de fluxo
         document.getElementById('dataGrid').style.display = 'block';
     } catch (error) {
         console.error('Error filtering data:', error);
@@ -1455,13 +2459,35 @@ async function handleFilter(e) {
 
 function limparFiltros() {
     document.getElementById('filterForm').reset();
+    currentTable = 'fluxo'; // Garante que currentTable está correto
     loadData();
+}
+
+function formatColumnName(name) {
+    return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
 // Make functions globally available
 window.openDiagramaModal = openDiagramaModal;
+window.visualizarFluxo = visualizarFluxo; // NOVO
+window.toggleFluxoEdit = toggleFluxoEdit; // NOVO
+window.cancelFluxoEdit = cancelFluxoEdit; // NOVO
+window.saveFluxoEdit = saveFluxoEdit; // NOVO
+window.confirmarExclusao = confirmarExclusao; // NOVO
+window.deleteFluxo = deleteFluxo; // NOVO
 window.showDashboardView = showDashboardView;
+window.openAdicionarCampoDinamico = openAdicionarCampoDinamico; 
+window.removeExcelRow = removeExcelRow; 
+// ATUALIZADO: Expondo as novas funções de tooltip
+window.showTypingTooltip = showTypingTooltip;
+window.updateTypingTooltip = updateTypingTooltip;
+window.hideTypingTooltip = hideTypingTooltip;
+
     </script>
 
 </body>
 </html>
+
+
+
+
