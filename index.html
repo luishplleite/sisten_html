@@ -281,6 +281,56 @@
             overflow-y: auto;
         }
         
+        /* Estilos específicos para a tabela principal de dados */
+        #dataTable {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+        
+        #dataTable thead th {
+            background-color: #0d6efd !important;
+            color: white !important;
+            padding: 12px 15px !important;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #0b5ed7;
+            white-space: nowrap;
+        }
+        
+        #dataTable tbody td {
+            padding: 12px 15px !important;
+            vertical-align: middle;
+            border-bottom: 1px solid #dee2e6;
+            word-wrap: break-word;
+        }
+        
+        #dataTable tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        /* Larguras específicas para cada coluna (4 colunas: Nome Fluxo, Cliente, Empresa, Ações) */
+        #dataTable th:nth-child(1),
+        #dataTable td:nth-child(1) {
+            width: 25%;
+        }
+        
+        #dataTable th:nth-child(2),
+        #dataTable td:nth-child(2) {
+            width: 20%;
+        }
+        
+        #dataTable th:nth-child(3),
+        #dataTable td:nth-child(3) {
+            width: 40%;
+        }
+        
+        #dataTable th:nth-child(4),
+        #dataTable td:nth-child(4) {
+            width: 15%;
+            text-align: center;
+        }
+        
         /* Modal */
         .modal-header {
             background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
@@ -378,9 +428,16 @@
         /* NOVO: Estilo para forçar botões na mesma linha */
         .action-buttons {
             display: flex;
-            flex-wrap: nowrap; /* Impede que os botões quebrem a linha */
-            gap: 5px; /* Adiciona um pequeno espaço entre os botões */
-            justify-content: flex-start;
+            flex-wrap: wrap;
+            gap: 5px;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .action-buttons .btn {
+            padding: 5px 10px;
+            font-size: 0.875rem;
+            margin: 2px;
         }
         
         /* Responsive */
@@ -1207,10 +1264,9 @@ async function loadData() {
             currentData = data || [];
         }
         
-        // Cache das colunas (mesmo que não sejam usadas no form principal, é bom ter)
+        // Cache das colunas apenas para fase e tabela_dw (que usam colunas dinâmicas)
         await fetchAndCacheTableColumns('fase');
         await fetchAndCacheTableColumns('tabela_dw');
-        await fetchAndCacheTableColumns('fluxo');
         
         // ATUALIZADO: Chama o novo renderizador da tabela de fluxo
         renderFluxoTable(currentData); 
@@ -1297,13 +1353,12 @@ function renderFluxoTable(data) {
     tableHeaders.innerHTML = '';
     tableBody.innerHTML = '';
     
-    // Definir cabeçalhos fixos para a tabela de fluxo
+    // Definir cabeçalhos fixos para a tabela de fluxo (SEM coluna Fluxo/ID)
     const headers = [
-        { text: "Fluxo", width: "10%" },
-        { text: "Nome Fluxo", width: "30%" }, // Ajustado
+        { text: "Nome Fluxo", width: "25%" },
         { text: "Cliente", width: "20%" },
-        { text: "Empresa", width: "20%" },
-        { text: "Ações", width: "20%" } // Ajustado
+        { text: "Empresa", width: "40%" },
+        { text: "Ações", width: "15%" }
     ];
     const headerRow = document.createElement('tr');
     headers.forEach(header => {
@@ -1323,20 +1378,15 @@ function renderFluxoTable(data) {
         const nomeCliente = (fluxo.cliente && fluxo.cliente.nome_cliente) ? fluxo.cliente.nome_cliente : 'N/A';
         const nomeEmpresa = (fluxo.empresa && fluxo.empresa.nome_empresa_prestadora) ? fluxo.empresa.nome_empresa_prestadora : 'N/A';
         
-        // Células de dados (ATUALIZADO: Criadas manualmente para garantir a ordem)
+        // Células de dados (ATUALIZADO: SEM célula de ID)
         
-        // Célula 1: Fluxo ID
-        const tdId = document.createElement('td');
-        tdId.textContent = fluxo.id_fluxo;
-        tr.appendChild(tdId);
-        
-        // Célula 2: Nome Fluxo
+        // Célula 1: Nome Fluxo
         const tdNome = document.createElement('td');
         tdNome.dataset.field = 'nome_fluxo';
         tdNome.textContent = fluxo.nome_fluxo || '-';
         tr.appendChild(tdNome);
         
-        // Célula 3: Cliente
+        // Célula 2: Cliente
         const tdCliente = document.createElement('td');
         tdCliente.dataset.field = 'nome_cliente';
         tdCliente.textContent = nomeCliente;
