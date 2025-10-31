@@ -604,6 +604,47 @@
                         </div>
                     </div>
 
+                    <!-- Painel de Filtros -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3"><i class="fas fa-filter me-2"></i>Filtros</h5>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label for="filtroCustomerId" class="form-label">Customer ID</label>
+                                    <input type="text" class="form-control" id="filtroCustomerId" placeholder="Digite o Customer ID">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filtroCliente" class="form-label">Cliente</label>
+                                    <select class="form-select" id="filtroCliente">
+                                        <option value="">Todos os clientes</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filtroEmpresa" class="form-label">Empresa</label>
+                                    <select class="form-select" id="filtroEmpresa">
+                                        <option value="">Todas as empresas</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filtroDataInicio" class="form-label">Data Início</label>
+                                    <input type="date" class="form-control" id="filtroDataInicio">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filtroDataFim" class="form-label">Data Fim</label>
+                                    <input type="date" class="form-control" id="filtroDataFim">
+                                </div>
+                                <div class="col-md-9 d-flex align-items-end">
+                                    <button class="btn btn-primary me-2" id="btnAplicarFiltros">
+                                        <i class="fas fa-search me-2"></i>Aplicar Filtros
+                                    </button>
+                                    <button class="btn btn-secondary" id="btnLimparFiltros">
+                                        <i class="fas fa-times me-2"></i>Limpar Filtros
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Nova Seção: Tabela de Fluxos -->
                     <div class="card mb-4">
                         <div class="card-body">
@@ -695,6 +736,9 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="modalVisualizarFluxoBody">
+                    <!-- Tooltip de digitação para edição inline -->
+                    <div id="typingTooltipVisualizar" class="typing-tooltip"></div>
+                    
                     <!-- Info do Fluxo -->
                     <div class="card mb-3">
                         <div class="card-body">
@@ -1118,9 +1162,9 @@ function setupEventListeners() {
     document.getElementById('btnAdicionarLinhaFase').addEventListener('click', () => addNewExcelRow('fase'));
     document.getElementById('btnAdicionarLinhaDW').addEventListener('click', () => addNewExcelRow('tabela_dw'));
 
-    // Filters - REMOVIDO
-    // document.getElementById('filterForm').addEventListener('submit', handleFilter);
-    // document.getElementById('btnLimparFiltros').addEventListener('click', limparFiltros);
+    // Filtros de Fluxos
+    document.getElementById('btnAplicarFiltros').addEventListener('click', aplicarFiltros);
+    document.getElementById('btnLimparFiltros').addEventListener('click', limparFiltros);
     
     // O listener de 'filterTabela' foi removido, pois a tabela principal é fixa
     // document.getElementById('filterTabela').addEventListener('change', (e) => { ... });
@@ -1299,6 +1343,7 @@ async function loadData() {
         await fetchAndCacheTableColumns('tabela_dw');
         
         await loadFluxos();
+        await carregarFiltrosClientesEmpresas();
     } catch (error) {
         console.error('Error loading data:', error);
         showNotification('Erro ao carregar dados: ' + error.message, 'danger');
@@ -1517,6 +1562,9 @@ async function editarRegistroModal(id, nomeTabela) {
         input.className = 'form-control form-control-sm inline-edit-input';
         input.value = value === '-' ? '' : value;
         input.dataset.column = columnName;
+        input.setAttribute('onfocus', 'showTypingTooltipVisualizar(this)');
+        input.setAttribute('oninput', 'updateTypingTooltipVisualizar(this)');
+        input.setAttribute('onblur', 'hideTypingTooltipVisualizar()');
         
         cell.innerHTML = '';
         cell.appendChild(input);
@@ -1838,6 +1886,155 @@ async function deleteFluxo() {
         btnConfirmar.innerHTML = '<i class="fas fa-trash-alt me-2"></i>Excluir Permanentemente';
         delete btnConfirmar.dataset.idFluxo;
     }
+}
+
+// ===================================
+// FILTROS DE FLUXOS
+// ===================================
+
+/**
+ * Carrega as listas de clientes e empresas para os filtros
+ */
+async function carregarFiltrosClientesEmpresas() {
+    try {
+        if (!supabaseClient) return;
+        
+        // Carregar clientes
+        const { data: clientes, error: errorClientes } = await supabaseClient
+            .from('cliente')
+            .select('id_cliente, nome_cliente')
+            .order('nome_cliente', { ascending: true });
+        
+        if (errorClientes) throw errorClientes;
+        
+        // Carregar empresas
+        const { data: empresas, error: errorEmpresas } = await supabaseClient
+            .from('empresa')
+            .select('id_empresa, nome_empresa_prestadora')
+            .order('nome_empresa_prestadora', { ascending: true });
+        
+        if (errorEmpresas) throw errorEmpresas;
+        
+        // Preencher select de clientes
+        const selectCliente = document.getElementById('filtroCliente');
+        if (selectCliente && clientes) {
+            selectCliente.innerHTML = '<option value="">Todos os clientes</option>';
+            clientes.forEach(cliente => {
+                const option = document.createElement('option');
+                option.value = cliente.id_cliente;
+                option.textContent = cliente.nome_cliente;
+                selectCliente.appendChild(option);
+            });
+        }
+        
+        // Preencher select de empresas
+        const selectEmpresa = document.getElementById('filtroEmpresa');
+        if (selectEmpresa && empresas) {
+            selectEmpresa.innerHTML = '<option value="">Todas as empresas</option>';
+            empresas.forEach(empresa => {
+                const option = document.createElement('option');
+                option.value = empresa.id_empresa;
+                option.textContent = empresa.nome_empresa_prestadora;
+                selectEmpresa.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar filtros:', error);
+    }
+}
+
+/**
+ * Aplica os filtros aos fluxos
+ */
+async function aplicarFiltros() {
+    try {
+        if (!supabaseClient) {
+            showNotification('Supabase não conectado.', 'warning');
+            return;
+        }
+        
+        const customerId = document.getElementById('filtroCustomerId').value.trim();
+        const idCliente = document.getElementById('filtroCliente').value;
+        const idEmpresa = document.getElementById('filtroEmpresa').value;
+        const dataInicio = document.getElementById('filtroDataInicio').value;
+        const dataFim = document.getElementById('filtroDataFim').value;
+        
+        // Construir query base
+        let query = supabaseClient
+            .from('fluxo')
+            .select('*, cliente(nome_cliente), empresa(nome_empresa_prestadora)')
+            .order('id_fluxo', { ascending: false });
+        
+        // Aplicar filtro por cliente
+        if (idCliente) {
+            query = query.eq('id_cliente', parseInt(idCliente));
+        }
+        
+        // Aplicar filtro por empresa
+        if (idEmpresa) {
+            query = query.eq('id_empresa', parseInt(idEmpresa));
+        }
+        
+        // Aplicar filtro por data de início
+        if (dataInicio) {
+            query = query.gte('created_at', dataInicio + 'T00:00:00');
+        }
+        
+        // Aplicar filtro por data de fim
+        if (dataFim) {
+            query = query.lte('created_at', dataFim + 'T23:59:59');
+        }
+        
+        const { data: fluxos, error } = await query;
+        
+        if (error) throw error;
+        
+        let fluxosFiltrados = fluxos || [];
+        
+        // Filtro por customer_id (precisa buscar em fase e tabela_dw)
+        if (customerId) {
+            const { data: faseData, error: faseError } = await supabaseClient
+                .from('fase')
+                .select('id_fluxo')
+                .ilike('customer_id', `%${customerId}%`);
+            
+            const { data: dwData, error: dwError } = await supabaseClient
+                .from('tabela_dw')
+                .select('id_fluxo')
+                .ilike('customer_id', `%${customerId}%`);
+            
+            if (faseError) throw faseError;
+            if (dwError) throw dwError;
+            
+            // Combinar IDs de fluxos que têm o customer_id
+            const idsFluxosComCustomer = new Set();
+            if (faseData) faseData.forEach(f => idsFluxosComCustomer.add(f.id_fluxo));
+            if (dwData) dwData.forEach(d => idsFluxosComCustomer.add(d.id_fluxo));
+            
+            // Filtrar apenas fluxos que contêm o customer_id
+            fluxosFiltrados = fluxosFiltrados.filter(f => idsFluxosComCustomer.has(f.id_fluxo));
+        }
+        
+        console.log('Fluxos filtrados:', fluxosFiltrados.length);
+        renderTabelaFluxos(fluxosFiltrados);
+        showNotification(`${fluxosFiltrados.length} fluxo(s) encontrado(s)`, 'info');
+        
+    } catch (error) {
+        console.error('Erro ao aplicar filtros:', error);
+        showNotification('Erro ao aplicar filtros: ' + error.message, 'danger');
+    }
+}
+
+/**
+ * Limpa os filtros e recarrega todos os fluxos
+ */
+function limparFiltros() {
+    document.getElementById('filtroCustomerId').value = '';
+    document.getElementById('filtroCliente').value = '';
+    document.getElementById('filtroEmpresa').value = '';
+    document.getElementById('filtroDataInicio').value = '';
+    document.getElementById('filtroDataFim').value = '';
+    loadFluxos();
 }
 
 
@@ -2463,6 +2660,29 @@ function hideTypingTooltip() {
     tooltip.style.display = 'none';
 }
 
+/**
+ * Funções de tooltip específicas para o modal "Visualizar Fluxo"
+ */
+function showTypingTooltipVisualizar(inputElement) {
+    const tooltip = document.getElementById('typingTooltipVisualizar');
+    const rect = inputElement.getBoundingClientRect();
+    
+    tooltip.textContent = inputElement.value;
+    tooltip.style.left = rect.left + 'px';
+    tooltip.style.top = (rect.bottom + 5) + 'px'; // 5px abaixo do campo
+    tooltip.style.display = 'block';
+}
+function updateTypingTooltipVisualizar(inputElement) {
+    const tooltip = document.getElementById('typingTooltipVisualizar');
+    if (tooltip.style.display === 'block') {
+        tooltip.textContent = inputElement.value;
+    }
+}
+function hideTypingTooltipVisualizar() {
+    const tooltip = document.getElementById('typingTooltipVisualizar');
+    tooltip.style.display = 'none';
+}
+
 
 /**
  * Abre o modal para adicionar um novo campo dinâmico (nova coluna).
@@ -2749,6 +2969,10 @@ window.removeExcelRow = removeExcelRow;
 window.showTypingTooltip = showTypingTooltip;
 window.updateTypingTooltip = updateTypingTooltip;
 window.hideTypingTooltip = hideTypingTooltip;
+// Funções de tooltip para o modal Visualizar Fluxo
+window.showTypingTooltipVisualizar = showTypingTooltipVisualizar;
+window.updateTypingTooltipVisualizar = updateTypingTooltipVisualizar;
+window.hideTypingTooltipVisualizar = hideTypingTooltipVisualizar;
 
     </script>
 
