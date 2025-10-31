@@ -604,74 +604,6 @@
                         </div>
                     </div>
 
-                    <!-- Filters -->
-                    <div class="card mb-4">
-                        <div class="card-body">
-                            <h5><i class="fas fa-filter me-2"></i>Filtros</h5>
-                            <form id="filterForm" class="row g-3">
-                                <div class="col-md-3">
-                                    <!-- ATUALIZADO: Label do filtro de Customer ID -->
-                                    <label for="filterCustomerId" class="form-label">Customer ID</label>
-                                    <input type="text" class="form-control" id="filterCustomerId">
-                                </div>
-                                <div class="col-md-3">
-                                    <label for="filterFluxo" class="form-label">Fluxo</label>
-                                    <select class="form-select" id="filterFluxo">
-                                        <option value="">Todos</option>
-                                    </select>
-                                </div>
-                                <!-- ATUALIZADO: Div da Tabela ocultada -->
-                                <div class="col-md-3" style="display: none;">
-                                    <label for="filterTabela" class="form-label">Tabela</label>
-                                    <select class="form-select" id="filterTabela">
-                                        <option value="fluxo">Fluxo</option> <!-- Default para fluxo -->
-                                        <option value="fase">Fase</option>
-                                        <option value="tabela_dw">Tabela DW</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-3 d-flex align-items-end">
-                                    <button type="submit" class="btn btn-primary me-2">
-                                        <i class="fas fa-search me-2"></i>Filtrar
-                                    </button>
-                                    <button type="button" class="btn btn-secondary" id="btnLimparFiltros">
-                                        <i class="fas fa-eraser me-2"></i>Limpar
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Data Grid -->
-                    <div class="data-grid-container">
-                        <div class="loading" id="dataLoading">
-                            <div class="spinner"></div>
-                            <h5>Carregando dados...</h5>
-                        </div>
-                        
-                        <div id="dataGrid" style="display: none;">
-                            <div class="table-responsive">
-                                <table class="table table-striped table-hover" id="dataTable">
-                                    <thead class="table-primary">
-                                        <tr id="tableHeaders"></tr>
-                                    </thead>
-                                    <tbody id="tableBody"></tbody>
-                                </table>
-                            </div>
-                            
-                            <!-- ATUALIZADO: Botão "Adicionar Linha" oculto -->
-                            <div class="mt-3" style="display: none;">
-                                <button class="btn btn-primary" id="btnAdicionarLinha">
-                                    <i class="fas fa-plus me-2"></i>Adicionar Nova Linha
-                                </button>
-                            </div>
-                        </div>
-                        
-                        <div id="emptyState" style="display: none; text-align: center; padding: 50px; color: #999;">
-                            <i class="fas fa-inbox" style="font-size: 4rem; margin-bottom: 20px;"></i>
-                            <h5>Nenhum dado encontrado</h5>
-                            <p>Crie um novo fluxo para começar a inserir dados</p>
-                        </div>
-                    </div>
                 </div>
             </div>
         </main>
@@ -1081,9 +1013,9 @@ function setupEventListeners() {
     document.getElementById('btnAdicionarLinhaFase').addEventListener('click', () => addNewExcelRow('fase'));
     document.getElementById('btnAdicionarLinhaDW').addEventListener('click', () => addNewExcelRow('tabela_dw'));
 
-    // Filters
-    document.getElementById('filterForm').addEventListener('submit', handleFilter);
-    document.getElementById('btnLimparFiltros').addEventListener('click', limparFiltros);
+    // Filters - REMOVIDO
+    // document.getElementById('filterForm').addEventListener('submit', handleFilter);
+    // document.getElementById('btnLimparFiltros').addEventListener('click', limparFiltros);
     
     // O listener de 'filterTabela' foi removido, pois a tabela principal é fixa
     // document.getElementById('filterTabela').addEventListener('change', (e) => { ... });
@@ -1236,28 +1168,21 @@ function showNotification(message, type = 'success') {
 // ===================================
 
 async function loadData() {
-    const loading = document.getElementById('dataLoading');
-    const dataGrid = document.getElementById('dataGrid');
-    const emptyState = document.getElementById('emptyState');
-    
-    loading.style.display = 'flex';
-    dataGrid.style.display = 'none';
-    emptyState.style.display = 'none';
-    
-    // ATUALIZADO: Oculta o botão 'Adicionar Linha' que era para fase/dw
-    document.getElementById('btnAdicionarLinha').style.display = 'none';
+    // REMOVIDO: Elementos de filtro e tabela foram excluídos
+    // const loading = document.getElementById('dataLoading');
+    // const dataGrid = document.getElementById('dataGrid');
+    // const emptyState = document.getElementById('emptyState');
     
     try {
         if (!supabaseClient) {
-            console.warn('Supabase não inicializado. Usando dados de demonstração.');
-            showNotification('Supabase não configurado. Exibindo dados de demonstração.', 'warning');
-            currentData = generateSampleFluxoData(); // Usa dados de fluxo
+            console.warn('Supabase não inicializado.');
+            currentData = generateSampleFluxoData();
         } else {
             // ATUALIZADO: Query principal agora busca fluxos com JOIN
             const { data, error } = await supabaseClient
                 .from('fluxo')
                 .select('*, cliente(nome_cliente), empresa(nome_empresa_prestadora)')
-                .order('id_fluxo', { ascending: false }); // Ordena por mais recente
+                .order('id_fluxo', { ascending: false });
             
             if (error) throw error;
             
@@ -1268,20 +1193,10 @@ async function loadData() {
         await fetchAndCacheTableColumns('fase');
         await fetchAndCacheTableColumns('tabela_dw');
         
-        // ATUALIZADO: Chama o novo renderizador da tabela de fluxo
-        renderFluxoTable(currentData); 
-        await loadFluxos(); // Carrega fluxos para o dropdown de filtro
-        
-        if (currentData.length === 0) {
-            emptyState.style.display = 'block';
-        } else {
-            dataGrid.style.display = 'block';
-        }
+        await loadFluxos();
     } catch (error) {
         console.error('Error loading data:', error);
         showNotification('Erro ao carregar dados: ' + error.message, 'danger');
-    } finally {
-        loading.style.display = 'none';
     }
 }
 
@@ -1319,112 +1234,17 @@ async function loadStats() {
 
 // ATUALIZADO: Função de dados de exemplo para fluxo
 function generateSampleFluxoData() {
-    return [
-        {
-            id_fluxo: 1,
-            nome_fluxo: "Fluxo de Demonstração 1",
-            id_cliente: 1,
-            id_empresa: 1,
-            status: "Pendente",
-            cliente: { nome_cliente: "Cliente Demo A" },
-            empresa: { nome_empresa_prestadora: "Empresa Demo X" }
-        },
-        {
-            id_fluxo: 2,
-            nome_fluxo: "Fluxo de Demonstração 2",
-            id_cliente: 2,
-            id_empresa: 1,
-            status: "Concluído",
-            cliente: { nome_cliente: "Cliente Demo B" },
-            empresa: { nome_empresa_prestadora: "Empresa Demo X" }
-        }
-    ];
+    return [];
 }
 
 // ===================================
 // RENDERIZAR TABELA (ATUALIZADO PARA FLUXO)
 // ===================================
 
-// ATUALIZADO: Nova função para renderizar a tabela de FLUXOS
+// REMOVIDO: Tabela de fluxos foi excluída da interface
 function renderFluxoTable(data) {
-    const tableHeaders = document.getElementById('tableHeaders');
-    const tableBody = document.getElementById('tableBody');
-    
-    tableHeaders.innerHTML = '';
-    tableBody.innerHTML = '';
-    
-    // Definir cabeçalhos fixos para a tabela de fluxo (SEM coluna Fluxo/ID)
-    const headers = [
-        { text: "Nome Fluxo", width: "25%" },
-        { text: "Cliente", width: "20%" },
-        { text: "Empresa", width: "40%" },
-        { text: "Ações", width: "15%" }
-    ];
-    const headerRow = document.createElement('tr');
-    headers.forEach(header => {
-        const th = document.createElement('th');
-        th.textContent = header.text;
-        th.style.width = header.width;
-        headerRow.appendChild(th);
-    });
-    tableHeaders.appendChild(headerRow);
-    
-    if (data.length === 0) return;
-    
-    data.forEach(fluxo => {
-        const tr = document.createElement('tr');
-        tr.id = `fluxo-row-${fluxo.id_fluxo}`; // ID para facilitar a edição
-        
-        const nomeCliente = (fluxo.cliente && fluxo.cliente.nome_cliente) ? fluxo.cliente.nome_cliente : 'N/A';
-        const nomeEmpresa = (fluxo.empresa && fluxo.empresa.nome_empresa_prestadora) ? fluxo.empresa.nome_empresa_prestadora : 'N/A';
-        
-        // Células de dados (ATUALIZADO: SEM célula de ID)
-        
-        // Célula 1: Nome Fluxo
-        const tdNome = document.createElement('td');
-        tdNome.dataset.field = 'nome_fluxo';
-        tdNome.textContent = fluxo.nome_fluxo || '-';
-        tr.appendChild(tdNome);
-        
-        // Célula 2: Cliente
-        const tdCliente = document.createElement('td');
-        tdCliente.dataset.field = 'nome_cliente';
-        tdCliente.textContent = nomeCliente;
-        tr.appendChild(tdCliente);
-        
-        // Célula 4: Empresa
-        const tdEmpresa = document.createElement('td');
-        tdEmpresa.dataset.field = 'nome_empresa';
-        tdEmpresa.textContent = nomeEmpresa;
-        tr.appendChild(tdEmpresa);
-        
-        // Célula 5: Ações
-        const tdAcoes = document.createElement('td');
-        tdAcoes.className = 'action-buttons';
-        tdAcoes.innerHTML = `
-            <!-- Botões de Ação -->
-            <button class="btn btn-sm btn-info btn-visualizar" onclick="visualizarFluxo(${fluxo.id_fluxo}, '${(fluxo.nome_fluxo || '').replace(/'/g, "\\'")}')" title="Visualizar Detalhes">
-                <i class="fas fa-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-warning btn-editar" onclick="toggleFluxoEdit(this, ${fluxo.id_fluxo})" title="Editar Fluxo">
-                <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-danger btn-excluir" onclick="confirmarExclusao(${fluxo.id_fluxo})" title="Excluir Fluxo">
-                <i class="fas fa-trash-alt"></i>
-            </button>
-            
-            <!-- Botões de Edição (Ocultos) -->
-            <button class="btn btn-sm btn-success btn-salvar" onclick="saveFluxoEdit(this, ${fluxo.id_fluxo})" title="Salvar" style="display: none;">
-                <i class="fas fa-save"></i>
-            </button>
-            <button class="btn btn-sm btn-secondary btn-cancelar" onclick="cancelFluxoEdit(this, ${fluxo.id_fluxo})" title="Cancelar" style="display: none;">
-                <i class="fas fa-times"></i>
-            </button>
-        `;
-        tr.appendChild(tdAcoes);
-        
-        tableBody.appendChild(tr);
-    });
+    // Função removida - elementos não existem mais
+    return;
 }
 
 // ===================================
@@ -2428,90 +2248,12 @@ function renderDiagramTable(data) {
 }
 
 // ===================================
-// FILTROS (ATUALIZADO)
+// FILTROS - REMOVIDO
 // ===================================
 
-async function handleFilter(e) {
-    e.preventDefault();
-    
-    const customerId = document.getElementById('filterCustomerId').value;
-    const fluxoId = document.getElementById('filterFluxo').value;
-    
-    const loading = document.getElementById('dataLoading');
-    loading.style.display = 'flex';
-    
-    try {
-        if (!supabaseClient) {
-            // Modo Demo
-            currentData = generateSampleFluxoData().filter(d => {
-                if (fluxoId && d.id_fluxo != fluxoId) return false;
-                // Filtro de customer ID no modo demo não é suportado
-                return true;
-            });
-        } else {
-            // Modo Supabase
-            // ATUALIZADO: Query base é sempre fluxo + joins
-            let query = supabaseClient
-                .from('fluxo')
-                .select('*, cliente(nome_cliente), empresa(nome_empresa_prestadora)');
-            
-            if (fluxoId) {
-                query = query.eq('id_fluxo', fluxoId);
-            }
-            
-            // ATUALIZADO: Filtro por Customer ID (requer sub-consultas)
-            if (customerId) {
-                // 1. Encontrar IDs de fluxo em 'fase'
-                const { data: faseMatches, error: faseError } = await supabaseClient
-                    .from('fase')
-                    .select('id_fluxo')
-                    .ilike('customer_id', `%${customerId}%`);
-                if (faseError) throw new Error(`Erro ao buscar fase: ${faseError.message}`);
-
-                // 2. Encontrar IDs de fluxo em 'tabela_dw'
-                const { data: dwMatches, error: dwError } = await supabaseClient
-                    .from('tabela_dw')
-                    .select('id_fluxo')
-                    .ilike('customer_id', `%${customerId}%`);
-                if (dwError) throw new Error(`Erro ao buscar dw: ${dwError.message}`);
-
-                // 3. Combinar IDs únicos
-                const idSet = new Set([
-                    ...faseMatches.map(f => f.id_fluxo),
-                    ...dwMatches.map(d => d.id_fluxo)
-                ]);
-                const idList = Array.from(idSet);
-
-                if (idList.length > 0) {
-                    query = query.in('id_fluxo', idList);
-                } else {
-                    // Se nenhum ID for encontrado, força a consulta a não retornar nada
-                    query = query.eq('id_fluxo', -1); 
-                }
-            }
-            
-            const { data, error } = await query;
-            
-            if (error) throw error;
-            
-            currentData = data || [];
-        }
-        
-        renderFluxoTable(currentData); // Usa o renderizador de fluxo
-        document.getElementById('dataGrid').style.display = 'block';
-    } catch (error) {
-        console.error('Error filtering data:', error);
-        showNotification('Erro ao filtrar dados: ' + error.message, 'danger');
-    } finally {
-        loading.style.display = 'none';
-    }
-}
-
-function limparFiltros() {
-    document.getElementById('filterForm').reset();
-    currentTable = 'fluxo'; // Garante que currentTable está correto
-    loadData();
-}
+// Funções removidas - elementos de filtro excluídos da interface
+// async function handleFilter(e) { ... }
+// function limparFiltros() { ... }
 
 function formatColumnName(name) {
     return name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
