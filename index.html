@@ -604,6 +604,45 @@
                         </div>
                     </div>
 
+                    <!-- Nova Seção: Tabela de Fluxos -->
+                    <div class="card mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3"><i class="fas fa-stream me-2"></i>Lista de Fluxos</h5>
+                            <div class="bg-white shadow-xl rounded-lg overflow-hidden">
+                                <div class="table-responsive">
+                                    <table class="w-full table-fixed" id="tabelaFluxos" style="width: 100%; table-layout: fixed;">
+                                        <thead>
+                                            <tr style="background-color: #0d6efd;">
+                                                <th class="px-3 py-3 text-left text-sm font-semibold text-white" style="width: 20%; color: white; padding: 12px;">
+                                                    Nome Fluxo
+                                                </th>
+                                                <th class="px-3 py-3 text-left text-sm font-semibold text-white" style="width: 20%; color: white; padding: 12px;">
+                                                    Cliente
+                                                </th>
+                                                <th class="px-3 py-3 text-left text-sm font-semibold text-white" style="width: 40%; color: white; padding: 12px;">
+                                                    Empresa
+                                                </th>
+                                                <th class="px-3 py-3 text-left text-sm font-semibold text-white" style="width: 20%; color: white; padding: 12px; text-align: center;">
+                                                    Ações
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tabelaFluxosBody" style="background-color: white;">
+                                            <tr>
+                                                <td colspan="4" style="padding: 20px; text-align: center;">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Carregando...</span>
+                                                    </div>
+                                                    <p class="mt-2">Carregando fluxos...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </main>
@@ -647,18 +686,84 @@
         </div>
     </div>
 
-    <!-- NOVO: Modal "Visualizar Fluxo" (Detalhes do Fluxo) -->
+    <!-- NOVO: Modal "Visualizar Fluxo" (Detalhes do Fluxo com Abas) -->
     <div class="modal fade" id="modalVisualizarFluxo" tabindex="-1">
-        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-dialog modal-fullscreen">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="modalVisualizarFluxoTitle"><i class="fas fa-eye me-2"></i>Visualizar Fluxo</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body" id="modalVisualizarFluxoBody">
-                    <div class="loading">
-                        <div class="spinner"></div>
-                        <p class="mt-2">Carregando detalhes do fluxo...</p>
+                    <!-- Info do Fluxo -->
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6><strong>Fluxo:</strong> <span id="visualizarNomeFluxo"></span></h6>
+                            <p class="mb-0"><strong>Cliente:</strong> <span id="visualizarCliente"></span></p>
+                            <p class="mb-0"><strong>Empresa:</strong> <span id="visualizarEmpresa"></span></p>
+                        </div>
+                    </div>
+
+                    <!-- Abas de Fase e Tabela DW -->
+                    <ul class="nav nav-tabs mb-3" id="visualizarFluxoTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="visualizar-fase-tab" data-bs-toggle="tab" data-bs-target="#visualizar-fase-content" type="button" role="tab">
+                                <i class="fas fa-layer-group me-2"></i>Fase
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="visualizar-dw-tab" data-bs-toggle="tab" data-bs-target="#visualizar-dw-content" type="button" role="tab">
+                                <i class="fas fa-database me-2"></i>Tabela DW
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Conteúdo das Abas -->
+                    <div class="tab-content" id="visualizarFluxoTabContent">
+                        
+                        <!-- Aba Fase -->
+                        <div class="tab-pane fade show active" id="visualizar-fase-content" role="tabpanel">
+                            <h5 class="mb-3">Registros da Fase</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped" id="tabelaVisualizarFase">
+                                    <thead class="table-primary">
+                                        <tr id="tabelaVisualizarFaseHead">
+                                            <!-- Cabeçalhos serão inseridos dinamicamente -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabelaVisualizarFaseBody">
+                                        <tr>
+                                            <td colspan="100%" style="text-align: center; padding: 20px;">
+                                                <div class="spinner-border text-primary" role="status"></div>
+                                                <p class="mt-2">Carregando dados...</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Aba Tabela DW -->
+                        <div class="tab-pane fade" id="visualizar-dw-content" role="tabpanel">
+                            <h5 class="mb-3">Registros da Tabela DW</h5>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped" id="tabelaVisualizarDW">
+                                    <thead class="table-primary">
+                                        <tr id="tabelaVisualizarDWHead">
+                                            <!-- Cabeçalhos serão inseridos dinamicamente -->
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tabelaVisualizarDWBody">
+                                        <tr>
+                                            <td colspan="100%" style="text-align: center; padding: 20px;">
+                                                <div class="spinner-border text-primary" role="status"></div>
+                                                <p class="mt-2">Carregando dados...</p>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1252,15 +1357,16 @@ function renderFluxoTable(data) {
 // ===================================
 
 /**
- * NOVO: Abre o modal de visualização com detalhes do fluxo (fase e dw).
+ * NOVO: Abre o modal de visualização com detalhes do fluxo (fase e dw) com abas separadas.
  */
-async function visualizarFluxo(id_fluxo, nome_fluxo) {
+async function visualizarFluxoNovo(id_fluxo, nome_fluxo, nomeCliente, nomeEmpresa) {
     const modal = new bootstrap.Modal(document.getElementById('modalVisualizarFluxo'));
-    const modalTitle = document.getElementById('modalVisualizarFluxoTitle');
-    const modalBody = document.getElementById('modalVisualizarFluxoBody');
-
-    modalTitle.textContent = `Visualizar Fluxo: ${nome_fluxo} (ID: ${id_fluxo})`;
-    modalBody.innerHTML = '<div class="loading"><div class="spinner"></div><p class="mt-2">Carregando detalhes...</p></div>';
+    
+    // Preencher informações do fluxo
+    document.getElementById('visualizarNomeFluxo').textContent = nome_fluxo;
+    document.getElementById('visualizarCliente').textContent = nomeCliente;
+    document.getElementById('visualizarEmpresa').textContent = nomeEmpresa;
+    
     modal.show();
 
     try {
@@ -1268,6 +1374,7 @@ async function visualizarFluxo(id_fluxo, nome_fluxo) {
             throw new Error("Supabase não conectado.");
         }
 
+        // Carregar dados de fase e tabela_dw
         const [faseData, dwData] = await Promise.all([
             supabaseClient.from('fase').select('*').eq('id_fluxo', id_fluxo),
             supabaseClient.from('tabela_dw').select('*').eq('id_fluxo', id_fluxo)
@@ -1276,28 +1383,156 @@ async function visualizarFluxo(id_fluxo, nome_fluxo) {
         if (faseData.error) throw faseData.error;
         if (dwData.error) throw dwData.error;
 
-        modalBody.innerHTML = `
-            <div class="card mb-3">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Registros de Fase (${faseData.data.length})</h5>
-                </div>
-                <div class="card-body">
-                    ${renderDiagramTable(faseData.data)}
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Registros de Tabela DW (${dwData.data.length})</h5>
-                </div>
-                <div class="card-body">
-                    ${renderDiagramTable(dwData.data)}
-                </div>
-            </div>
-        `;
+        // Renderizar dados na aba Fase
+        renderVisualizarTabela('Fase', faseData.data || [], 'fase');
+        
+        // Renderizar dados na aba Tabela DW
+        renderVisualizarTabela('DW', dwData.data || [], 'tabela_dw');
 
     } catch (error) {
         console.error('Error loading fluxo details:', error);
-        modalBody.innerHTML = `<div class="alert alert-danger">Erro ao carregar detalhes: ${error.message}</div>`;
+        showNotification('Erro ao carregar detalhes: ' + error.message, 'danger');
+    }
+}
+
+/**
+ * Renderiza os dados de uma tabela (fase ou dw) no modal de visualização
+ */
+function renderVisualizarTabela(tipo, dados, nomeTabela) {
+    const headId = tipo === 'Fase' ? 'tabelaVisualizarFaseHead' : 'tabelaVisualizarDWHead';
+    const bodyId = tipo === 'Fase' ? 'tabelaVisualizarFaseBody' : 'tabelaVisualizarDWBody';
+    
+    const thead = document.getElementById(headId);
+    const tbody = document.getElementById(bodyId);
+    
+    if (!thead || !tbody) return;
+    
+    if (!dados || dados.length === 0) {
+        thead.innerHTML = '<th>Info</th>';
+        tbody.innerHTML = `
+            <tr>
+                <td style="text-align: center; padding: 20px;">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">Nenhum registro encontrado</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    // Pegar todas as colunas do primeiro registro
+    const colunas = Object.keys(dados[0]).filter(col => 
+        !col.startsWith('id_') || col === 'id_fase' || col === 'id_dw'
+    );
+    
+    // Adicionar coluna de ações
+    colunas.push('Ações');
+    
+    // Renderizar cabeçalho
+    thead.innerHTML = colunas.map(col => {
+        const displayName = col === 'Ações' ? 'Ações' : 
+                          col.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        return `<th style="padding: 10px; white-space: nowrap;">${displayName}</th>`;
+    }).join('');
+    
+    // Renderizar corpo
+    tbody.innerHTML = '';
+    dados.forEach((registro, index) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #dee2e6';
+        
+        colunas.forEach(col => {
+            const td = document.createElement('td');
+            td.style.padding = '10px';
+            
+            if (col === 'Ações') {
+                const idCampo = tipo === 'Fase' ? 'id_fase' : 'id_dw';
+                const idRegistro = registro[idCampo];
+                td.innerHTML = `
+                    <div style="display: flex; gap: 5px; justify-content: center;">
+                        <button 
+                            onclick="editarRegistroModal(${idRegistro}, '${nomeTabela}')" 
+                            class="btn btn-sm btn-warning" 
+                            style="padding: 3px 8px;"
+                            title="Editar">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button 
+                            onclick="excluirRegistroModal(${idRegistro}, '${nomeTabela}')" 
+                            class="btn btn-sm btn-danger" 
+                            style="padding: 3px 8px;"
+                            title="Excluir">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                `;
+            } else {
+                const valor = registro[col];
+                let displayValue = '-';
+                
+                if (valor !== null && valor !== undefined) {
+                    if (typeof valor === 'object') {
+                        displayValue = JSON.stringify(valor);
+                    } else {
+                        displayValue = String(valor);
+                    }
+                }
+                
+                td.textContent = displayValue;
+                td.style.wordWrap = 'break-word';
+                td.style.maxWidth = '200px';
+            }
+            
+            tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
+    });
+}
+
+/**
+ * Editar um registro (fase ou tabela_dw) - Abre modal simples
+ */
+async function editarRegistroModal(id, nomeTabela) {
+    const novoValor = prompt(`Digite o novo valor para edição (simplificado):`);
+    if (!novoValor) return;
+    
+    showNotification('Funcionalidade de edição em desenvolvimento. Use o modal de preenchimento completo.', 'info');
+}
+
+/**
+ * Excluir um registro (fase ou tabela_dw)
+ */
+async function excluirRegistroModal(id, nomeTabela) {
+    if (!confirm(`Tem certeza que deseja excluir este registro?`)) return;
+    
+    try {
+        if (!supabaseClient) throw new Error("Supabase não conectado.");
+        
+        const idCampo = nomeTabela === 'fase' ? 'id_fase' : 'id_dw';
+        
+        const { error } = await supabaseClient
+            .from(nomeTabela)
+            .delete()
+            .eq(idCampo, id);
+        
+        if (error) throw error;
+        
+        showNotification('Registro excluído com sucesso!', 'success');
+        
+        // Recarregar o modal
+        // Para isso, precisamos fechar e reabrir
+        const modalElement = document.getElementById('modalVisualizarFluxo');
+        const modalInstance = bootstrap.Modal.getInstance(modalElement);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
+        
+        loadStats();
+        
+    } catch (error) {
+        console.error('Error deleting registro:', error);
+        showNotification('Erro ao excluir: ' + error.message, 'danger');
     }
 }
 
@@ -1478,27 +1713,129 @@ async function loadFluxos() {
     try {
         if (!supabaseClient) {
             console.warn('Supabase not set, cannot load fluxos.');
+            renderTabelaFluxos([]);
             return;
         }
-        const { data, error } = await supabaseClient
-            .from('fluxo')
-            .select('id_fluxo, nome_fluxo, id_cliente, id_empresa'); 
         
-        if (error) throw error;
+        // Tentar primeiro com JOIN
+        let { data, error } = await supabaseClient
+            .from('fluxo')
+            .select('*, cliente(nome_cliente), empresa(nome_empresa_prestadora)')
+            .order('id_fluxo', { ascending: false }); 
+        
+        // Se der erro com JOIN, tentar sem JOIN
+        if (error) {
+            console.warn('Erro ao carregar fluxos com JOIN, tentando sem JOIN:', error.message);
+            const result = await supabaseClient
+                .from('fluxo')
+                .select('*')
+                .order('id_fluxo', { ascending: false });
+            
+            data = result.data;
+            error = result.error;
+            
+            if (error) {
+                console.error('Erro ao carregar fluxos:', error);
+                throw new Error(`Erro ao carregar fluxos: ${error.message}`);
+            }
+            
+            // Carregar nomes de cliente e empresa manualmente se necessário
+            if (data && data.length > 0) {
+                for (let fluxo of data) {
+                    if (fluxo.id_cliente) {
+                        const { data: clienteData } = await supabaseClient
+                            .from('cliente')
+                            .select('nome_cliente')
+                            .eq('id_cliente', fluxo.id_cliente)
+                            .single();
+                        fluxo.cliente = clienteData;
+                    }
+                    if (fluxo.id_empresa) {
+                        const { data: empresaData } = await supabaseClient
+                            .from('empresa')
+                            .select('nome_empresa_prestadora')
+                            .eq('id_empresa', fluxo.id_empresa)
+                            .single();
+                        fluxo.empresa = empresaData;
+                    }
+                }
+            }
+        }
         
         fluxosList = data || []; 
+        console.log('Fluxos carregados:', fluxosList.length);
         
+        // Preencher a tabela de fluxos na tela
+        renderTabelaFluxos(fluxosList);
+        
+        // Manter filtro se ainda existir
         const filterFluxo = document.getElementById('filterFluxo');
-        filterFluxo.innerHTML = '<option value="">Todos</option>';
-        fluxosList.forEach(fluxo => {
-            const option = document.createElement('option');
-            option.value = fluxo.id_fluxo;
-            option.textContent = fluxo.nome_fluxo;
-            filterFluxo.appendChild(option);
-        });
+        if (filterFluxo) {
+            filterFluxo.innerHTML = '<option value="">Todos</option>';
+            fluxosList.forEach(fluxo => {
+                const option = document.createElement('option');
+                option.value = fluxo.id_fluxo;
+                option.textContent = fluxo.nome_fluxo;
+                filterFluxo.appendChild(option);
+            });
+        }
     } catch (error) {
         console.error('Error loading fluxos:', error);
+        showNotification('Erro ao carregar fluxos: ' + error.message, 'danger');
+        renderTabelaFluxos([]);
     }
+}
+
+// Renderizar a tabela de fluxos
+function renderTabelaFluxos(fluxos) {
+    const tbody = document.getElementById('tabelaFluxosBody');
+    if (!tbody) return;
+    
+    if (!fluxos || fluxos.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 20px;">
+                    <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                    <p class="text-muted">Nenhum fluxo encontrado</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    fluxos.forEach(fluxo => {
+        const nomeCliente = fluxo.cliente ? fluxo.cliente.nome_cliente : '-';
+        const nomeEmpresa = fluxo.empresa ? fluxo.empresa.nome_empresa_prestadora : '-';
+        
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #dee2e6';
+        tr.className = 'hover:bg-gray-50';
+        tr.innerHTML = `
+            <td style="padding: 12px 15px; word-wrap: break-word;">${fluxo.nome_fluxo || '-'}</td>
+            <td style="padding: 12px 15px; word-wrap: break-word;">${nomeCliente}</td>
+            <td style="padding: 12px 15px; word-wrap: break-word;">${nomeEmpresa}</td>
+            <td style="padding: 12px 15px; text-align: center; white-space: nowrap;">
+                <div style="display: flex; gap: 5px; justify-content: center; align-items: center;">
+                    <button 
+                        onclick="visualizarFluxoNovo(${fluxo.id_fluxo}, '${fluxo.nome_fluxo.replace(/'/g, "\\'")}', '${nomeCliente.replace(/'/g, "\\'")}', '${nomeEmpresa.replace(/'/g, "\\'")}')" 
+                        class="btn btn-sm" 
+                        style="background-color: #06b6d4; color: white; padding: 5px 10px; border-radius: 6px;"
+                        title="Visualizar">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button 
+                        onclick="confirmarExclusao(${fluxo.id_fluxo})" 
+                        class="btn btn-sm btn-danger" 
+                        style="padding: 5px 10px; border-radius: 6px;"
+                        title="Excluir">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
 async function openNovoFluxoModal() {
@@ -2261,7 +2598,9 @@ function formatColumnName(name) {
 
 // Make functions globally available
 window.openDiagramaModal = openDiagramaModal;
-window.visualizarFluxo = visualizarFluxo; // NOVO
+window.visualizarFluxoNovo = visualizarFluxoNovo; // NOVO
+window.editarRegistroModal = editarRegistroModal; // NOVO
+window.excluirRegistroModal = excluirRegistroModal; // NOVO
 window.toggleFluxoEdit = toggleFluxoEdit; // NOVO
 window.cancelFluxoEdit = cancelFluxoEdit; // NOVO
 window.saveFluxoEdit = saveFluxoEdit; // NOVO
