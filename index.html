@@ -1441,13 +1441,18 @@ function renderVisualizarTabela(tipo, dados, nomeTabela) {
         const tr = document.createElement('tr');
         tr.style.borderBottom = '1px solid #dee2e6';
         
+        const idCampo = tipo === 'Fase' ? 'id_fase' : 'id_dw';
+        const idRegistro = registro[idCampo];
+        
+        tr.dataset.rowId = idRegistro;
+        tr.dataset.table = nomeTabela;
+        
         colunas.forEach(col => {
             const td = document.createElement('td');
             td.style.padding = '10px';
+            td.dataset.column = col;
             
             if (col === 'Ações') {
-                const idCampo = tipo === 'Fase' ? 'id_fase' : 'id_dw';
-                const idRegistro = registro[idCampo];
                 td.innerHTML = `
                     <div style="display: flex; gap: 5px; justify-content: center;">
                         <button 
@@ -1491,13 +1496,146 @@ function renderVisualizarTabela(tipo, dados, nomeTabela) {
 }
 
 /**
- * Editar um registro (fase ou tabela_dw) - Abre modal simples
+ * Editar um registro (fase ou tabela_dw) - Edição inline
  */
 async function editarRegistroModal(id, nomeTabela) {
-    const novoValor = prompt(`Digite o novo valor para edição (simplificado):`);
-    if (!novoValor) return;
+    const row = document.querySelector(`tr[data-row-id="${id}"][data-table="${nomeTabela}"]`);
+    if (!row) return;
     
-    showNotification('Funcionalidade de edição em desenvolvimento. Use o modal de preenchimento completo.', 'info');
+    const cells = row.querySelectorAll('td');
+    const originalValues = {};
+    
+    cells.forEach((cell, index) => {
+        const columnName = cell.dataset.column;
+        if (!columnName || columnName === 'Ações') return;
+        
+        const value = cell.textContent;
+        originalValues[columnName] = value;
+        
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'form-control form-control-sm inline-edit-input';
+        input.value = value === '-' ? '' : value;
+        input.dataset.column = columnName;
+        
+        cell.innerHTML = '';
+        cell.appendChild(input);
+    });
+    
+    row.dataset.originalValues = JSON.stringify(originalValues);
+    
+    const actionsCell = cells[cells.length - 1];
+    actionsCell.innerHTML = `
+        <div style="display: flex; gap: 5px; justify-content: center;">
+            <button 
+                onclick="salvarEdicaoRegistro(${id}, '${nomeTabela}')" 
+                class="btn btn-sm btn-success" 
+                style="padding: 3px 8px;"
+                title="Salvar">
+                <i class="fas fa-save"></i> Salvar
+            </button>
+            <button 
+                onclick="cancelarEdicaoRegistro(${id}, '${nomeTabela}')" 
+                class="btn btn-sm btn-secondary" 
+                style="padding: 3px 8px;"
+                title="Cancelar">
+                <i class="fas fa-times"></i> Cancelar
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Salvar edição inline de um registro
+ */
+async function salvarEdicaoRegistro(id, nomeTabela) {
+    const row = document.querySelector(`tr[data-row-id="${id}"][data-table="${nomeTabela}"]`);
+    if (!row) return;
+    
+    const inputs = row.querySelectorAll('input.inline-edit-input');
+    const updateData = {};
+    
+    inputs.forEach(input => {
+        const columnName = input.dataset.column;
+        let value = input.value.trim();
+        
+        if (value === '') {
+            value = null;
+        }
+        
+        updateData[columnName] = value;
+    });
+    
+    try {
+        if (!supabaseClient) throw new Error("Supabase não conectado.");
+        
+        const idCampo = nomeTabela === 'fase' ? 'id_fase' : 'id_dw';
+        
+        const { error } = await supabaseClient
+            .from(nomeTabela)
+            .update(updateData)
+            .eq(idCampo, id);
+        
+        if (error) throw error;
+        
+        showNotification('Registro atualizado com sucesso!', 'success');
+        
+        const modalElement = document.getElementById('modalVisualizarFluxo');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        if (modal) {
+            modal.hide();
+        }
+        
+        loadStats();
+        
+    } catch (error) {
+        console.error('Error updating registro:', error);
+        showNotification('Erro ao atualizar: ' + error.message, 'danger');
+    }
+}
+
+/**
+ * Cancelar edição inline de um registro
+ */
+async function cancelarEdicaoRegistro(id, nomeTabela) {
+    const row = document.querySelector(`tr[data-row-id="${id}"][data-table="${nomeTabela}"]`);
+    if (!row || !row.dataset.originalValues) return;
+    
+    const originalValues = JSON.parse(row.dataset.originalValues);
+    const cells = row.querySelectorAll('td');
+    
+    cells.forEach((cell, index) => {
+        const columnName = cell.dataset.column;
+        if (!columnName || columnName === 'Ações') return;
+        
+        const value = originalValues[columnName] || '-';
+        cell.textContent = value;
+    });
+    
+    delete row.dataset.originalValues;
+    
+    const idCampo = nomeTabela === 'fase' ? 'id_fase' : 'id_dw';
+    const idRegistro = id;
+    
+    const actionsCell = cells[cells.length - 1];
+    actionsCell.innerHTML = `
+        <div style="display: flex; gap: 5px; justify-content: center;">
+            <button 
+                onclick="editarRegistroModal(${idRegistro}, '${nomeTabela}')" 
+                class="btn btn-sm btn-warning" 
+                style="padding: 3px 8px;"
+                title="Editar">
+                <i class="fas fa-edit"></i>
+            </button>
+            <button 
+                onclick="excluirRegistroModal(${idRegistro}, '${nomeTabela}')" 
+                class="btn btn-sm btn-danger" 
+                style="padding: 3px 8px;"
+                title="Excluir">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+    `;
 }
 
 /**
@@ -1520,8 +1658,6 @@ async function excluirRegistroModal(id, nomeTabela) {
         
         showNotification('Registro excluído com sucesso!', 'success');
         
-        // Recarregar o modal
-        // Para isso, precisamos fechar e reabrir
         const modalElement = document.getElementById('modalVisualizarFluxo');
         const modalInstance = bootstrap.Modal.getInstance(modalElement);
         if (modalInstance) {
