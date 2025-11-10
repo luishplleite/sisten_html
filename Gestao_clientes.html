@@ -1,0 +1,2973 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolv Task - Gestão de Clientes</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0d6efd; /* Cor padrão que será substituída */
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --light-bg: #F8F9FA;
+            --dark-text: #333333;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            overflow-x: hidden;
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+        }
+
+        /* Auth Loading Screen */
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+        .auth-loading .spinner-auth {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .app-container {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .app-container.authenticated {
+            opacity: 1;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: transform 0.3s ease, background 0.5s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            background-color: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .sidebar-header .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .sidebar-header .text-light {
+            color: var(--dark-color) !important;
+            font-weight: 500;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+            flex-grow: 1;
+        }
+        
+        .menu-item {
+            display: block;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+        
+        .menu-item:hover,
+        .menu-item.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+        }
+
+        /* Ocultar menus inicialmente para evitar flash */
+        .sidebar-menu .menu-item {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-menu .menu-item.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Loading state da sidebar */
+        .sidebar-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+        .sidebar-loading .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        #main-content-wrapper {
+            padding: 20px;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Content Area */
+        .content-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .content-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        /* Client Management App specific styles */
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            height: 100%;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .stats-card h5 {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .table thead th {
+            background-color: var(--primary-color);
+            color: white;
+            vertical-align: middle;
+        }
+        .table tbody tr:hover {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+        .table td {
+            vertical-align: middle;
+        }
+        .badge-status {
+            font-size: 0.85em;
+            padding: 0.5em 0.8em;
+        }
+        .balance-positive {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+        .balance-negative {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        .detail-card {
+            background-color: #fff;
+            border: 1px solid #e9ecef;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .detail-card h4 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0;
+        }
+        .detail-card small {
+            color: #6c757d;
+        }
+        .editable-cell input {
+            width: 100%;
+            border: 1px solid transparent;
+            background-color: transparent;
+            text-align: center;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .editable-cell input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            background-color: #fff;
+        }
+        .table .editable-cell.changed {
+            background-color: #fff3cd !important;
+        }
+        .table .editable-cell.changed input {
+            color: var(--success-color);
+            font-weight: bold;
+        }
+        .banco-horas-row {
+            background-color: #f8f9fa;
+            font-style: italic;
+            color: #6c757d;
+        }
+        .validation-info {
+            font-size: 0.85em;
+            color: #6c757d;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        /* Nested Modal Styles */
+        .nested-modal {
+            z-index: 1065 !important;
+        }
+        .nested-modal .modal-backdrop {
+            z-index: 1064 !important;
+        }
+
+        /* Service Edit Button Styles */
+        .service-edit-btn {
+            border: none;
+            background: transparent;
+            color: var(--primary-color);
+            font-size: 0.8rem;
+            padding: 2px 5px;
+            margin-left: 5px;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        .service-edit-btn:hover {
+            color: var(--success-color);
+        }
+
+        /* Responsive Design for Sidebar */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                z-index: 1050;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            /* Overlay para mobile quando sidebar está aberta */
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1040;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+            
+            .sidebar-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+
+        /* Collapse Section Styling */
+        .collapse-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+            margin-bottom: 15px;
+        }
+        .collapse-header:hover {
+            opacity: 0.8;
+        }
+        .collapse-header h3, .collapse-header h5 {
+            margin-bottom: 0;
+        }
+        .collapse-header .toggle-icon {
+            transition: transform 0.3s ease;
+        }
+        .collapse-header .toggle-icon.rotated {
+            transform: rotate(180deg);
+        }
+        /* Ajuste para o header do Acompanhamento Mês a Mês */
+        #collapseMonthlyTracking .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-right: 15px;
+        }
+        #collapseMonthlyTracking .card-header .btn {
+            margin-left: auto;
+        }
+    </style>
+</head>
+<body>
+    <!-- Tela de carregamento exibida durante a verificação de autenticação -->
+    <div class="auth-loading" id="authLoading">
+        <div class="spinner-auth"></div>
+        <h4>ResolvTask</h4>
+        <p>Verificando autenticação...</p>
+    </div>
+
+    <!-- Container principal da aplicação -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar Menu -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo">
+                <br><br>
+                <h1><i class="fas fa-bolt me-2"></i>Task</h1>
+                <small class="text-light">Sistema Integrado de Gestão</small>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu">
+            <div class="sidebar-loading" id="sidebarLoading">
+                <div class="spinner-small"></div>
+                Carregando menu...
+            </div>
+            <!-- Dashboard - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/resolv'" data-menu="dashboard">
+                <i class="fas fa-chart-line"></i>Dashboard
+            </button>
+            <!-- Gerenciador de Tarefas - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gerenciadortarefas'" data-menu="tasks">
+                <i class="fas fa-tasks"></i>Gerenciador de Tarefas
+            </button>
+            <!-- Gerenciador de Horas - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/taskhoras'" data-menu="hours">
+                <i class="fas fa-clock"></i>Gerenciador de Horas
+            </button>
+            <!-- Gestão de Clientes - Link externo (selecionado por padrão) -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gestao_clientes'" data-menu="clients">
+                <i class="fas fa-handshake"></i>Gestão de Clientes
+            </button>
+            <!-- Gestão de Parceiros - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gestaodeparceiros'" data-menu="partners">
+                <i class="fas fa-handshake-angle"></i>Gestão de Parceiros
+            </button>
+            <!-- Equipe - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/equipe'" data-menu="team">
+                <i class="fas fa-users"></i>Equipe
+            </button>
+            <!-- Configurações - Ação interna (showPage) -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/conf'" data-menu="settings">
+                <i class="fas fa-cog"></i>Configurações
+            </button>
+            </div>
+        </nav>
+
+        <main class="main-content" id="mainContent">
+            <nav class="top-nav">
+                <div class="d-flex align-items-center">
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0 ms-3" id="mainTitle">Gestão de Clientes</h5>
+                </div>
+                <div class="user-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle fs-4 text-primary me-2"></i>
+                        <span class="fw-bold" id="userNameDisplay">Nome do Usuário</span>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm ms-2" id="logoutButton" title="Sair">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <div id="main-content-wrapper">
+                <!-- Container para mensagens de feedback -->
+                <div id="messageContainer"></div>
+
+                <section class="content-section active" id="gestao-clientes">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3><i class="fas fa-building-user me-2"></i>Gestão de Clientes</h3>
+                        <button class="btn btn-primary" onclick="openClientModal()">
+                            <i class="fas fa-plus me-2"></i>Novo Cliente
+                        </button>
+                    </div>
+
+                    <!-- SEÇÃO DE FILTRO UNIFICADO -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-filter me-2"></i>Filtrar Dados</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3 align-items-end">
+                                <div class="col-md-3">
+                                    <label for="filterClienteGlobal" class="form-label">Cliente:</label>
+                                    <select class="form-select" id="filterClienteGlobal">
+                                        <option value="">Todos os clientes</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="filterServicoGlobal" class="form-label">Serviço:</label>
+                                    <select class="form-select" id="filterServicoGlobal">
+                                        <option value="">Todos os serviços</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="filterDataInicialGlobal" class="form-label">Data Inicial:</label>
+                                    <input type="date" class="form-control" id="filterDataInicialGlobal">
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="filterDataFinalGlobal" class="form-label">Data Final:</label>
+                                    <input type="date" class="form-control" id="filterDataFinalGlobal">
+                                </div>
+                                <div class="col-md-2 d-flex">
+                                    <button class="btn btn-primary w-100" id="btnFiltrarGlobal">
+                                        <i class="fas fa-search me-2"></i>Filtrar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CONTAINER PARA DADOS FILTRADOS (INICIA VISÍVEL) -->
+                    <div id="dadosFiltrados">
+                        <!-- Seção de Controle de Horas Contratadas -->
+                        <div class="card mb-4">
+                            <div class="card-header collapse-header" data-bs-toggle="collapse" data-bs-target="#collapseHoursControl" aria-expanded="true" aria-controls="collapseHoursControl">
+                                <h5><i class="fas fa-clock me-2"></i>Controle de Horas Contratadas</h5>
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                            </div>
+                            <div class="collapse show" id="collapseHoursControl">
+                                <div class="card-body">
+                                    <div id="serviceDetailsContainer">
+                                        <p class="text-muted text-center">Selecione um único cliente e serviço nos filtros acima para ver os detalhes específicos.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estatísticas Gerais -->
+                        <div class="row mb-4 mt-4">
+                            <div class="col-md-4 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h5 class="card-title text-primary" id="totalClients"><div class="loading-spinner"></div></h5>
+                                        <p class="card-text">Total de Clientes</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h5 class="card-title text-success" id="activeClients"><div class="loading-spinner"></div></h5>
+                                        <p class="card-text">Clientes Ativos</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <div class="card text-center">
+                                    <div class="card-body">
+                                        <h5 class="card-title text-info" id="totalContractedHours"><div class="loading-spinner"></div></h5>
+                                        <p class="card-text">Horas Contratadas</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botão de Exportação -->
+                        <div class="row mb-4">
+                            <div class="col-12 text-center">
+                                <button class="btn btn-success btn-lg" onclick="exportFilteredDataToCSV()">
+                                    <i class="fas fa-file-csv me-2"></i>Exportar Dados Filtrados para CSV
+                                </button>
+                                <small class="d-block text-muted mt-2">Exporta todos os dados atualmente exibidos conforme os filtros aplicados</small>
+                            </div>
+                        </div>
+
+                        <!-- Tabela Principal - Detalhes dos Clientes e Serviços -->
+                        <div class="card">
+                            <div class="card-header collapse-header" data-bs-toggle="collapse" data-bs-target="#collapseClientDetails" aria-expanded="true" aria-controls="collapseClientDetails">
+                                <h5><i class="fas fa-table me-2"></i>Detalhes dos Clientes e Serviços</h5>
+                                <i class="fas fa-chevron-down toggle-icon"></i>
+                            </div>
+                            <div class="collapse show" id="collapseClientDetails">
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-hover align-middle">
+                                            <thead>
+                                                <tr>
+                                                    <th>Nome do Cliente</th>
+                                                    <th>CNPJ</th>
+                                                    <th>Status</th>
+                                                    <th>Horas Contratadas</th>
+                                                    <th>Horas Utilizadas</th>
+                                                    <th>Banco de Horas</th>
+                                                    <th>Serviços</th>
+                                                    <th>Ações</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="clientsTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Acompanhamento Mensal -->
+                        <div class="card mt-4">
+                            <div class="card-header collapse-header d-flex justify-content-between align-items-center" data-bs-toggle="collapse" data-bs-target="#collapseMonthlyTracking" aria-expanded="true" aria-controls="collapseMonthlyTracking">
+                                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Acompanhamento Mês a Mês</h5>
+                                <div class="d-flex align-items-center">
+                                    <button class="btn btn-success d-none me-2" id="saveMonthlyChangesBtn" onclick="openConfirmSaveModal()">
+                                        <i class="fas fa-save me-2"></i>Salvar Alterações
+                                    </button>
+                                    <i class="fas fa-chevron-down toggle-icon"></i>
+                                </div>
+                            </div>
+                            <div class="collapse show" id="collapseMonthlyTracking">
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-striped table-bordered table-hover align-middle text-center">
+                                            <thead>
+                                                <tr>
+                                                    <th>ID</th>
+                                                    <th class="text-start">Cliente</th>
+                                                    <th class="text-start">Serviços</th>
+                                                    <th>Horas Contratadas</th>
+                                                    <th>Acumula</th>
+                                                    <th>Qtd Tempo</th>
+                                                    <th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th>
+                                                    <th>Mai</th><th>Jun</th><th>Jul</th><th>Ago</th>
+                                                    <th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>
+                                                    <th>Saldo Atual</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="monthlyTrackingTableBody"></tbody>
+                                        </table>
+                                    </div>
+                                    <div id="calculationDetails" class="validation-info d-none">
+                                        <h6>Detalhes do Cálculo (para validação):</h6>
+                                        <div id="calculationDetailsContent"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+        
+        <!-- Sidebar Overlay for Mobile -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    </div>
+    
+    <!-- Modais -->
+    <div class="modal fade" id="clientModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="clientModalTitle">Novo Cliente</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="clientForm">
+                        <input type="hidden" id="clientId">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="clientName" class="form-label">Nome do Cliente *</label>
+                                <input type="text" class="form-control" id="clientName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="clientCnpj" class="form-label">CNPJ</label>
+                                <input type="text" class="form-control" id="clientCnpj" placeholder="00.000.000/0000-00">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="clientEmail" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="clientEmail">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="clientPhone" class="form-label">Telefone</label>
+                                <input type="tel" class="form-control" id="clientPhone" placeholder="(XX) XXXX-XXXX">
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="clientActive" checked>
+                                <label class="form-check-label" for="clientActive">Cliente ativo</label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label h6">Serviços Contratados</label>
+                            <div id="clientServicesContainer">
+                                <div class="service-item p-3 border rounded">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-2 d-flex align-items-end">
+                                            <div class="flex-grow-1 me-2">
+                                                <label class="form-label">Serviço</label>
+                                                <select class="form-select service-name" id="clientServiceSelect">
+                                                    <!-- Opções de serviço serão carregadas aqui -->
+                                                </select>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary" onclick="openAddServiceModal()" title="Adicionar novo serviço ao catálogo">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Horas/Mês</label>
+                                            <input type="number" class="form-control service-hours" value="0">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Meses Acum.</label>
+                                            <input type="number" class="form-control service-accumulation" value="0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveClient()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOVO MODAL DE EDIÇÃO DE SERVIÇO ESPECÍFICO -->
+    <div class="modal fade" id="editServiceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Serviço</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editServiceForm">
+                        <input type="hidden" id="editServiceClientId">
+                        <input type="hidden" id="editServiceId">
+                        <input type="hidden" id="editServiceIndex">
+                        
+                        <!-- Dados do Cliente (readonly) -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="editServiceClientName" class="form-label">Nome do Cliente</label>
+                                <input type="text" class="form-control" id="editServiceClientName" readonly disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="editServiceClientCnpj" class="form-label">CNPJ</label>
+                                <input type="text" class="form-control" id="editServiceClientCnpj" readonly disabled>
+                            </div>
+                        </div>
+                        
+                        <!-- Dados do Serviço -->
+                        <div class="mb-3">
+                            <label class="form-label h6">Dados do Serviço</label>
+                            <div class="service-item p-3 border rounded">
+                                <div class="row">
+                                    <div class="col-md-12 mb-2 d-flex align-items-end">
+                                        <div class="flex-grow-1 me-2">
+                                            <label class="form-label">Serviço</label>
+                                            <select class="form-select" id="editServiceServiceSelect">
+                                                <!-- Opções de serviço serão carregadas aqui -->
+                                            </select>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary" onclick="openAddServiceModal()" title="Adicionar novo serviço ao catálogo">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Horas/Mês</label>
+                                        <input type="number" class="form-control" id="editServiceHours" value="0" min="0">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Meses Acum.</label>
+                                        <input type="number" class="form-control" id="editServiceAccumulation" value="0" min="0">
+                                    </div>
+                                   
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Status do Cliente -->
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editServiceClientActive">
+                                <label class="form-check-label" for="editServiceClientActive">Cliente ativo</label>
+                            </div>
+                        </div>
+
+                        <!-- Informações adicionais -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle me-2"></i>Informações do Serviço</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small><strong>Horas Utilizadas:</strong> <span id="editServiceHoursUsed">0h</span></small>
+                                </div>
+                                <div class="col-md-6">
+                                    <small><strong>Banco de Horas:</strong> <span id="editServiceBankHours">0h</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEditedService()">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Novo Modal para Adicionar Serviço a Cliente Existente -->
+    <div class="modal fade" id="addServiceToClientModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Adicionar Novo Serviço para <span id="addServiceToClientName"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addServiceToClientForm">
+                        <input type="hidden" id="addServiceToClientId">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="addServiceToClientNameDisplay" class="form-label">Nome do Cliente</label>
+                                <input type="text" class="form-control" id="addServiceToClientNameDisplay" readonly disabled>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="addServiceToClientCnpjDisplay" class="form-label">CNPJ</label>
+                                <input type="text" class="form-control" id="addServiceToClientCnpjDisplay" readonly disabled>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label h6">Serviços Contratados</label>
+                            <div class="service-item p-3 border rounded">
+                                <div class="row">
+                                    <div class="col-md-12 mb-2 d-flex align-items-end">
+                                        <div class="flex-grow-1 me-2">
+                                            <label class="form-label">Serviço</label>
+                                            <select class="form-select service-name" id="addServiceToClientServiceSelect" onchange="checkExistingService(this)">
+                                                <!-- Opções de serviço serão carregadas aqui -->
+                                            </select>
+                                            <div id="serviceExistsWarning" class="text-danger mt-2 d-none">
+                                                Este serviço já está cadastrado para este cliente. Por favor, edite-o na tabela principal.
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-primary" onclick="openNestedAddServiceModal()" title="Adicionar novo serviço ao catálogo">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Horas/Mês</label>
+                                        <input type="number" class="form-control service-hours" id="addServiceToClientHours" value="0">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Meses Acum.</label>
+                                        <input type="number" class="form-control service-accumulation" id="addServiceToClientAccumulation" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- MODAL ANINHADO DE ADICIONAR SERVIÇO -->
+                    <div class="modal fade nested-modal" id="addServiceNestedModal" tabindex="-1" data-bs-backdrop="false">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Adicionar Novo Serviço</h5>
+                                    <button type="button" class="btn-close" onclick="closeNestedAddServiceModal()"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <form id="addServiceNestedForm">
+                                        <div class="mb-3">
+                                            <label for="newServiceNameNested" class="form-label">Nome do Serviço *</label>
+                                            <input type="text" class="form-control" id="newServiceNameNested" required>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" onclick="closeNestedAddServiceModal()">Cancelar</button>
+                                    <button type="button" class="btn btn-primary" onclick="saveNestedService()">Salvar Serviço</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="saveNewClientServiceBtn" onclick="saveNewClientService()">Adicionar Serviço</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE ADICIONAR SERVIÇO (CATÁLOGO) - Independente -->
+    <div class="modal fade" id="addServiceModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Adicionar Novo Serviço</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addServiceForm">
+                        <div class="mb-3">
+                            <label for="newServiceName" class="form-label">Nome do Serviço *</label>
+                            <input type="text" class="form-control" id="newServiceName" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveService()">Salvar Serviço</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmSaveModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirmar Alterações</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="confirmSaveModalBody">
+                    <!-- Resumo das alterações será inserido aqui -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" onclick="confirmSaveChanges()">Confirmar e Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Novo Modal para Confirmação de Exclusão -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmar Exclusão de Cliente/Serviço</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="deleteModalBody">
+                    <!-- Conteúdo dinâmico -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- AUTHENTICATION AND GLOBAL SETTINGS ---
+        const LOGIN_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/login'; // Ensure this matches your login page URL
+
+        /**
+        * Checks if user is logged in by verifying localStorage items.
+        * @returns {boolean} True if user is logged in, false otherwise.
+        */
+        function checkLoginStatus() {
+            return localStorage.getItem('loggedInUserEmail') && localStorage.getItem('loggedInUserName');
+        }
+
+        /**
+        * Redirects user to the login page and clears local storage.
+        */
+        function redirectToLogin() {
+            localStorage.clear();
+            window.location.href = LOGIN_URL;
+        }
+
+        /**
+        * Esconde a tela de carregamento e exibe o container da aplicação.
+        */
+        function showAuthenticatedInterface() {
+            const authLoading = document.getElementById('authLoading');
+            const appContainer = document.getElementById('appContainer');
+            
+            if(authLoading) {
+                authLoading.style.display = 'none';
+            }
+            if(appContainer) {
+                appContainer.classList.add('authenticated');
+            }
+        }
+
+        // --- Functions for dynamic styles and sidebar behavior ---
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+        }
+
+        function shadeHexColor(hex, percent) {
+            let f = parseInt(hex.slice(1), 16),
+                t = percent < 0 ? 0 : 255,
+                p = percent < 0 ? percent * -1 : percent,
+                R = f >> 16,
+                G = (f >> 8) & 0x00ff,
+                B = f & 0x0000ff;
+            return ("#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1));
+        }
+
+        // Função showPage para navegação interna (mantida como no menu original)
+        function showPage(pageId, event) {
+            if (event) event.preventDefault();
+            
+            // Remove classe ativa de todos os itens do menu
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Adiciona classe ativa ao item clicado
+            event.currentTarget.classList.add('active');
+            
+            console.log(`Navegando para página interna: ${pageId}`);
+            // Aqui você pode adicionar lógica para mostrar/ocultar seções da página
+            // Para este caso, como a navegação é externa, esta função é mais um placeholder
+            // para o item "Configurações".
+        }
+
+        async function applyDynamicStyles() {
+            // Este URL será substituído pelo n8n em tempo de execução.
+            const url = 'https://n8n.dev.resolvrisk.com.br/webhook/consultaconfiguracoes';
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    // Se a resposta não for OK, loga o erro e usa cores padrão
+                    console.error(`HTTP error! status: ${response.status}`);
+                    console.warn('⚠️ Não foi possível buscar as configurações de cor. Usando cores padrão.');
+                    return; // Sai da função para usar as cores padrão do CSS
+                }
+                const data = await response.json(); // Assumindo que o webhook retorna JSON diretamente
+
+                if (data && data.length > 0 && data[0].primary_color) {
+                    const primaryColor = data[0].primary_color;
+                    const darkerColor = shadeHexColor(primaryColor, -0.15); // Ajusta o tom para um pouco mais escuro
+                    const primaryRgb = hexToRgb(primaryColor);
+
+                    if (!primaryRgb) {
+                        console.error("Cor primária inválida retornada:", primaryColor);
+                        return;
+                    }
+
+                    document.documentElement.style.setProperty('--primary-color', primaryColor);
+                    
+                    const style = document.createElement('style');
+                    style.innerHTML = `
+                        .sidebar, .auth-loading {
+                            background: linear-gradient(135deg, ${primaryColor} 0%, ${darkerColor} 100%) !important;
+                        }
+                        .btn-primary, .table thead th {
+                            background-color: ${primaryColor} !important;
+                            border-color: ${primaryColor} !important;
+                        }
+                        .btn-primary:hover {
+                            background-color: ${shadeHexColor(primaryColor, -0.1)} !important;
+                            border-color: ${shadeHexColor(primaryColor, -0.1)} !important;
+                        }
+                        .text-primary {
+                            color: ${primaryColor} !important;
+                        }
+                        .progress-bar.bg-primary {
+                            background-color: ${primaryColor} !important;
+                        }
+                        .loading-spinner {
+                            border-top-color: ${primaryColor} !important;
+                        }
+                    `;
+                    document.head.appendChild(style);
+                } else {
+                    console.warn('⚠️ Não foi possível encontrar a cor primária nos dados. Usando cores padrão.');
+                }
+            } catch (error) {
+                console.error('❌ Falha ao buscar ou aplicar estilos dinâmicos:', error);
+                console.warn('⚠️ Ocorreu um erro ao buscar as configurações de cor. Usando cores padrão.');
+            }
+        }
+
+        function adjustMainContentLayout() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+
+            if (!mainContent) return; // Verificação de segurança
+
+            if (window.innerWidth <= 768) {
+                // Comportamento Mobile
+                if (sidebarToggle) sidebarToggle.style.display = 'block';
+                mainContent.style.marginLeft = '0'; // Conteúdo principal sempre sem margem no mobile
+            } else {
+                // Comportamento Desktop
+                if (sidebarToggle) sidebarToggle.style.display = 'none';
+                if (sidebar.classList.contains('collapsed')) {
+                    mainContent.style.marginLeft = '0';
+                } else {
+                    mainContent.style.marginLeft = '280px'; // Largura da sidebar
+                }
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (window.innerWidth <= 768) {
+                // Comportamento Mobile
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+                document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+            } else {
+                // Comportamento Desktop
+                sidebar.classList.toggle('collapsed');
+                adjustMainContentLayout(); // Ajusta a margem do conteúdo principal no toggle do desktop
+            }
+        }
+
+        function applyUIPermissions() {
+            const userType = localStorage.getItem('loggedInUserTipo') || 'admin'; // 'admin' ou 'colaborador'
+
+            // CORREÇÃO: O item 'partners' e 'team' foi adicionado para o perfil 'colaborador'.
+            const menuPermissions = {
+                admin: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'], // Admin tem acesso a tudo
+                colaborador: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'] // Adicionado 'clients', 'partners' e 'team'
+            };
+
+            const allowedMenus = menuPermissions[userType] || [];
+
+            const loadingElement = document.getElementById('sidebarLoading');
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+
+            document.querySelectorAll('#sidebarMenu .menu-item').forEach((item, index) => {
+                const menuData = item.getAttribute('data-menu');
+                // Se o usuário for admin, mostra todos os menus. Caso contrário, verifica as permissões.
+                if (userType === 'admin' || allowedMenus.includes(menuData)) {
+                    setTimeout(() => {
+                        item.classList.add('show');
+                    }, index * 50); // Efeito de animação stagger
+                } else {
+                    item.classList.remove('show');
+                }
+            });
+        }
+
+        function updateUserDisplay() {
+            const userNameDisplay = document.getElementById('userNameDisplay');
+            const userName = localStorage.getItem('loggedInUserName');
+            if (userNameDisplay && userName) {
+                userNameDisplay.textContent = userName;
+            }
+        }
+
+        function setupLogoutButton() {
+            const logoutButton = document.getElementById('logoutButton');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', () => {
+                    localStorage.clear();
+                    window.location.href = LOGIN_URL;
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 DOM carregado, verificando autenticação...');
+
+            // --- START: Added loggedInUserEmail verification ---
+            if (!checkLoginStatus()) {
+                redirectToLogin();
+                return; // Stop execution if not logged in
+            }
+            // --- END: Added loggedInUserEmail verification ---
+            
+            // Mostra a interface autenticada
+            showAuthenticatedInterface();
+            
+            await applyDynamicStyles(); // Aplica estilos dinâmicos primeiro
+            applyUIPermissions(); // Depois aplica as permissões da UI
+            updateUserDisplay(); // Atualiza o nome do usuário
+            setupLogoutButton(); // Configura o botão de logout
+            adjustMainContentLayout(); // Ajusta o layout inicial do conteúdo principal
+
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            }
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', toggleSidebar);
+            }
+
+            // Usa adjustMainContentLayout para eventos de redimensionamento da janela
+            window.addEventListener('resize', adjustMainContentLayout);
+
+            // Define o menu ativo baseado na URL atual, com fallback para 'Gestão de Clientes'
+            const currentPath = window.location.pathname;
+            let isAnyItemActive = false;
+
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active'); // Limpa todos os ativos primeiro
+                const menuData = item.getAttribute('data-menu');
+                let shouldBeActive = false;
+
+                if (currentPath.includes('/webhook/resolv') && menuData === 'dashboard') {
+                    shouldBeActive = true;
+                } else if (currentPath.includes('gerenciadortarefas') && menuData === 'tasks') {
+                    shouldBeActive = true;
+                } else if (currentPath.includes('taskhoras') && menuData === 'hours') {
+                    shouldBeActive = true;
+                } else if (currentPath.includes('gestaoclientes') && menuData === 'clients') {
+                    shouldBeActive = true;
+                } else if (currentPath.includes('gest%C3%A3o%20_parceiros') && menuData === 'partners') {
+                    shouldBeActive = true;
+                } else if (currentPath.includes('equipe') && menuData === 'team') {
+                    shouldBeActive = true;
+                }
+                
+                if (shouldBeActive) {
+                    item.classList.add('active');
+                    isAnyItemActive = true;
+                }
+            });
+
+            // Se nenhum item foi ativado pela URL, ativa 'Gestão de Clientes' como padrão.
+            if (!isAnyItemActive) {
+                const clientsMenu = document.querySelector('.menu-item[data-menu="clients"]');
+                if (clientsMenu) {
+                    clientsMenu.classList.add('active');
+                }
+            }
+
+            // Funções para lidar com os ícones de expandir/colapsar
+            document.querySelectorAll('.collapse-header').forEach(header => {
+                header.addEventListener('click', function() {
+                    const icon = this.querySelector('.toggle-icon');
+                    if (icon) {
+                        icon.classList.toggle('rotated');
+                    }
+                });
+            });
+
+            // Funções existentes do cliente management app
+            let originalN8nData = {};
+            let monthlyChanges = [];
+            let rawServicosContratados = [];
+            let rawCadastroServico = [];
+
+            /**
+            * Exibe uma mensagem de feedback na interface.
+            * @param {string} type - Tipo da mensagem ('success', 'danger', 'info', 'warning').
+            * @param {string} message - Texto da mensagem.
+            */
+            function showMessage(type, message) {
+                const messageContainer = document.getElementById('messageContainer');
+                if (!messageContainer) {
+                    console.error("Message container not found!");
+                    return;
+                }
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show mt-3`;
+                alertDiv.role = 'alert';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                messageContainer.innerHTML = '';
+                messageContainer.appendChild(alertDiv);
+                setTimeout(() => {
+                    const bsAlert = bootstrap.Alert.getInstance(alertDiv);
+                    if (bsAlert) {
+                        bsAlert.close();
+                    }
+                }, 5000);
+            }
+
+            /**
+            * Calcula o saldo atual com base na lógica especificada.
+            * @param {number} horasContratadas - Horas contratadas mensais.
+            * @param {Array} monthlyHours - Array de 12 posições com horas utilizadas por mês.
+            * @param {number} qtdTempo - Quantidade de meses para acumulação.
+            * @param {Array} monthlyDataExists - Array indicando se existe dado lançado para cada mês.
+            * @returns {Object} - Resultados dos cálculos.
+            */
+            function calculateBalance(horasContratadas, monthlyHours, qtdTempo, monthlyDataExists = null) {
+                horasContratadas = parseFloat(horasContratadas) || 0;
+                monthlyHours = monthlyHours.map(h => parseFloat(h) || 0);
+                qtdTempo = parseInt(qtdTempo) || 0;
+
+                let saldoAUtilizar = 0;
+                let totalHorasUtilizadas = 0;
+                let horasNaoUtilizadasMaisQtdTempoMeses = 0;
+                let horasNaoUtilizadasUltimosQtdTempoMeses = 0;
+                let activeMonthsIndices = [];
+                let ultimosQtdTempoMesesAtivos = [];
+
+                // Determinação dos meses ativos: agora considera tanto horas > 0 quanto dados lançados como 0
+                for (let i = 0; i < 12; i++) {
+                    // Se monthlyDataExists for fornecido, usa para determinar se há dados lançados
+                    // Caso contrário, usa a lógica anterior (se horas > 0)
+                    if (monthlyDataExists && monthlyDataExists[i]) {
+                        activeMonthsIndices.push(i);
+                    } else if (!monthlyDataExists && monthlyHours[i] >= 0) {
+                        // Verifica se foi explicitamente definido, mesmo que seja 0
+                        // Para isso, precisamos verificar nos dados originais se existe entrada para este mês
+                        activeMonthsIndices.push(i);
+                    }
+                }
+
+                if (qtdTempo === 0) {
+                    // Para acumulação 0, calcula saldo mensal simples
+                    totalHorasUtilizadas = monthlyHours.reduce((sum, hours) => sum + hours, 0);
+                    const bancoHorasMensal = monthlyHours.map((horasUtilizadas, index) => {
+                        // Se não há dados lançados para o mês, retorna null (será exibido como vazio)
+                        if (monthlyDataExists && !monthlyDataExists[index]) {
+                            return null;
+                        }
+                        return horasContratadas - horasUtilizadas;
+                    });
+                    return {
+                        totalHorasContratadas: horasContratadas,
+                        totalHorasUtilizadas,
+                        horasNaoUtilizadasMais3Meses: 0,
+                        saldoAUtilizar: 0,
+                        horasNaoUtilizadasUltimos3Meses: 0,
+                        bancoHorasMensal,
+                        mesesAtivos: activeMonthsIndices.length,
+                        activeMonthsIndices: activeMonthsIndices,
+                        ultimosQtdTempoMesesAtivos: [],
+                        validacao: true
+                    };
+                }
+
+                totalHorasUtilizadas = monthlyHours.reduce((sum, hours) => sum + hours, 0);
+                const mesesAtivos = activeMonthsIndices.length;
+                const totalHorasContratadasPeriodo = horasContratadas * mesesAtivos;
+
+                ultimosQtdTempoMesesAtivos = activeMonthsIndices.slice(-qtdTempo);
+
+                activeMonthsIndices.forEach(monthIndex => {
+                    if (!ultimosQtdTempoMesesAtivos.includes(monthIndex)) {
+                        const horasNaoUtilizadas = horasContratadas - monthlyHours[monthIndex];
+                        if (horasNaoUtilizadas > 0) {
+                            horasNaoUtilizadasMaisQtdTempoMeses += horasNaoUtilizadas;
+                        }
+                    }
+                });
+
+                saldoAUtilizar = totalHorasContratadasPeriodo - totalHorasUtilizadas - horasNaoUtilizadasMaisQtdTempoMeses;
+
+                ultimosQtdTempoMesesAtivos.forEach(monthIndex => {
+                    const horasNaoUtilizadas = horasContratadas - monthlyHours[monthIndex];
+                    if (horasNaoUtilizadas > 0) {
+                        horasNaoUtilizadasUltimosQtdTempoMeses += horasNaoUtilizadas;
+                    }
+                });
+
+                const bancoHorasMensal = monthlyHours.map((horasUtilizadas, index) => {
+                    // Se não há dados lançados para o mês, retorna null (será exibido como vazio)
+                    if (monthlyDataExists && !monthlyDataExists[index]) {
+                        return null;
+                    }
+                    return horasContratadas - horasUtilizadas;
+                });
+
+                return {
+                    totalHorasContratadas: horasContratadas,
+                    totalHorasUtilizadas,
+                    horasNaoUtilizadasMais3Meses: horasNaoUtilizadasMaisQtdTempoMeses,
+                    saldoAUtilizar,
+                    horasNaoUtilizadasUltimos3Meses: horasNaoUtilizadasUltimosQtdTempoMeses,
+                    bancoHorasMensal,
+                    mesesAtivos,
+                    activeMonthsIndices,
+                    ultimosQtdTempoMesesAtivos,
+                    validacao: Math.abs(saldoAUtilizar - horasNaoUtilizadasUltimosQtdTempoMeses) < 0.01
+                };
+            }
+
+            function initializeData() {
+                try {
+                    // A expressão do n8n {{ JSON.stringify($json) }} irá injetar os dados
+                    // do nó anterior aqui como uma string JSON.
+                    const rawN8nData = {{ JSON.stringify($json) }};
+
+                    originalN8nData = rawN8nData;
+                    
+                    if (!originalN8nData || !originalN8nData.clientesServicosDetalhado) {
+                        throw new Error("Formato de dados inválido ou ausente. Esperado 'clientesServicosDetalhado'.");
+                    }
+                    
+                    rawServicosContratados = originalN8nData.rawServicosContratados || [];
+                    rawCadastroServico = originalN8nData.rawCadastroServico || [];
+
+                    populateGlobalFilters();
+                    populateServiceDropdowns();
+                    
+                    // Carrega automaticamente todos os dados ao inicializar
+                    filtrarDadosGlobal();
+
+                } catch (e) {
+                    console.error("Erro ao carregar dados:", e);
+                    document.getElementById('main-content-wrapper').innerHTML = `<div class="alert alert-danger mx-3"><strong>Erro:</strong> Não foi possível carregar os dados. Verifique o formato do JSON e o console para mais detalhes.</div>`;
+                }
+            }
+            
+            function populateGlobalFilters() {
+                const clienteSelect = document.getElementById('filterClienteGlobal');
+                const servicoSelect = document.getElementById('filterServicoGlobal');
+
+                const uniqueClients = [...new Map(originalN8nData.clientesServicosDetalhado.map(item => [item['clienteId'], item])).values()];
+                const uniqueServices = [...new Set(originalN8nData.clientesServicosDetalhado.map(item => item.servico))];
+
+                clienteSelect.innerHTML = '<option value="">Todos os clientes</option>';
+                uniqueClients.forEach(client => {
+                    clienteSelect.innerHTML += `<option value="${client.clienteId}">${client.nomeCliente}</option>`;
+                });
+
+                servicoSelect.innerHTML = '<option value="">Todos os serviços</option>';
+                uniqueServices.forEach(service => {
+                    servicoSelect.innerHTML += `<option value="${service}">${service}</option>`;
+                });
+            }
+
+            function loadStats(data) {
+                document.getElementById('totalClients').textContent = data.totalClientes || 0;
+                document.getElementById('activeClients').textContent = data.clientesAtivos || 0;
+                document.getElementById('totalContractedHours').textContent = `${data.totalHorasContratadas || 0}h`;
+            }
+
+            // NOVA FUNÇÃO loadClientsTable COM AGRUPAMENTO E BOTÕES DE EDITAR
+            function loadClientsTable(clientsData) {
+                const tableBody = document.getElementById('clientsTableBody');
+                tableBody.innerHTML = '';
+
+                if (clientsData.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nenhum cliente encontrado com os filtros aplicados.</td></tr>`;
+                    return;
+                }
+
+                // 1. Agrupar serviços por clienteId
+                const groupedClients = new Map();
+                clientsData.forEach((clientService, index) => {
+                    if (!groupedClients.has(clientService.clienteId)) {
+                        // Inicializa o cliente no mapa com uma lista de serviços
+                        groupedClients.set(clientService.clienteId, {
+                            ...clientService, // Copia dados do cliente (nome, cnpj, etc.)
+                            services: [] // Array para armazenar os múltiplos serviços
+                        });
+                    }
+                    // Adiciona o serviço atual à lista de serviços do cliente incluindo o índice original
+                    groupedClients.get(clientService.clienteId).services.push({
+                        ...clientService,
+                        originalIndex: index
+                    });
+                });
+
+                let tableHtml = '';
+                // 2. Iterar sobre os clientes agrupados
+                groupedClients.forEach(client => {
+                    const numServices = client.services.length;
+                    const firstService = client.services[0];
+                    const statusClass = firstService.status === 'Ativo' ? 'success' : 'secondary';
+                    
+                    // Botões de ação para o cliente (agrupados)
+                    const clientActions = `
+                        <div class="btn-group-vertical" role="group">
+                            <button class="btn btn-outline-success btn-sm" onclick="openAddServiceToClientModal(${client.clienteId})" title="Adicionar Novo Serviço"><i class="fas fa-plus"></i></button>
+                            <button class="btn btn-outline-danger btn-sm" onclick="openConfirmDeleteModalByClient(${client.clienteId})" title="Excluir Serviços Selecionados"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    `;
+
+                    // 3. Renderizar a primeira linha do cliente com rowspan
+                    const bancoHorasClassFirst = (firstService.bancoDeHoras || 0) >= 0 ? 'balance-positive' : 'balance-negative';
+                    const hasMonthlyDataFirst = (originalN8nData.acompanhamentoMensal || []).some(item => 
+                        item.servicoId === firstService.servicoId && (item.horasUtilizadas > 0 || item.horasUtilizadas === 0)
+                    );
+
+                    tableHtml += `
+                        <tr>
+                            <td rowspan="${numServices}"><strong>${client.nomeCliente || 'N/A'}</strong></td>
+                            <td rowspan="${numServices}">${client.cnpj || 'N/A'}</td>
+                            <td rowspan="${numServices}"><span class="badge bg-${statusClass} badge-status">${client.status || 'N/A'}</span></td>
+                            
+                            <!-- Dados do primeiro serviço -->
+                            <td class="text-center">${firstService.horasContratadas || 0}h</td>
+                            <td class="text-center">${firstService.horasUtilizadas || 0}h</td>
+                            <td class="text-center ${bancoHorasClassFirst}">${firstService.bancoDeHoras.toFixed(1)}h</td>
+                            <td>
+                                <div class="form-check d-flex align-items-center">
+                                    <input class="form-check-input service-delete-checkbox me-2" type="radio" name="service-selection-${client.clienteId}" value="${firstService.servicoId}" 
+                                           data-client-id="${client.clienteId}" id="service-check-${firstService.servicoId}" ${hasMonthlyDataFirst ? 'disabled' : ''}>
+                                    <label class="form-check-label flex-grow-1" for="service-check-${firstService.servicoId}">${firstService.servico || 'N/A'}</label>
+                                    <button class="service-edit-btn" onclick="openEditServiceModal(${firstService.clienteId}, '${firstService.servico}', ${firstService.servicoId})" title="Editar este serviço">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            
+                            <td rowspan="${numServices}" class="text-center">${clientActions}</td>
+                        </tr>
+                    `;
+
+                    // 4. Renderizar linhas para serviços adicionais (se houver)
+                    for (let i = 1; i < numServices; i++) {
+                        const service = client.services[i];
+                        const bancoHorasClass = (service.bancoDeHoras || 0) >= 0 ? 'balance-positive' : 'balance-negative';
+                        const hasMonthlyData = (originalN8nData.acompanhamentoMensal || []).some(item => 
+                            item.servicoId === service.servicoId && (item.horasUtilizadas > 0 || item.horasUtilizadas === 0)
+                        );
+                        tableHtml += `
+                            <tr>
+                                <td class="text-center">${service.horasContratadas || 0}h</td>
+                                <td class="text-center">${service.horasUtilizadas || 0}h</td>
+                                <td class="text-center ${bancoHorasClass}">${service.bancoDeHoras.toFixed(1)}h</td>
+                                <td>
+                                    <div class="form-check d-flex align-items-center">
+                                        <input class="form-check-input service-delete-checkbox me-2" type="radio" name="service-selection-${client.clienteId}" value="${service.servicoId}" 
+                                               data-client-id="${client.clienteId}" id="service-check-${service.servicoId}" ${hasMonthlyData ? 'disabled' : ''}>
+                                        <label class="form-check-label flex-grow-1" for="service-check-${service.servicoId}">${service.servico || 'N/A'}</label>
+                                        <button class="service-edit-btn" onclick="openEditServiceModal(${service.clienteId}, '${service.servico}', ${service.servicoId})" title="Editar este serviço">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }
+                });
+
+                tableBody.innerHTML = tableHtml;
+            }
+
+            // FUNÇÃO PARA ABRIR MODAL DE EDIÇÃO DE SERVIÇO - CORRIGIDA!
+            window.openEditServiceModal = function(clienteId, serviceName, servicoId = null) {
+                console.log('🔍 DEBUG: Tentando abrir modal de edição para:', { clienteId, serviceName, servicoId });
+                
+                // Busca o serviço correto usando clienteId e nome do serviço (mais confiável)
+                const service = originalN8nData.clientesServicosDetalhado.find(s => {
+                    const matchClient = s.clienteId == clienteId;
+                    const matchService = s.servico === serviceName;
+                    console.log('🔍 DEBUG: Comparando:', {
+                        'Cliente match': matchClient,
+                        'Serviço match': matchService,
+                        'clienteId': s.clienteId,
+                        'servico': s.servico,
+                        'servicoId': s.servicoId
+                    });
+                    return matchClient && matchService;
+                });
+                
+                console.log('🔍 DEBUG: Serviço encontrado:', service);
+                
+                if (!service) {
+                    console.error('❌ DEBUG: Serviço não encontrado');
+                    showMessage('danger', 'Serviço não encontrado para edição.');
+                    return;
+                }
+
+                // Encontra o índice real do serviço no array original para uso posterior
+                const serviceIndex = originalN8nData.clientesServicosDetalhado.indexOf(service);
+                console.log('🔍 DEBUG: Índice do serviço:', serviceIndex);
+
+                const modalElement = document.getElementById('editServiceModal');
+                
+                if (!modalElement) {
+                    console.error('❌ DEBUG: Modal não encontrado no DOM');
+                    showMessage('danger', 'Modal de edição não encontrado.');
+                    return;
+                }
+                
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                
+                // Preenche os campos do modal
+                const realServiceId = service.servicoId || service.id || service.servico_id;
+                document.getElementById('editServiceClientId').value = service.clienteId;
+                document.getElementById('editServiceId').value = realServiceId;
+                document.getElementById('editServiceIndex').value = serviceIndex;
+                document.getElementById('editServiceClientName').value = service.nomeCliente || '';
+                document.getElementById('editServiceClientCnpj').value = service.cnpj || '';
+                document.getElementById('editServiceHours').value = service.horasContratadas || 0;
+                document.getElementById('editServiceAccumulation').value = service.mesesAcumulacao || 0;
+                document.getElementById('editServiceClientActive').checked = service.status === 'Ativo';
+                
+                // Preenche informações adicionais
+                document.getElementById('editServiceHoursUsed').textContent = `${service.horasUtilizadas || 0}h`;
+                document.getElementById('editServiceBankHours').textContent = `${service.bancoDeHoras ? service.bancoDeHoras.toFixed(1) : 0}h`;
+                
+                // Popula e seleciona o serviço
+                populateServiceDropdowns('editServiceServiceSelect');
+                const selectedServiceInCatalog = rawCadastroServico.find(s => s.nome_serviço === service.servico);
+                if (selectedServiceInCatalog) {
+                    document.getElementById('editServiceServiceSelect').value = selectedServiceInCatalog.id;
+                }
+                
+                console.log('🚀 DEBUG: Tentando mostrar modal...');
+                modal.show();
+                console.log('✅ DEBUG: Modal.show() executado');
+            };
+
+            // NOVA FUNÇÃO PARA SALVAR SERVIÇO EDITADO
+            window.saveEditedService = async function() {
+                const clientId = parseInt(document.getElementById('editServiceClientId').value);
+                const servicoId = parseInt(document.getElementById('editServiceId').value);
+                const serviceIndex = parseInt(document.getElementById('editServiceIndex').value);
+                const selectedServiceId = document.getElementById('editServiceServiceSelect').value;
+                const horasContratadas = parseInt(document.getElementById('editServiceHours').value) || 0;
+                const mesesAcumulacao = parseInt(document.getElementById('editServiceAccumulation').value) || 0;
+                const isActive = document.getElementById('editServiceClientActive').checked;
+
+                if (!selectedServiceId) {
+                    showMessage('danger', 'Por favor, selecione um serviço.');
+                    return;
+                }
+
+                const selectedService = rawCadastroServico.find(s => s.id == selectedServiceId);
+                if (!selectedService) {
+                    showMessage('danger', 'Serviço selecionado inválido.');
+                    return;
+                }
+
+                const service = originalN8nData.clientesServicosDetalhado[serviceIndex];
+                if (!service) {
+                    showMessage('danger', 'Serviço não encontrado para atualização.');
+                    return;
+                }
+
+                const payload = {
+                    action: "update_service",
+                    clienteId: clientId,
+                    servicoId: servicoId,
+                    nome_servico: selectedService.nome_serviço,
+                    horas_contratadas_mes: horasContratadas,
+                    meses_acumulacao: mesesAcumulacao,
+                    ativo: isActive
+                };
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                console.log("Enviando dados de edição do serviço para o webhook:", webhookUrl, payload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        console.log("Dados de edição do serviço enviados ao webhook com sucesso:", payload);
+                        showMessage('success', 'Serviço atualizado com sucesso!');
+                        bootstrap.Modal.getInstance(document.getElementById('editServiceModal')).hide();
+                        // Recarregar a página para obter dados atualizados do backend
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        const errorText = await response.text();
+                        showMessage('danger', `Erro ao atualizar serviço: ${response.status} - ${errorText}`);
+                        console.error("Erro ao enviar dados de edição do serviço ao webhook:", response.status, errorText);
+                    }
+                } catch (error) {
+                    showMessage('danger', `Erro de rede ao atualizar serviço: ${error.message}`);
+                    console.error("Erro de rede ao enviar dados de edição do serviço ao webhook:", error);
+                }
+            };
+
+            function loadMonthlyTracking(clientsServices, monthlyUsage) {
+                const tableBody = document.getElementById('monthlyTrackingTableBody');
+                tableBody.innerHTML = '';
+
+                if (clientsServices.length === 0) {
+                    tableBody.innerHTML = `<tr><td colspan="19" class="text-center text-muted">Nenhum serviço para acompanhamento.</td></tr>`;
+                    return;
+                }
+
+                const usageMap = new Map();
+                const dataExistsMap = new Map(); // Mapeia se existe dados lançados para cada mês
+
+                monthlyUsage.forEach(item => {
+                    const key = `${item.clienteId}-${item.servicoId}-${item.ano}`;
+                    if (!usageMap.has(key)) {
+                        usageMap.set(key, {
+                            monthlyHours: Array(12).fill(0),
+                            saldoBancoHoras: Array(12).fill(0)
+                        });
+                        dataExistsMap.set(key, Array(12).fill(false));
+                    }
+                    if (item.mes >= 1 && item.mes <= 12) {
+                        usageMap.get(key).monthlyHours[item.mes - 1] = item.horasUtilizadas || 0;
+                        usageMap.get(key).saldoBancoHoras[item.mes - 1] = item.saldoBancoHoras || 0;
+                        dataExistsMap.get(key)[item.mes - 1] = true; // Marca que existe dados para este mês
+                    }
+                });
+
+                let calculationDetailsHtml = '';
+
+                clientsServices.forEach((service, serviceIndex) => {
+                    const key = `${service.clienteId}-${service.servicoId}-${new Date().getFullYear()}`;
+                    const serviceData = usageMap.get(key) || {
+                        monthlyHours: Array(12).fill(0),
+                        saldoBancoHoras: Array(12).fill(0)
+                    };
+                    const dataExists = dataExistsMap.get(key) || Array(12).fill(false);
+
+                    const monthlyHours = serviceData.monthlyHours;
+                    const calculation = calculateBalance(service.horasContratadas, monthlyHours, service.mesesAcumulacao, dataExists);
+
+                    const saldoAtualClass = calculation.saldoAUtilizar >= 0 ? 'balance-positive' : 'balance-negative';
+                    const acumulaTexto = service.mesesAcumulacao > 0 ? 'Sim' : 'Não';
+
+                    // Gera inputs para os meses, deixando vazio quando não há dados lançados
+                    const monthInputs = monthlyHours.map((h, monthIndex) => {
+                        const value = dataExists[monthIndex] ? h : '';
+                        return `<td class="editable-cell">
+                            <input type="number" value="${value}" class="form-control form-control-sm"
+                                   data-client-id="${service.clienteId}" data-service-id="${service.servicoId}" data-month-index="${monthIndex}"
+                                   data-original-value="${value}" data-has-data="${dataExists[monthIndex]}" oninput="trackChange(this)">
+                        </td>`;
+                    }).join('');
+
+                    const row = `
+                        <tr>
+                            <td>${service.servicoId}</td>
+                            <td class="text-start">${service.nomeCliente}</td>
+                            <td class="text-start">${service.servico}</td>
+                            <td>${service.horasContratadas}h</td>
+                            <td>${acumulaTexto}</td>
+                            <td>${service.mesesAcumulacao}</td>
+                            ${monthInputs}
+                            <td class="${saldoAtualClass}">${calculation.saldoAUtilizar.toFixed(1)}h</td>
+                        </tr>`;
+
+                    // Gera o banco de horas, exibindo vazio quando não há dados
+                    const bancoHorasInputs = calculation.bancoHorasMensal.map((h, monthIndex) => {
+                        if (!dataExists[monthIndex]) {
+                            return `<td></td>`;
+                        }
+                        const balanceClass = h >= 0 ? 'balance-positive' : 'balance-negative';
+                        return `<td class="${balanceClass}">${h.toFixed(1)}</td>`;
+                    }).join('');
+
+                    const bancoHorasRow = `
+                        <tr class="banco-horas-row">
+                            <td></td>
+                            <td class="text-start">Banco de Horas</td>
+                            <td class="text-start">${service.servico}</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            ${bancoHorasInputs}
+                            <td></td>
+                        </tr>`;
+
+                    tableBody.innerHTML += row + bancoHorasRow;
+
+                    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                    const activeMesesText = calculation.activeMonthsIndices.map(i => monthNames[i]).join(', ');
+                    const ultimosMesesText = calculation.ultimosQtdTempoMesesAtivos.map(i => monthNames[i]).join(', ');
+
+                    calculationDetailsHtml += `
+                        <div class="mb-3">
+                            <strong>${service.nomeCliente} - ${service.servico}:</strong><br>
+                            Meses Ativos: [${activeMesesText}] (${calculation.mesesAtivos} meses)<br>
+                            Últimos ${service.mesesAcumulacao} Meses Ativos: [${ultimosMesesText}]<br>
+                            Total Horas Contratadas (Período): ${service.horasContratadas.toFixed(1)}h<br>
+                            Total Horas Utilizadas (Período): ${calculation.totalHorasUtilizadas.toFixed(1)}h<br>
+                            Horas Não Utilizadas > ${service.mesesAcumulacao} Meses: ${calculation.horasNaoUtilizadasMais3Meses.toFixed(1)}h<br>
+                            <strong>Saldo a Utilizar: ${calculation.saldoAUtilizar.toFixed(1)}h</strong><br>
+                            Horas Não Utilizadas nos Últimos ${service.mesesAcumulacao} Meses: ${calculation.horasNaoUtilizadasUltimos3Meses.toFixed(1)}h<br>
+                            <span class="${calculation.validacao ? 'text-success' : 'text-danger'}">
+                                Validação: ${calculation.validacao ? 'VERDADEIRO' : 'FALSO'}
+                            </span>
+                        </div>`;
+                });
+
+                document.getElementById('calculationDetails').classList.add('d-none');
+                document.getElementById('calculationDetailsContent').innerHTML = calculationDetailsHtml;
+            }
+
+            window.trackChange = function(inputElement) {
+                const clientId = parseInt(inputElement.dataset.clientId);
+                const serviceId = parseInt(inputElement.dataset.serviceId);
+                const monthIndex = parseInt(inputElement.dataset.monthIndex);
+                const originalValue = inputElement.dataset.originalValue === '' ? null : (parseFloat(inputElement.dataset.originalValue) || 0);
+                const newValue = inputElement.value === '' ? null : (parseFloat(inputElement.value) || 0);
+                const hadData = inputElement.dataset.hasData === 'true';
+
+                const service = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId && c.servicoId === serviceId);
+                if (!service) {
+                    console.error("Serviço não encontrado para o ID do cliente e serviço fornecidos.");
+                    return;
+                }
+
+                const key = `${clientId}-${serviceId}-${monthIndex}`;
+
+                monthlyChanges = monthlyChanges.filter(c => c.key !== key);
+
+                // Verifica se houve mudança (considerando valores nulos)
+                const hasChanged = (originalValue !== newValue) || (!hadData && newValue !== null);
+
+                if (hasChanged) {
+                    monthlyChanges.push({
+                        key,
+                        clientId,
+                        serviceId,
+                        monthIndex,
+                        clientName: service.nomeCliente,
+                        serviceName: service.servico,
+                        originalValue: originalValue,
+                        newValue: newValue
+                    });
+                    inputElement.parentElement.classList.add('changed');
+                } else {
+                    inputElement.parentElement.classList.remove('changed');
+                }
+
+                // Atualiza dados locais
+                const currentYear = new Date().getFullYear();
+                let monthlyUsageEntry = originalN8nData.acompanhamentoMensal.find(item =>
+                    item.clienteId === clientId &&
+                    item.servicoId === serviceId &&
+                    item.ano === currentYear &&
+                    (item.mes - 1) === monthIndex
+                );
+
+                if (newValue !== null) {
+                    if (monthlyUsageEntry) {
+                        monthlyUsageEntry.horasUtilizadas = newValue;
+                    } else {
+                        originalN8nData.acompanhamentoMensal.push({
+                            acompanhamentoId: Math.floor(Math.random() * 1000000),
+                            clienteId: clientId,
+                            servicoId: serviceId,
+                            cliente: service.nomeCliente,
+                            servico: service.servico,
+                            ano: currentYear,
+                            mes: monthIndex + 1,
+                            horasUtilizadas: newValue,
+                            saldoBancoHoras: 0
+                        });
+                    }
+                } else {
+                    // Remove entrada se valor for nulo/vazio
+                    if (monthlyUsageEntry) {
+                        const index = originalN8nData.acompanhamentoMensal.indexOf(monthlyUsageEntry);
+                        originalN8nData.acompanhamentoMensal.splice(index, 1);
+                    }
+                }
+
+                updateRealTimeCalculation(clientId, serviceId);
+                document.getElementById('saveMonthlyChangesBtn').classList.toggle('d-none', monthlyChanges.length === 0);
+            }
+
+            function updateRealTimeCalculation(clientId, serviceId) {
+                const service = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId && c.servicoId === serviceId);
+                if (!service) return;
+
+                const inputs = document.querySelectorAll(`input[data-client-id="${clientId}"][data-service-id="${serviceId}"]`);
+                const monthlyHours = Array(12).fill(0);
+                const dataExists = Array(12).fill(false);
+                
+                inputs.forEach(input => {
+                    const monthIndex = parseInt(input.dataset.monthIndex);
+                    const value = input.value === '' ? 0 : (parseFloat(input.value) || 0);
+                    const hasData = input.value !== '';
+                    
+                    monthlyHours[monthIndex] = value;
+                    dataExists[monthIndex] = hasData;
+                });
+
+                const calculation = calculateBalance(service.horasContratadas, monthlyHours, service.mesesAcumulacao, dataExists);
+                
+                const rowElement = inputs[0].closest('tr');
+                const saldoCell = rowElement.querySelector('td:last-child');
+                saldoCell.textContent = `${calculation.saldoAUtilizar.toFixed(1)}h`;
+                saldoCell.className = calculation.saldoAUtilizar >= 0 ? 'balance-positive' : 'balance-negative';
+
+                const bancoHorasRow = rowElement.nextElementSibling;
+                const bancoHorasCells = bancoHorasRow.querySelectorAll('td');
+                calculation.bancoHorasMensal.forEach((saldoBanco, index) => {
+                    const cellIndex = index + 6;
+                    if (saldoBanco === null || !dataExists[index]) {
+                        bancoHorasCells[cellIndex].textContent = '';
+                        bancoHorasCells[cellIndex].className = '';
+                    } else {
+                        bancoHorasCells[cellIndex].textContent = saldoBanco.toFixed(1);
+                        bancoHorasCells[cellIndex].className = saldoBanco >= 0 ? 'balance-positive' : 'balance-negative';
+                    }
+                });
+            }
+
+            window.openConfirmSaveModal = function() {
+                const modalBody = document.getElementById('confirmSaveModalBody');
+                const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmSaveModal'));
+
+                const currentMonthlyChanges = [];
+                document.querySelectorAll('#monthlyTrackingTableBody input[type="number"]').forEach(inputElement => {
+                    const clientId = parseInt(inputElement.dataset.clientId);
+                    const serviceId = parseInt(inputElement.dataset.serviceId);
+                    const monthIndex = parseInt(inputElement.dataset.monthIndex);
+                    const originalValue = inputElement.dataset.originalValue === '' ? null : (parseFloat(inputElement.dataset.originalValue) || 0);
+                    const newValue = inputElement.value === '' ? null : (parseFloat(inputElement.value) || 0);
+                    const hadData = inputElement.dataset.hasData === 'true';
+                    
+                    const service = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId && c.servicoId === serviceId);
+
+                    const hasChanged = (originalValue !== newValue) || (!hadData && newValue !== null);
+
+                    if (hasChanged) {
+                        currentMonthlyChanges.push({
+                            clientId: service.clienteId,
+                            serviceId: service.servicoId,
+                            clientName: service.nomeCliente,
+                            serviceName: service.servico,
+                            monthIndex,
+                            originalValue,
+                            newValue
+                        });
+                    }
+                });
+
+                if (currentMonthlyChanges.length === 0) {
+                    modalBody.innerHTML = '<p>Nenhuma alteração detectada.</p>';
+                    modal.show();
+                    return;
+                }
+
+                let summaryHtml = '<p>As seguintes alterações serão salvas:</p><ul class="list-group">';
+                const months = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                currentMonthlyChanges.forEach(change => {
+                    const originalText = change.originalValue === null ? 'vazio' : `${change.originalValue.toFixed(1)}h`;
+                    const newText = change.newValue === null ? 'vazio' : `${change.newValue.toFixed(1)}h`;
+                    summaryHtml += `
+                        <li class="list-group-item">
+                            <strong>${change.clientName} - ${change.serviceName}</strong><br>
+                            Mês: ${months[change.monthIndex]} | Valor anterior: ${originalText} | Novo valor: <strong>${newText}</strong>
+                        </li>`;
+                });
+                summaryHtml += '</ul>';
+                modalBody.innerHTML = summaryHtml;
+                modal.show();
+            }
+
+            window.confirmSaveChanges = async function() {
+                bootstrap.Modal.getInstance(document.getElementById('confirmSaveModal')).hide();
+                const saveMonthlyChangesBtn = document.getElementById('saveMonthlyChangesBtn');
+                const originalButtonHtml = saveMonthlyChangesBtn.innerHTML;
+                saveMonthlyChangesBtn.disabled = true;
+                saveMonthlyChangesBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Salvando...`;
+
+                const changesToSend = [];
+                document.querySelectorAll('#monthlyTrackingTableBody input[type="number"]').forEach(inputElement => {
+                    const clientId = parseInt(inputElement.dataset.clientId);
+                    const serviceId = parseInt(inputElement.dataset.serviceId);
+                    const monthIndex = parseInt(inputElement.dataset.monthIndex);
+                    const originalValue = inputElement.dataset.originalValue === '' ? null : (parseFloat(inputElement.dataset.originalValue) || 0);
+                    const newValue = inputElement.value === '' ? null : (parseFloat(inputElement.value) || 0);
+                    const hadData = inputElement.dataset.hasData === 'true';
+                    
+                    const service = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId && c.servicoId === serviceId);
+
+                    const hasChanged = (originalValue !== newValue) || (!hadData && newValue !== null);
+
+                    if (hasChanged && newValue !== null) {
+                        changesToSend.push({
+                            clientId: service.clienteId,
+                            servicoId: service.servicoId,
+                            nomeCliente: service.nomeCliente,
+                            cnpj: service.cnpj,
+                            status: service.status,
+                            servico: service.servico,
+                            horasContratadas: service.horasContratadas,
+                            horasUtilizadas: newValue,
+                            bancoDeHoras: 0, // Será recalculado no backend ou na próxima carga
+                            valorHora: service.valorHora,
+                            mesesAcumulacao: service.mesesAcumulacao,
+                            ano: new Date().getFullYear(),
+                            mes: monthIndex + 1
+                        });
+                    }
+                });
+
+                const payload = {
+                    monthlyChanges: changesToSend,
+                    action: "mes_a_mes"
+                };
+
+                const currentYear = new Date().getFullYear();
+                const updatedMonthlyUsageMap = new Map();
+                (originalN8nData.acompanhamentoMensal || []).forEach(item => {
+                    const key = `${item.clienteId}-${item.servicoId}-${item.ano}-${item.mes}`;
+                    updatedMonthlyUsageMap.set(key, { ...item });
+                });
+
+                changesToSend.forEach(change => {
+                    const key = `${change.clienteId}-${change.servicoId}-${change.ano}-${change.mes}`;
+                    let entry = updatedMonthlyUsageMap.get(key);
+                    if (entry) {
+                        entry.horasUtilizadas = change.horasUtilizadas;
+                    } else {
+                        updatedMonthlyUsageMap.set(key, {
+                            acompanhamentoId: Math.floor(Math.random() * 1000000), // ID temporário se for novo
+                            clienteId: change.clienteId,
+                            servicoId: change.servicoId,
+                            cliente: change.nomeCliente,
+                            servico: change.serviceName,
+                            ano: change.ano,
+                            mes: change.mes,
+                            horasUtilizadas: change.horasUtilizadas,
+                            saldoBancoHoras: 0 // Será recalculado
+                        });
+                    }
+                });
+                originalN8nData.acompanhamentoMensal = Array.from(updatedMonthlyUsageMap.values());
+                
+                monthlyChanges = []; // Limpa as alterações pendentes
+                filtrarDadosGlobal(); // Re-filtra e re-renderiza com os dados atualizados
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+
+                console.log("Enviando dados para o webhook:", webhookUrl, payload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        showMessage('success', 'Alterações salvas com sucesso!');
+                        console.log("Dados enviados ao webhook com sucesso:", payload);
+                    } else {
+                        const errorText = await response.text();
+                        showMessage('danger', `Erro ao salvar alterações: ${response.status} - ${errorText}`);
+                        console.error("Erro ao enviar dados ao webhook:", response.status, errorText);
+                    }
+                } catch (error) {
+                    showMessage('danger', `Erro de rede ao salvar alterações: ${error.message}`);
+                    console.error("Erro de rede ao enviar dados ao webhook:", error);
+                } finally {
+                    saveMonthlyChangesBtn.disabled = false;
+                    saveMonthlyChangesBtn.innerHTML = originalButtonHtml;
+                }
+            };
+
+            function populateServiceDropdowns(targetSelectId = 'clientServiceSelect') {
+                const serviceSelect = document.getElementById(targetSelectId);
+                serviceSelect.innerHTML = '<option value="">Selecione um serviço</option>';
+                rawCadastroServico.forEach(service => {
+                    serviceSelect.innerHTML += `<option value="${service.id}">${service.nome_serviço}</option>`;
+                });
+            }
+
+            window.filtrarDadosGlobal = function() {
+                const clienteId = document.getElementById('filterClienteGlobal').value;
+                const servicoNome = document.getElementById('filterServicoGlobal').value;
+                const dataInicial = document.getElementById('filterDataInicialGlobal').value;
+                const dataFinal = document.getElementById('filterDataFinalGlobal').value;
+
+                let filteredServices = [...originalN8nData.clientesServicosDetalhado];
+                let filteredAcompanhamento = [...originalN8nData.acompanhamentoMensal];
+
+                // Filtrar por cliente
+                if (clienteId) {
+                    filteredServices = filteredServices.filter(s => s.clienteId == clienteId);
+                    filteredAcompanhamento = filteredAcompanhamento.filter(a => a.clienteId == clienteId);
+                }
+
+                // Filtrar por serviço
+                if (servicoNome) {
+                    filteredServices = filteredServices.filter(s => s.servico === servicoNome);
+                    filteredAcompanhamento = filteredAcompanhamento.filter(a => a.servico === servicoNome);
+                }
+
+                // Filtrar acompanhamento por data
+                if (dataInicial || dataFinal) {
+                    const start = dataInicial ? new Date(dataInicial + "T00:00:00") : null;
+                    const end = dataFinal ? new Date(dataFinal + "T23:59:59") : null;
+
+                    filteredAcompanhamento = filteredAcompanhamento.filter(item => {
+                        const itemDate = new Date(item.ano, item.mes - 1, 15); // Use mid-month to avoid timezone issues
+                        return (!start || itemDate >= start) && (!end || itemDate <= end);
+                    });
+                }
+                
+                // Recalcular horas utilizadas e banco de horas com base no acompanhamento filtrado
+                filteredServices.forEach(service => {
+                    const monthlyHoursForService = Array(12).fill(0);
+                    const dataExistsForService = Array(12).fill(false);
+                    const currentYear = new Date().getFullYear();
+                    
+                    filteredAcompanhamento
+                        .filter(m => m.clienteId === service.clienteId && m.servicoId === service.servicoId && m.ano === currentYear)
+                        .forEach(item => {
+                            if (item.mes >= 1 && item.mes <= 12) {
+                                monthlyHoursForService[item.mes - 1] = item.horasUtilizadas;
+                                dataExistsForService[item.mes - 1] = true;
+                            }
+                        });
+
+                    const calculation = calculateBalance(service.horasContratadas, monthlyHoursForService, service.mesesAcumulacao, dataExistsForService);
+                    service.horasUtilizadas = calculation.totalHorasUtilizadas;
+                    service.bancoDeHoras = calculation.saldoAUtilizar;
+                });
+
+                // Recalcular estatísticas
+                const stats = {
+                    totalClientes: new Set(filteredServices.map(s => s.clienteId)).size,
+                    clientesAtivos: new Set(filteredServices.filter(s => s.status === 'Ativo').map(s => s.clienteId)).size,
+                    totalHorasContratadas: filteredServices.reduce((sum, s) => sum + (s.horasContratadas || 0), 0),
+                    totalBancoDeHoras: filteredServices.reduce((sum, s) => sum + (s.bancoDeHoras || 0), 0)
+                };
+
+                // Renderizar tudo
+                loadStats(stats);
+                loadClientsTable(filteredServices);
+                loadMonthlyTracking(filteredServices, filteredAcompanhamento);
+                loadServiceDetails(filteredServices, filteredAcompanhamento);
+            }
+            
+            function loadServiceDetails(filteredServices, filteredAcompanhamento) {
+                const container = document.getElementById('serviceDetailsContainer');
+                container.innerHTML = '';
+
+                if (filteredServices.length === 1) {
+                    // Exibe detalhes se apenas um serviço for filtrado
+                    const service = filteredServices[0];
+                    const horasUtilizadasNoPeriodo = service.horasUtilizadas;
+                    const utilizationPercent = service.horasContratadas > 0 ? Math.round((horasUtilizadasNoPeriodo / service.horasContratadas) * 100) : 0;
+                    const bankLimit = 114;
+                    const bankPercent = bankLimit > 0 && service.bancoDeHoras > 0 ? Math.round((service.bancoDeHoras / bankLimit) * 100) : 0;
+
+                    container.innerHTML = `
+                        <div class="p-3">
+                            <h6><strong>${service.nomeCliente} - ${service.servico}</strong></h6>
+                            <p class="text-muted">Período: Geral</p>
+                            <div class="row g-3">
+                                <div class="col-md-3"><div class="detail-card"><h4 class="text-primary">${service.horasContratadas}h</h4><small>Horas Contratadas</small></div></div>
+                                <div class="col-md-3"><div class="detail-card"><h4 class="text-success">${horasUtilizadasNoPeriodo.toFixed(1)}h</h4><small>Horas Utilizadas</small><div class="progress mt-2" style="height: 5px;"><div class="progress-bar bg-success" style="width: ${utilizationPercent}%"></div></div><small>${utilizationPercent}%</small></div></div>
+                                <div class="col-md-3"><div class="detail-card"><h4 class="text-warning">${service.bancoDeHoras.toFixed(1)}h</h4><small>Banco de Horas</small><div class="progress mt-2" style="height: 5px;"><div class="progress-bar bg-warning" style="width: ${bankPercent}%"></div></div><small>${bankPercent}% do limite (${bankLimit}h)</small></div></div>
+                                <div class="col-md-3"><div class="detail-card"><h4 class="${service.bancoDeHoras >= 0 ? 'text-info' : 'text-danger'}">${service.bancoDeHoras.toFixed(1)}h</h4><small>Saldo Atual</small></div></div>
+                            </div>
+                            <div class="alert alert-info mt-4">
+                                <h6><i class="fas fa-info-circle me-2"></i>Regras do Banco de Horas</h6>
+                                <ul class="mb-0 small">
+                                    <li>Acumulação permitida: <strong>${service.mesesAcumulacao} meses</strong></li>
+                                    <li>Limite máximo: <strong>114 horas</strong></li>
+                                    <li>Horas não utilizadas são adicionadas ao banco (até ${service.mesesAcumulacao} meses)</li>
+                                    <li>Horas excedentes ao limite são perdidas</li>
+                                </ul>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-12">
+                                    <button class="btn btn-success w-100" onclick="generateReport()"><i class="fas fa-file-excel me-2"></i>Relatório</button>
+                                </div>
+                            </div>
+                        </div>`;
+                } else {
+                    if (filteredServices.length === 0) {
+                        container.innerHTML = '<p class="text-muted text-center">Nenhum serviço encontrado com os filtros aplicados.</p>';
+                    } else {
+                        container.innerHTML = '<p class="text-muted text-center">Filtre por um único cliente e serviço para ver os detalhes específicos de horas.</p>';
+                    }
+                }
+            }
+
+            document.getElementById('btnFiltrarGlobal').addEventListener('click', filtrarDadosGlobal);
+
+            // --- UNIFIED MODAL LOGIC ---
+            window.openClientModal = (index = null) => {
+                const modalElement = document.getElementById('clientModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                const title = document.getElementById('clientModalTitle');
+                const form = document.getElementById('clientForm');
+                const serviceSelect = document.getElementById('clientServiceSelect');
+                const serviceHoursInput = document.querySelector('#clientModal .service-item .service-hours');
+                const serviceAccumulationInput = document.querySelector('#clientModal .service-item .service-accumulation');
+                
+                form.reset();
+                document.getElementById('clientId').value = '';
+                populateServiceDropdowns('clientServiceSelect');
+
+                if (index !== null) {
+                    title.textContent = 'Editar Cliente e Serviço';
+                    const client = originalN8nData.clientesServicosDetalhado[index];
+                    if (client) {
+                        document.getElementById('clientId').value = index;
+                        document.getElementById('clientName').value = client.nomeCliente || '';
+                        document.getElementById('clientCnpj').value = client.cnpj || '';
+                        document.getElementById('clientEmail').value = client.email || '';
+                        document.getElementById('clientPhone').value = client.telefone || '';
+                        document.getElementById('clientActive').checked = client.status === 'Ativo';
+                        
+                        const selectedServiceInCatalog = rawCadastroServico.find(s => s.nome_serviço === client.servico);
+                        if (selectedServiceInCatalog) {
+                            serviceSelect.value = selectedServiceInCatalog.id;
+                        } else {
+                            serviceSelect.value = '';
+                        }
+
+                        serviceHoursInput.value = client.horasContratadas || 0;
+                        serviceAccumulationInput.value = client.mesesAcumulacao || 0;
+                    }
+                } else {
+                    title.textContent = 'Novo Cliente';
+                    serviceSelect.value = '';
+                    serviceHoursInput.value = 0;
+                    serviceAccumulationInput.value = 0;
+                    document.getElementById('clientEmail').value = '';
+                    document.getElementById('clientPhone').value = '';
+                }
+                modal.show();
+            };
+
+            window.saveClient = async () => {
+                const index = document.getElementById('clientId').value;
+                const name = document.getElementById('clientName').value;
+                const cnpj = document.getElementById('clientCnpj').value;
+                const email = document.getElementById('clientEmail').value;
+                const phone = document.getElementById('clientPhone').value;
+                const isActive = document.getElementById('clientActive').checked;
+                const selectedServiceId = document.getElementById('clientServiceSelect').value;
+                const horasContratadas = parseInt(document.querySelector('#clientModal .service-item .service-hours').value) || 0;
+                const mesesAcumulacao = parseInt(document.querySelector('#clientModal .service-item .service-accumulation').value) || 0;
+
+                if (!name || !selectedServiceId) {
+                    showMessage('danger', 'Nome do cliente e serviço são obrigatórios.');
+                    return;
+                }
+
+                const selectedService = rawCadastroServico.find(s => s.id == selectedServiceId);
+                if (!selectedService) {
+                    showMessage('danger', 'Serviço selecionado inválido.');
+                    return;
+                }
+
+                let clientPayload = {};
+                let successMessage = '';
+
+                if (index) { // Editando cliente existente
+                    const client = originalN8nData.clientesServicosDetalhado[index];
+                    clientPayload = {
+                        action: "update_client_service",
+                        clienteId: client.clienteId,
+                        servicoId: client.servicoId,
+                        nome: name,
+                        cnpj: cnpj,
+                        email: email,
+                        telefone: phone,
+                        ativo: isActive,
+                        nome_servico: selectedService.nome_serviço,
+                        horas_contratadas_mes: horasContratadas,
+                        meses_acumulacao: mesesAcumulacao,
+                        valor_hora: selectedService.valor_hora || 0
+                    };
+                    successMessage = 'Cliente atualizado com sucesso!';
+                } else { // Adicionando novo cliente
+                    const newClientId = originalN8nData.clientesServicosDetalhado.length > 0 ? Math.max(...originalN8nData.clientesServicosDetalhado.map(c => c.clienteId)) + 1 : 1;
+                    const newServiceId = parseInt(selectedServiceId);
+
+                    clientPayload = {
+                        action: "add_cliente",
+                        id: newClientId,
+                        nome: name,
+                        cnpj: cnpj,
+                        email: email,
+                        telefone: phone,
+                        ativo: isActive,
+                        servico_contratado: {
+                            id: newServiceId,
+                            cliente_id: newClientId,
+                            nome_servico: selectedService.nome_serviço,
+                            horas_contratadas_mes: horasContratadas,
+                            meses_acumulacao: mesesAcumulacao,
+                            valor_hora: selectedService.valor_hora || 0,
+                            created_at: new Date().toISOString()
+                        }
+                    };
+                    successMessage = 'Cliente salvo com sucesso!';
+                }
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                console.log("Enviando dados do cliente para o webhook:", webhookUrl, clientPayload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(clientPayload)
+                    });
+
+                    if (response.ok) {
+                        console.log("Dados do cliente enviados ao webhook com sucesso:", clientPayload);
+                        showMessage('success', successMessage);
+                        bootstrap.Modal.getInstance(document.getElementById('clientModal')).hide();
+                        // Recarregar a página para obter dados atualizados do backend
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        const errorText = await response.text();
+                        showMessage('danger', `Erro ao salvar cliente: ${response.status} - ${errorText}`);
+                        console.error("Erro ao enviar dados do cliente ao webhook:", response.status, errorText);
+                    }
+                } catch (error) {
+                    showMessage('danger', `Erro de rede ao salvar cliente: ${error.message}`);
+                    console.error("Erro de rede ao enviar dados do cliente ao webhook:", error);
+                }
+            };
+
+            window.openAddServiceModal = () => {
+                const modalElement = document.getElementById('addServiceModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                document.getElementById('addServiceForm').reset();
+                modal.show();
+            };
+
+            window.saveService = async () => {
+                const newServiceName = document.getElementById('newServiceName').value;
+                
+                if (!newServiceName) {
+                    showMessage('danger', 'O nome do serviço é obrigatório.');
+                    return;
+                }
+                
+                const newServiceId = rawCadastroServico.length > 0 ? Math.max(...rawCadastroServico.map(s => s.id)) + 1 : 1;
+                const newService = {
+                    id: newServiceId,
+                    nome_serviço: newServiceName,
+                    created_at: new Date().toISOString()
+                };
+                rawCadastroServico.push(newService);
+
+                populateServiceDropdowns('clientServiceSelect');
+                populateServiceDropdowns('addServiceToClientServiceSelect');
+                populateServiceDropdowns('editServiceServiceSelect');
+                
+                bootstrap.Modal.getInstance(document.getElementById('addServiceModal')).hide();
+                showMessage('success', 'Novo serviço adicionado com sucesso! Ele já está disponível para seleção.');
+
+                const payload = {
+                    action: "add_serv",
+                    nome_servico: newServiceName
+                };
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                console.log("Enviando dados do novo serviço para o webhook:", webhookUrl, payload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        console.log("Dados do novo serviço enviados ao webhook com sucesso:", payload);
+                    } else {
+                        const errorText = await response.text();
+                        console.error("Erro ao enviar dados do novo serviço ao webhook:", response.status, errorText);
+                        rawCadastroServico.pop();
+                        populateServiceDropdowns('clientServiceSelect');
+                        populateServiceDropdowns('addServiceToClientServiceSelect');
+                        populateServiceDropdowns('editServiceServiceSelect');
+                        showMessage('danger', 'Falha ao salvar o novo serviço no servidor.');
+                    }
+                } catch (error) {
+                    console.error("Erro de rede ao enviar dados do novo serviço ao webhook:", error);
+                    rawCadastroServico.pop();
+                    populateServiceDropdowns('clientServiceSelect');
+                    populateServiceDropdowns('addServiceToClientServiceSelect');
+                    populateServiceDropdowns('editServiceServiceSelect');
+                    showMessage('danger', `Erro de rede: ${error.message}`);
+                }
+            };
+
+            // --- FUNÇÕES PARA MODAL ANINHADO COM LOGS DE DEBUG ---
+            window.openNestedAddServiceModal = () => {
+                console.log('🔥 DEBUG: Iniciando abertura do modal aninhado...');
+                
+                const nestedModal = document.getElementById('addServiceNestedModal');
+                console.log('🔍 DEBUG: Modal aninhado encontrado:', nestedModal);
+                
+                if (!nestedModal) {
+                    console.error('❌ DEBUG: Modal aninhado não encontrado!');
+                    return;
+                }
+                
+                // Reset do formulário
+                const form = document.getElementById('addServiceNestedForm');
+                console.log('🔍 DEBUG: Formulário aninhado encontrado:', form);
+                if (form) {
+                    form.reset();
+                    console.log('✅ DEBUG: Formulário resetado');
+                } else {
+                    console.error('❌ DEBUG: Formulário aninhado não encontrado!');
+                }
+                
+                // Verificar se já existe backdrop
+                const existingBackdrop = document.getElementById('nested-modal-backdrop');
+                if (existingBackdrop) {
+                    console.log('⚠️ DEBUG: Backdrop já existe, removendo...');
+                    existingBackdrop.remove();
+                }
+                
+                // Verificar estado atual do modal pai
+                const parentModal = document.getElementById('addServiceToClientModal');
+                console.log('🔍 DEBUG: Modal pai encontrado:', parentModal);
+                console.log('🔍 DEBUG: Classes do modal pai:', parentModal.classList.toString());
+                
+                // Mostrar o modal aninhado SEM backdrop manual
+                console.log('🚀 DEBUG: Exibindo modal aninhado...');
+                nestedModal.style.display = 'block';
+                nestedModal.classList.add('show');
+                
+                // Focar no campo de entrada
+                const inputField = document.getElementById('newServiceNameNested');
+                if (inputField) {
+                    setTimeout(() => {
+                        inputField.focus();
+                        console.log('✅ DEBUG: Foco definido no campo de entrada');
+                    }, 100);
+                } else {
+                    console.error('❌ DEBUG: Campo de entrada não encontrado!');
+                }
+                
+                console.log('✅ DEBUG: Modal aninhado aberto com sucesso');
+            };
+
+            window.closeNestedAddServiceModal = () => {
+                console.log('🔥 DEBUG: Iniciando fechamento do modal aninhado...');
+                
+                const nestedModal = document.getElementById('addServiceNestedModal');
+                console.log('🔍 DEBUG: Modal aninhado para fechar:', nestedModal);
+                
+                if (!nestedModal) {
+                    console.error('❌ DEBUG: Modal aninhado não encontrado para fechar!');
+                    return;
+                }
+                
+                // Fechar modal
+                nestedModal.style.display = 'none';
+                nestedModal.classList.remove('show');
+                console.log('✅ DEBUG: Modal aninhado fechado');
+                
+                // Limpar qualquer backdrop que possa ter sido criado
+                const backdrop = document.getElementById('nested-modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                    console.log('✅ DEBUG: Backdrop removido');
+                } else {
+                    console.log('ℹ️ DEBUG: Nenhum backdrop encontrado para remover');
+                }
+                
+                // Verificar se o modal pai ainda está ativo
+                const parentModal = document.getElementById('addServiceToClientModal');
+                console.log('🔍 DEBUG: Estado do modal pai após fechamento:', parentModal.classList.toString());
+                
+                console.log('✅ DEBUG: Fechamento do modal aninhado concluído');
+            };
+
+            window.saveNestedService = async () => {
+                console.log('🔥 DEBUG: Iniciando salvamento do serviço aninhado...');
+                
+                const newServiceName = document.getElementById('newServiceNameNested').value;
+                console.log('🔍 DEBUG: Nome do novo serviço:', newServiceName);
+                
+                if (!newServiceName) {
+                    console.log('⚠️ DEBUG: Nome do serviço vazio, mostrando erro');
+                    showMessage('danger', 'O nome do serviço é obrigatório.');
+                    return;
+                }
+                
+                console.log('🔍 DEBUG: rawCadastroServico atual:', rawCadastroServico);
+                const newServiceId = rawCadastroServico.length > 0 ? Math.max(...rawCadastroServico.map(s => s.id)) + 1 : 1;
+                console.log('🔍 DEBUG: Novo ID do serviço:', newServiceId);
+                
+                const newService = {
+                    id: newServiceId,
+                    nome_serviço: newServiceName,
+                    created_at: new Date().toISOString()
+                };
+                
+                console.log('🔍 DEBUG: Novo serviço criado:', newService);
+                rawCadastroServico.push(newService);
+                console.log('✅ DEBUG: Serviço adicionado ao array local');
+
+                // Atualiza o dropdown do modal pai
+                console.log('🔄 DEBUG: Atualizando dropdown do modal pai...');
+                populateServiceDropdowns('addServiceToClientServiceSelect');
+                
+                // Seleciona automaticamente o novo serviço
+                const dropdown = document.getElementById('addServiceToClientServiceSelect');
+                if (dropdown) {
+                    dropdown.value = newServiceId;
+                    console.log('✅ DEBUG: Novo serviço selecionado automaticamente no dropdown');
+                    
+                    // Trigger change event para validações
+                    const changeEvent = new Event('change', { bubbles: true });
+                    dropdown.dispatchEvent(changeEvent);
+                    console.log('✅ DEBUG: Evento change disparado no dropdown');
+                } else {
+                    console.error('❌ DEBUG: Dropdown do modal pai não encontrado!');
+                }
+                
+                // Fecha o modal aninhado
+                console.log('🔄 DEBUG: Fechando modal aninhado...');
+                closeNestedAddServiceModal();
+                
+                showMessage('success', 'Novo serviço adicionado com sucesso! Ele já está selecionado.');
+
+                const payload = {
+                    action: "add_serv",
+                    nome_servico: newServiceName
+                };
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                console.log("📡 DEBUG: Enviando dados do novo serviço aninhado para o webhook:", webhookUrl, payload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        console.log("✅ DEBUG: Dados do novo serviço aninhado enviados ao webhook com sucesso:", payload);
+                    } else {
+                        const errorText = await response.text();
+                        console.error("❌ DEBUG: Erro ao enviar dados do novo serviço aninhado ao webhook:", response.status, errorText);
+                        // Reverte mudanças locais em caso de erro
+                        rawCadastroServico.pop();
+                        populateServiceDropdowns('addServiceToClientServiceSelect');
+                        showMessage('danger', 'Falha ao salvar o novo serviço no servidor.');
+                    }
+                } catch (error) {
+                    console.error("❌ DEBUG: Erro de rede ao enviar dados do novo serviço aninhado ao webhook:", error);
+                    // Reverte mudanças locais em caso de erro
+                    rawCadastroServico.pop();
+                    populateServiceDropdowns('addServiceToClientServiceSelect');
+                    showMessage('danger', `Erro de rede: ${error.message}`);
+                }
+                
+                console.log('✅ DEBUG: Salvamento do serviço aninhado concluído');
+            };
+
+            window.viewClientDetails = (index) => {
+                const client = originalN8nData.clientesServicosDetalhado[index];
+                const clientSelect = document.getElementById('filterClienteGlobal');
+                clientSelect.value = client.clienteId;
+                
+                const serviceSelect = document.getElementById('filterServicoGlobal');
+                serviceSelect.value = client.servico;
+
+                filtrarDadosGlobal();
+                
+                const detailsContainer = document.getElementById('serviceDetailsContainer');
+                if(detailsContainer) {
+                    detailsContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            };
+
+            window.generateReport = function() {
+                const clienteId = document.getElementById('filterClienteGlobal').value;
+                const servicoNome = document.getElementById('filterServicoGlobal').value;
+
+                if (!clienteId || !servicoNome) {
+                    showMessage('warning', 'Por favor, selecione um cliente e um serviço para gerar o relatório.');
+                    return;
+                }
+
+                const client = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId == clienteId && c.servico === servicoNome);
+                if (!client) {
+                    showMessage('danger', 'Dados do cliente/serviço não encontrados para gerar o relatório.');
+                    return;
+                }
+
+                const currentYear = new Date().getFullYear();
+                const monthlyUsageForService = (originalN8nData.acompanhamentoMensal || [])
+                    .filter(item => item.clienteId === client.clienteId && item.servicoId === client.servicoId && item.ano === currentYear);
+
+                let csvContent = "Tipo de Dado,Nome do Cliente,CNPJ,Status,Email,Telefone,Nome do Serviço,Horas Contratadas/Mês,Meses Acumulação,Horas Utilizadas Total,Banco de Horas Atual\n";
+                
+                csvContent += `Detalhes do Contrato,${client.nomeCliente},${client.cnpj || 'N/A'},${client.status},${client.email || 'N/A'},${client.telefone || 'N/A'},${client.servico},${client.horasContratadas},${client.mesesAcumulacao},${client.horasUtilizadas.toFixed(1)},${client.bancoDeHoras.toFixed(1)}\n`;
+
+                csvContent += "\nTipo de Dado,Mês,Horas Utilizadas,Saldo Banco de Horas\n";
+
+                const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+                for (let i = 1; i <= 12; i++) {
+                    const monthlyData = monthlyUsageForService.find(item => item.mes === i);
+                    const horasUtilizadas = monthlyData ? monthlyData.horasUtilizadas : 0;
+                    const saldoBancoHoras = monthlyData ? monthlyData.saldoBancoHoras : 0;
+                    csvContent += `Acompanhamento Mensal,${monthNames[i-1]},${horasUtilizadas.toFixed(1)},${saldoBancoHoras.toFixed(1)}\n`;
+                }
+
+                const filename = `Relatorio_${client.nomeCliente.replace(/\s/g, '_')}_${client.servico.replace(/\s/g, '_')}_${currentYear}.csv`;
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                showMessage('success', `Relatório CSV para ${client.nomeCliente} - ${client.servico} gerado com sucesso!`);
+            };
+
+            // Nova função para exportar dados filtrados
+            window.exportFilteredDataToCSV = function() {
+                const clienteId = document.getElementById('filterClienteGlobal').value;
+                const servicoNome = document.getElementById('filterServicoGlobal').value;
+                const dataInicial = document.getElementById('filterDataInicialGlobal').value;
+                const dataFinal = document.getElementById('filterDataFinalGlobal').value;
+
+                // Aplicar os mesmos filtros da função filtrarDadosGlobal
+                let filteredServices = [...originalN8nData.clientesServicosDetalhado];
+                let filteredAcompanhamento = [...originalN8nData.acompanhamentoMensal];
+
+                // Filtrar por cliente
+                if (clienteId) {
+                    filteredServices = filteredServices.filter(s => s.clienteId == clienteId);
+                    filteredAcompanhamento = filteredAcompanhamento.filter(a => a.clienteId == clienteId);
+                }
+
+                // Filtrar por serviço
+                if (servicoNome) {
+                    filteredServices = filteredServices.filter(s => s.servico === servicoNome);
+                    filteredAcompanhamento = filteredAcompanhamento.filter(a => a.servico === servicoNome);
+                }
+
+                // Filtrar acompanhamento por data
+                if (dataInicial || dataFinal) {
+                    const start = dataInicial ? new Date(dataInicial + "T00:00:00") : null;
+                    const end = dataFinal ? new Date(dataFinal + "T23:59:59") : null;
+
+                    filteredAcompanhamento = filteredAcompanhamento.filter(item => {
+                        const itemDate = new Date(item.ano, item.mes - 1, 15);
+                        return (!start || itemDate >= start) && (!end || itemDate <= end);
+                    });
+                }
+
+                if (filteredServices.length === 0) {
+                    showMessage('warning', 'Nenhum dado encontrado com os filtros aplicados.');
+                    return;
+                }
+
+                // Recalcular dados conforme filtros e organizar por mês
+                const currentYear = new Date().getFullYear();
+                const processedData = [];
+
+                filteredServices.forEach(service => {
+                    const monthlyHoursForService = Array(12).fill('');
+                    const dataExistsForService = Array(12).fill(false);
+                    
+                    filteredAcompanhamento
+                        .filter(m => m.clienteId === service.clienteId && m.servicoId === service.servicoId && m.ano === currentYear)
+                        .forEach(item => {
+                            if (item.mes >= 1 && item.mes <= 12) {
+                                monthlyHoursForService[item.mes - 1] = item.horasUtilizadas || 0;
+                                dataExistsForService[item.mes - 1] = true;
+                            }
+                        });
+
+                    const calculation = calculateBalance(service.horasContratadas, monthlyHoursForService.map(h => h === '' ? 0 : h), service.mesesAcumulacao, dataExistsForService);
+                    
+                    // Formatar dados mensais para exibição (vazio se não há dados)
+                    const monthlyDisplay = monthlyHoursForService.map((h, idx) => {
+                        if (!dataExistsForService[idx]) return '';
+                        return h;
+                    });
+
+                    processedData.push({
+                        clienteId: service.clienteId,
+                        nomeCliente: service.nomeCliente,
+                        cnpj: service.cnpj || '',
+                        status: service.status,
+                        servicoId: service.servicoId,
+                        nomeServico: service.servico,
+                        horasContratadas: service.horasContratadas,
+                        mesesAcumulacao: service.mesesAcumulacao,
+                        totalHorasUtilizadas: calculation.totalHorasUtilizadas,
+                        saldoAtual: calculation.saldoAUtilizar,
+                        jan: monthlyDisplay[0],
+                        fev: monthlyDisplay[1],
+                        mar: monthlyDisplay[2],
+                        abr: monthlyDisplay[3],
+                        mai: monthlyDisplay[4],
+                        jun: monthlyDisplay[5],
+                        jul: monthlyDisplay[6],
+                        ago: monthlyDisplay[7],
+                        set: monthlyDisplay[8],
+                        out: monthlyDisplay[9],
+                        nov: monthlyDisplay[10],
+                        dez: monthlyDisplay[11]
+                    });
+                });
+
+                // Gerar CSV no formato solicitado
+                let csvContent = '';
+                
+                // Cabeçalho conforme o formato da imagem
+                csvContent += 'ID Cliente,Nome Cliente,CNPJ,Status,ID Serviço,Nome Serviço,,Horas Contratadas,Meses Acumulação,Total Horas Utilizadas (Período),Saldo Atual (Banco de Horas),Jan,Fev,Mar,Abr,Mai,Jun,Jul,Ago,Set,Out,Nov,Dez\n';
+                
+                // Dados dos serviços
+                processedData.forEach(service => {
+                    csvContent += `${service.clienteId},${service.nomeCliente},"${service.cnpj}",${service.status},${service.servicoId},${service.nomeServico},,${service.horasContratadas},${service.mesesAcumulacao},${service.totalHorasUtilizadas},${service.saldoAtual.toFixed(1)},${service.jan},${service.fev},${service.mar},${service.abr},${service.mai},${service.jun},${service.jul},${service.ago},${service.set},${service.out},${service.nov},${service.dez}\n`;
+                });
+
+                // Download do arquivo
+                const now = new Date();
+                const timestamp = now.toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+                const filename = `Gestao_Clientes_${timestamp}.csv`;
+                
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+
+                const filterInfo = [];
+                if (clienteId) filterInfo.push(`Cliente: ${originalN8nData.clientesServicosDetalhado.find(c => c.clienteId == clienteId)?.nomeCliente}`);
+                if (servicoNome) filterInfo.push(`Serviço: ${servicoNome}`);
+                if (dataInicial || dataFinal) filterInfo.push(`Período: ${dataInicial || 'início'} até ${dataFinal || 'fim'}`);
+                
+                const filterText = filterInfo.length > 0 ? ` (${filterInfo.join(', ')})` : ' (todos os dados)';
+                showMessage('success', `Dados exportados com sucesso${filterText}! Total de ${filteredServices.length} serviços exportados.`);
+            };
+            
+            // --- NOVAS FUNÇÕES E VARIÁVEIS PARA EXCLUSÃO E EDIÇÃO AGRUPADA ---
+            let servicesToDelete = [];
+
+            window.openClientModalForEditByClient = (clientId) => {
+                // Encontra o primeiro serviço associado ao cliente para preencher o modal de edição.
+                // A lógica do modal de edição existente edita um serviço de cada vez.
+                const firstServiceOfClient = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId);
+                if (firstServiceOfClient) {
+                    const originalIndex = originalN8nData.clientesServicosDetalhado.indexOf(firstServiceOfClient);
+                    openClientModal(originalIndex);
+                }
+            };
+
+            window.openConfirmDeleteModalByClient = (clientId) => {
+                const selectedCheckboxes = document.querySelectorAll(`.service-delete-checkbox[data-client-id="${clientId}"]:checked`);
+                
+                if (selectedCheckboxes.length === 0) {
+                    showMessage('warning', 'Nenhum serviço selecionado para exclusão. Marque a caixa de seleção ao lado do serviço que deseja remover.');
+                    return;
+                }
+
+                servicesToDelete = [];
+                let deleteDetailsHtml = '';
+                const client = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId);
+
+                selectedCheckboxes.forEach(checkbox => {
+                    const servicoId = parseInt(checkbox.value);
+                    const service = originalN8nData.clientesServicosDetalhado.find(s => s.clienteId === clientId && s.servicoId === servicoId);
+                    
+                    if(service) {
+                        servicesToDelete.push({
+                            clienteId: clientId,
+                            servicoId: servicoId,
+                            nomeCliente: client.nomeCliente,
+                            servico: service.servico
+                        });
+
+                        deleteDetailsHtml += `<li class="list-group-item"><strong>Cliente:</strong> ${client.nomeCliente}<br><strong>Serviço:</strong> ${service.servico}</li>`;
+                    }
+                });
+
+                const modalElement = document.getElementById('confirmDeleteModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                document.getElementById('deleteModalBody').innerHTML = `
+                    <p>Você tem certeza que deseja excluir os seguintes serviços?</p>
+                    <ul class="list-group mb-3">${deleteDetailsHtml}</ul>
+                    <p class="text-danger">Esta ação é irreversível.</p>
+                `;
+                document.getElementById('confirmDeleteBtn').onclick = confirmDeleteClient;
+                modal.show();
+            };
+
+            async function confirmDeleteClient() {
+                if (servicesToDelete.length === 0) {
+                    showMessage('danger', 'Erro: Nenhum serviço selecionado para exclusão.');
+                    return;
+                }
+
+                const modal = bootstrap.Modal.getInstance(document.getElementById('confirmDeleteModal'));
+                modal.hide();
+
+                const payload = {
+                    action: "deletar_servicos", // Ação para deletar múltiplos serviços
+                    servicos: servicesToDelete
+                };
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                console.log("Enviando dados de exclusão para o webhook:", webhookUrl, payload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        showMessage('success', `Serviços selecionados foram excluídos com sucesso!`);
+                        console.log("Dados de exclusão enviados ao webhook com sucesso:", payload);
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        const errorText = await response.text();
+                        showMessage('danger', `Erro ao excluir serviços: ${response.status} - ${errorText}`);
+                        console.error("Erro ao enviar dados de exclusão ao webhook:", response.status, errorText);
+                    }
+                } catch (error) {
+                    showMessage('danger', `Erro de rede ao excluir serviços: ${error.message}`);
+                    console.error("Erro de rede ao enviar dados de exclusão ao webhook:", error);
+                } finally {
+                    servicesToDelete = [];
+                }
+            }
+
+            window.openAddServiceToClientModal = (clientId) => {
+                const modalElement = document.getElementById('addServiceToClientModal');
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                const client = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId);
+
+                if (!client) {
+                    showMessage('danger', 'Erro: Cliente não encontrado para adicionar serviço.');
+                    return;
+                }
+
+                document.getElementById('addServiceToClientId').value = clientId;
+                document.getElementById('addServiceToClientName').textContent = client.nomeCliente;
+                document.getElementById('addServiceToClientNameDisplay').value = client.nomeCliente;
+                document.getElementById('addServiceToClientCnpjDisplay').value = client.cnpj || 'N/A';
+                document.getElementById('addServiceToClientHours').value = 0;
+                document.getElementById('addServiceToClientAccumulation').value = 0;
+                document.getElementById('serviceExistsWarning').classList.add('d-none');
+
+                populateServiceDropdowns('addServiceToClientServiceSelect');
+
+                modal.show();
+            };
+
+            window.checkExistingService = (selectElement) => {
+                const selectedServiceId = selectElement.value;
+                const clientId = parseInt(document.getElementById('addServiceToClientId').value);
+                const serviceExistsWarning = document.getElementById('serviceExistsWarning');
+                const saveButton = document.getElementById('saveNewClientServiceBtn');
+
+                if (!selectedServiceId) {
+                    serviceExistsWarning.classList.add('d-none');
+                    saveButton.disabled = true;
+                    return;
+                }
+
+                const serviceAlreadyAssigned = originalN8nData.clientesServicosDetalhado.some(cs => 
+                    cs.clienteId === clientId && 
+                    cs.servicoId == selectedServiceId
+                );
+
+                if (serviceAlreadyAssigned) {
+                    serviceExistsWarning.classList.remove('d-none');
+                    saveButton.disabled = true;
+                } else {
+                    serviceExistsWarning.classList.add('d-none');
+                    saveButton.disabled = false;
+                }
+            };
+
+            window.saveNewClientService = async () => {
+                const clientId = parseInt(document.getElementById('addServiceToClientId').value);
+                const selectedServiceId = document.getElementById('addServiceToClientServiceSelect').value;
+                const horasContratadas = parseInt(document.getElementById('addServiceToClientHours').value) || 0;
+                const mesesAcumulacao = parseInt(document.getElementById('addServiceToClientAccumulation').value) || 0;
+
+                if (!selectedServiceId) {
+                    showMessage('danger', 'Por favor, selecione um serviço.');
+                    return;
+                }
+
+                const client = originalN8nData.clientesServicosDetalhado.find(c => c.clienteId === clientId);
+                const selectedService = rawCadastroServico.find(s => s.id == selectedServiceId);
+
+                if (!client || !selectedService) {
+                    showMessage('danger', 'Erro: Dados do cliente ou serviço inválidos.');
+                    return;
+                }
+
+                const serviceAlreadyAssigned = originalN8nData.clientesServicosDetalhado.some(cs => 
+                    cs.clienteId === clientId && 
+                    cs.servicoId == selectedServiceId
+                );
+
+                if (serviceAlreadyAssigned) {
+                    showMessage('warning', `O serviço "${selectedService.nome_serviço}" já está cadastrado para este cliente. Por favor, edite-o na tabela principal.`);
+                    return;
+                }
+                
+                const payload = {
+                    action: "add_servico_cliente",
+                    clienteId: client.clienteId,
+                    servico_contratado: {
+                        id: selectedService.id,
+                        cliente_id: client.clienteId,
+                        nome_servico: selectedService.nome_serviço,
+                        horas_contratadas_mes: horasContratadas,
+                        meses_acumulacao: mesesAcumulacao,
+                        valor_hora: selectedService.valor_hora || 0,
+                        created_at: new Date().toISOString()
+                    }
+                };
+                
+                bootstrap.Modal.getInstance(document.getElementById('addServiceToClientModal')).hide();
+                showMessage('success', `Novo serviço "${selectedService.nome_serviço}" adicionado ao cliente "${client.nomeCliente}" com sucesso!`);
+
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                console.log("Enviando dados do novo serviço para cliente para o webhook:", webhookUrl, payload);
+
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        console.log("Dados do novo serviço para cliente enviados ao webhook com sucesso:", payload);
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        const errorText = await response.text();
+                        console.error("Erro ao enviar dados do novo serviço para cliente ao webhook:", response.status, errorText);
+                    }
+                } catch (error) {
+                    console.error("Erro de rede ao enviar dados do novo serviço para cliente ao webhook:", error);
+                }
+            };
+            
+            // Inicializa os dados da aplicação de gestão de clientes
+            initializeData();
+        });
+    </script>
+</body>
+</html>
