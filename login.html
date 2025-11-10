@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - ResolvTask</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 100vh; 
+            background-color: #f0f2f5; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        }
+        .login-container { 
+            background-color: #ffffff; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); 
+            width: 100%; 
+            max-width: 420px; 
+            text-align: center; 
+            margin-bottom: 20px; 
+        }
+        .login-container .logo { 
+            max-width: 180px; 
+            margin-bottom: 20px; 
+        }
+        .form-control { 
+            border-radius: 8px; 
+            padding: 12px 15px; 
+            border: 1px solid #ced4da; 
+        }
+        .btn-login { 
+            background-color: #0d6efd; 
+            border-color: #0d6efd; 
+            color: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            font-weight: 600; 
+        }
+        .signup-link { 
+            display: block; 
+            margin-top: 20px; 
+            color: #0d6efd; 
+            text-decoration: none; 
+        }
+        .notification-area { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 1050; 
+            min-width: 300px; 
+        }
+        .alert { 
+            border-radius: 8px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        }
+        .spinner-border-sm { 
+            margin-right: 5px; 
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo" onerror="this.onerror=null;this.src='https://placehold.co/180x40/ffffff/cccccc?text=Logo';">
+        <br>
+        <h1><i class="fas fa-users me-3"></i>Task</h1>
+        <p class="text-muted mb-4">Faça login para continuar.</p>
+        <form id="loginForm">
+            <div class="mb-3 text-start">
+                <label for="email" class="form-label">E-mail:</label>
+                <input type="email" class="form-control" id="email" required placeholder="seuemail@exemplo.com">
+            </div>
+            <div class="mb-3 text-start">
+                <label for="password" class="form-label">Senha:</label>
+                <input type="password" class="form-control" id="password" required placeholder="Sua senha">
+            </div>
+            <button type="submit" class="btn btn-login w-100 mt-3" id="loginButton">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                Login
+            </button>
+        </form>
+        <a href="{{ $json.dominio.cadastro }}" class="signup-link">Não tem uma conta? Cadastre-se</a>
+    </div>
+
+    <div class="notification-area" id="notificationArea"></div>
+
+    <div class="modal fade" id="activationPendingModal" tabindex="-1" aria-labelledby="activationPendingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="activationPendingModalLabel">Aviso de Ativação</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Aguardando ativação do cadastro. Por favor, entre em contato com o administrador.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // =================================================================
+        // SAFE STORAGE FALLBACK FOR SANDBOXED IFRAMES
+        // =================================================================
+        const SafeStorage = (() => {
+            let memoryStorage = {};
+            let isLocalStorageAvailable = false;
+
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                isLocalStorageAvailable = true;
+            } catch (e) {
+                // localStorage não disponível - usando armazenamento em memória (modo sandbox)
+                isLocalStorageAvailable = false;
+            }
+
+            return {
+                getItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        return localStorage.getItem(key);
+                    }
+                    return memoryStorage[key] || null;
+                },
+                setItem: (key, value) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.setItem(key, value);
+                    } else {
+                        memoryStorage[key] = value;
+                    }
+                },
+                removeItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.removeItem(key);
+                    } else {
+                        delete memoryStorage[key];
+                    }
+                },
+                clear: () => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.clear();
+                    } else {
+                        memoryStorage = {};
+                    }
+                }
+            };
+        })();
+
+        // --- VERIFICAÇÃO DE SESSÃO EXISTENTE ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const authToken = SafeStorage.getItem('authToken');
+            const userSession = SafeStorage.getItem('userSession');
+
+            if (authToken && userSession) {
+                // Se já está logado, redireciona para o dashboard
+                window.location.href = '{{ $json.dominio.resolv }}';
+                return;
+            }
+        });
+
+        // --- AUTENTICAÇÃO ---
+        const WEBHOOK_AUTHENTICATE_URL = '{{ $json.dominio.autenticar }}';
+        const REDIRECT_URL_ON_SUCCESS = '{{ $json.dominio.resolv }}';
+
+        const loginForm = document.getElementById('loginForm');
+        const loginButton = document.getElementById('loginButton');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const spinner = loginButton.querySelector('.spinner-border');
+
+        function showNotification(message, type = 'success') {
+            const notificationArea = document.getElementById('notificationArea');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+            notificationArea.appendChild(alertDiv);
+
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getOrCreateInstance(alertDiv);
+                if (alertInstance) { 
+                    alertInstance.close(); 
+                }
+            }, 5000);
+        }
+
+        function generateSessionToken() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function parseUserData(dataString) {
+            const userData = {};
+            const pairs = dataString.split(/,\s*/);
+            pairs.forEach(pair => {
+                const delimiterIndex = pair.indexOf(':');
+                if (delimiterIndex > -1) {
+                    const key = pair.substring(0, delimiterIndex).trim();
+                    const value = pair.substring(delimiterIndex + 1).trim();
+                    userData[key] = value;
+                }
+            });
+            return userData;
+        }
+
+        function saveUserSession(email, userData) {
+            const sessionToken = generateSessionToken();
+            const sessionData = {
+                email: email,
+                nome: userData.Nome || email.split('@')[0],
+                tipo: userData.Tipo || 'colaborador',
+                loginTime: new Date().toISOString(),
+                token: sessionToken
+            };
+
+            SafeStorage.clear();
+            SafeStorage.setItem('authToken', sessionToken);
+            SafeStorage.setItem('userSession', JSON.stringify(sessionData));
+            SafeStorage.setItem('loggedInUserEmail', email);
+            SafeStorage.setItem('loggedInUserName', sessionData.nome);
+            SafeStorage.setItem('loggedInUserTipo', sessionData.tipo);
+            
+            return sessionData;
+        }
+
+        loginForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!email || !password) {
+                showNotification('Por favor, preencha e-mail e senha.', 'warning');
+                return;
+            }
+
+            loginButton.disabled = true;
+            spinner.classList.remove('d-none');
+
+            try {
+                const response = await fetch(WEBHOOK_AUTHENTICATE_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, senha: password })
+                });
+
+                const responseText = await response.text();
+
+                if (!response.ok) {
+                    throw new Error(responseText || 'Credenciais inválidas ou erro no servidor.');
+                }
+
+                let userDataString = null;
+
+                // Tenta interpretar como JSON. Se for bem-sucedido e tiver a estrutura esperada, usa.
+                try {
+                    const result = JSON.parse(responseText);
+                    if (Array.isArray(result) && result.length > 0 && result[0].data) {
+                        userDataString = result[0].data;
+                    }
+                } catch (jsonError) {
+                    // Se não for JSON, o erro é ignorado aqui e a lógica abaixo trata como texto.
+                    console.log("A resposta não é JSON. Tratando como texto simples:", responseText);
+                }
+
+                // Se não foi possível extrair do JSON, trata a resposta como texto simples.
+                if (userDataString === null && responseText.includes('Status:')) {
+                    userDataString = responseText;
+                }
+
+                // Se uma string de dados foi encontrada (seja de JSON ou texto), processa-a.
+                if (userDataString) {
+                    const parsedData = parseUserData(userDataString);
+
+                    if (parsedData.Status === 'True') {
+                        const sessionData = saveUserSession(email, parsedData);
+                        showNotification('Login bem-sucedido! Redirecionando...', 'success');
+
+                        setTimeout(() => {
+                            // Verifica se localStorage está disponível
+                            let isLocalStorageAvailable = false;
+                            try {
+                                const test = '__test__';
+                                localStorage.setItem(test, test);
+                                localStorage.removeItem(test);
+                                isLocalStorageAvailable = true;
+                            } catch (e) {
+                                isLocalStorageAvailable = false;
+                            }
+                            
+                            // Se localStorage não estiver disponível, passa dados pela URL
+                            if (!isLocalStorageAvailable) {
+                                const sessionParam = encodeURIComponent(btoa(JSON.stringify(sessionData)));
+                                window.location.href = REDIRECT_URL_ON_SUCCESS + '?session=' + sessionParam;
+                            } else {
+                                window.location.href = REDIRECT_URL_ON_SUCCESS;
+                            }
+                        }, 1500);
+
+                    } else if (parsedData.Status === 'inactive') {
+                        const activationModal = new bootstrap.Modal(document.getElementById('activationPendingModal'));
+                        activationModal.show();
+                    } else {
+                        // Se o status existe mas não é 'True' ou 'inactive'
+                        showNotification('E-mail ou senha incorretos.', 'danger');
+                    }
+                } else {
+                    // Se, após todas as tentativas, nenhuma string de dados válida foi encontrada.
+                    console.error("Formato de resposta do servidor inválido:", responseText);
+                    throw new Error("Formato de resposta do servidor inválido.");
+                }
+
+            } catch (error) {
+                console.error('Erro durante o login:', error);
+                // A linha 256 original estava aqui, registrando o erro.
+                // Agora, o erro de localStorage será pego antes (na função saveUserSession),
+                // mas outros erros (como de rede) ainda serão pegos aqui.
+                showNotification(error.message || 'Ocorreu um erro ao tentar fazer login.', 'danger');
+            } finally {
+                loginButton.disabled = false;
+                spinner.classList.add('d-none');
+            }
+        });
+    </script>
+</body>
+</html>
