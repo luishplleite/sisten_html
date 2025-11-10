@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Gestão de Equipe</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- DataTables CSS -->
+    <link href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #0d6efd; /* Cor padrão que será substituída */
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            overflow-x: hidden;
+        }
+        
+        /* Loading inicial quando não logado */
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        
+        .auth-loading .spinner-auth {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .auth-loading h4 {
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .auth-loading p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: transform 0.3s ease, background 0.5s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            background-color: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .sidebar-header .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .sidebar-header .text-light {
+            color: var(--dark-color) !important;
+            font-weight: 500;
+        }
+        
+        .sidebar-menu {
+            padding: 20px 0;
+            flex-grow: 1;
+        }
+        
+        .menu-item {
+            display: block;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+        
+        .menu-item:hover,
+        .menu-item.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+        }
+
+        /* Ocultar menus inicialmente para evitar flash */
+        .sidebar-menu .menu-item {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-menu .menu-item.show {
+            display: block;
+            opacity: 1;
+        }
+
+        /* Loading state da sidebar */
+        .sidebar-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+        .sidebar-loading .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        
+        .main-content.expanded {
+            margin-left: 0;
+        }
+        
+        /* Top Navigation */
+        .top-nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        /* Content Area */
+        .content-area {
+            padding: 25px;
+        }
+        
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom: 25px;
+            transition: transform 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card {
+            color: white;
+            text-align: center;
+            padding: 25px;
+        }
+
+        .stat-card.primary {
+             background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        }
+        
+        .stat-card.success {
+            background: linear-gradient(135deg, var(--success-color) 0%, #157347 100%);
+        }
+        
+        .stat-card.warning {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #e0a800 100%);
+            color: #212529;
+        }
+        
+        .stat-card.danger {
+            background: linear-gradient(135deg, var(--danger-color) 0%, #b02a37 100%);
+        }
+        
+        .stat-card.info { 
+            background: linear-gradient(135deg, var(--info-color) 0%, #0aa2c0 100%);
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .stat-icon {
+            font-size: 3rem;
+            opacity: 0.3;
+            position: absolute;
+            right: 20px;
+            top: 20px;
+        }
+        
+        /* Team Management Specific Styles */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+        }
+        
+        .member-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid #f0f0f0;
+        }
+        
+        .member-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .member-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .member-avatar {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+        
+        .member-info {
+            flex: 1;
+        }
+        
+        .member-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .member-phone {
+            color: #7f8c8d;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .status-toggle {
+            position: relative;
+            width: 60px;
+            height: 30px;
+            background: #e74c3c;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            outline: none;
+        }
+        
+        .status-toggle.active {
+            background: #27ae60;
+        }
+        
+        .status-toggle::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .status-toggle.active::before {
+            transform: translateX(30px);
+        }
+        
+        .member-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            border-radius: 10px;
+            padding: 12px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #0b5ed7;
+            border-color: #0b5ed7;
+            transform: translateY(-2px);
+        }
+        
+        .btn-config {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border: none;
+        }
+        
+        .btn-config:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(243, 156, 18, 0.3);
+        }
+        
+        /* Form Styles */
+        .form-control, .form-select, .form-check-input {
+            border: 2px solid #f1f3f4;
+            border-radius: 10px;
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus, .form-check-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        
+        /* Loading Animation */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 300px;
+            flex-direction: column;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                z-index: 1050;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+            
+            .sidebar-toggle {
+                display: block;
+            }
+            
+            .content-area {
+                padding: 15px;
+            }
+            
+            .team-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 300px;
+            max-width: 400px;
+        }
+        
+        /* Search box */
+        .search-container {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .search-container input {
+            padding-left: 45px;
+        }
+        
+        .search-container i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+        
+        /* Overlay para mobile quando sidebar está aberta */
+        @media (max-width: 768px) {
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1040;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+            
+            .sidebar-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+        /* Ocultar interface principal quando não logado */
+        .app-container {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        .app-container.authenticated {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Tela de loading/autenticação -->
+    <div class="auth-loading" id="authLoading">
+        <div class="spinner-auth"></div>
+        <h4>Gestão de Equipe</h4>
+        <p>Verificando autenticação...</p>
+    </div>
+
+    <!-- Interface principal (oculta até autenticação) -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo">
+                <br><br>
+                <h1><i class="fas fa-bolt me-2"></i>Task</h1>
+                <small class="text-light">Sistema Integrado de Gestão</small>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu">
+            <div class="sidebar-loading" id="sidebarLoading">
+                <div class="spinner-small"></div>
+                Carregando menu...
+            </div>
+            <!-- Dashboard - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/resolv'" data-menu="dashboard">
+                <i class="fas fa-chart-line"></i>Dashboard
+            </button>
+            <!-- Gerenciador de Tarefas - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gerenciadortarefas'" data-menu="tasks">
+                <i class="fas fa-tasks"></i>Gerenciador de Tarefas
+            </button>
+            <!-- Gerenciador de Horas - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/taskhoras'" data-menu="hours">
+                <i class="fas fa-clock"></i>Gerenciador de Horas
+            </button>
+            <!-- Gestão de Clientes - Link externo (selecionado por padrão) -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gestao_clientes'" data-menu="clients">
+                <i class="fas fa-handshake"></i>Gestão de Clientes
+            </button>
+            <!-- Gestão de Parceiros - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/gestaodeparceiros'" data-menu="partners">
+                <i class="fas fa-handshake-angle"></i>Gestão de Parceiros
+            </button>
+            <!-- Equipe - Link externo -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/equipe'" data-menu="team">
+                <i class="fas fa-users"></i>Equipe
+            </button>
+            <!-- Configurações - Ação interna (showPage) -->
+            <button class="menu-item" onclick="window.location.href='https://n8n.dev.resolvrisk.com.br/webhook/conf'" data-menu="settings">
+                <i class="fas fa-cog"></i>Configurações
+            </button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <!-- Top Navigation -->
+            <nav class="top-nav">
+                <div class="d-flex align-items-center">
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0 ms-3" id="pageTitle">Gestão de Equipe</h5>
+                </div>
+                <div class="user-info">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="debugWebhook()" title="Testar Conexão">
+                        <i class="fas fa-plug me-1"></i>Testar
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm me-2" onclick="reloadColaboradores()" title="Recarregar Colaboradores">
+                        <i class="fas fa-users me-1"></i>Colaboradores
+                    </button>
+                    <button class="btn btn-outline-info btn-sm me-2" onclick="carregarEquipe()" title="Atualizar Dados">
+                        <i class="fas fa-sync-alt me-1"></i>Atualizar
+                    </button>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle fs-4 text-primary me-2"></i>
+                        <span class="fw-bold" id="userNameDisplay">Usuário</span>
+                    </div>
+                    <small id="currentDate" class="text-muted"></small>
+                    <button class="btn btn-outline-danger btn-sm ms-2" id="logoutButton" title="Sair">
+                        <i class="fas fa-sign-out-alt me-1"></i>Sair
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <div class="content-area">
+                <!-- Stats Cards Row -->
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card stat-card primary">
+                            <div class="position-relative">
+                                <div class="stat-number" id="totalMembers">0</div>
+                                <div class="stat-label">Total de Colaboradores</div>
+                                <i class="fas fa-users stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card stat-card success">
+                            <div class="position-relative">
+                                <div class="stat-number" id="activeMembers">0</div>
+                                <div class="stat-label">Colaboradores Ativos</div>
+                                <i class="fas fa-check-circle stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4 col-md-6">
+                        <div class="card stat-card danger">
+                            <div class="position-relative">
+                                <div class="stat-number" id="inactiveMembers">0</div>
+                                <div class="stat-label">Colaboradores Inativos</div>
+                                <i class="fas fa-times-circle stat-icon"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search and Actions -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="search-container">
+                                    <i class="fas fa-search"></i>
+                                    <input type="text" class="form-control" id="searchInput" placeholder="Buscar por nome ou WhatsApp...">
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-md-end">
+                                <button class="btn btn-primary" onclick="abrirModalCadastro()">
+                                    <i class="fas fa-user-plus me-2"></i>Novo Colaborador
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Grid -->
+                <div id="teamContainer">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <h5>Carregando equipe...</h5>
+                        <p class="text-muted">Aguarde enquanto buscamos os dados da sua equipe</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Modal de Cadastro de Colaborador -->
+        <div class="modal fade" id="cadastroModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-user-plus me-2"></i>Cadastrar Novo Colaborador
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-0">
+                        <div id="cadastroLoading" class="text-center p-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Carregando formulário de cadastro...</p>
+                        </div>
+                        <iframe id="cadastroFrame" 
+                                src="{{ $json.dominio }}/webhook/res/cadastro" 
+                                style="width: 100%; min-height: 600px; border: none; display: none;"
+                                onload="cadastroFrameLoaded()">
+                        </iframe>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de Configuração -->
+        <div class="modal fade" id="configModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-cog me-2"></i>Configurar Colaborador
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="configForm">
+                            <input type="hidden" id="editId">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="editNome" class="form-label">Nome Completo</label>
+                                    <input type="text" class="form-control" id="editNome" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editRazaoSocial" class="form-label">Razão Social</label>
+                                    <input type="text" class="form-control" id="editRazaoSocial">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editCnpj" class="form-label">CNPJ</label>
+                                    <input type="text" class="form-control" id="editCnpj">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editEmail" class="form-label">E-mail</label>
+                                    <input type="email" class="form-control" id="editEmail">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editWhatsapp" class="form-label">WhatsApp</label>
+                                    <input type="text" class="form-control" id="editWhatsapp" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editTipo" class="form-label">Tipo</label>
+                                    <select class="form-select" id="editTipo">
+                                        <option value="colaborador">Colaborador</option>
+                                        <option value="gerente">Gerente</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-12">
+                                    <label for="editEndereco" class="form-label">Endereço</label>
+                                    <input type="text" class="form-control" id="editEndereco">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="editNumero" class="form-label">Número</label>
+                                    <input type="text" class="form-control" id="editNumero">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="editComplemento" class="form-label">Complemento</label>
+                                    <input type="text" class="form-control" id="editComplemento">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="editCep" class="form-label">CEP</label>
+                                    <input type="text" class="form-control" id="editCep">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="editPassword" class="form-label">Nova Senha (deixe em branco para não alterar)</label>
+                                    <input type="password" class="form-control" id="editPassword" autocomplete="new-password">
+                                    <small class="form-text text-muted">Preencha apenas se desejar alterar a senha.</small>
+                                </div>
+                                <!-- CAMPO BOOLEANO CORRIGIDO -->
+                                <div class="col-md-6 d-flex align-items-center justify-content-center">
+                                    <div class="form-check form-switch mt-4">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="editColaborador">
+                                        <label class="form-check-label" for="editColaborador">É um colaborador ativo?</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </button>
+                        <button type="button" class="btn btn-primary" id="saveConfigBtn">
+                            <i class="fas fa-save me-2"></i>Salvar Alterações
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Modal de Confirmação de Desativação -->
+        <div class="modal fade" id="confirmacaoModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-white">
+                        <h5 class="modal-title">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="confirmacaoModalTitle">Confirmar Desativação</span>
+                        </h5>
+                        <!-- Botão de fechar removido -->
+                    </div>
+                    <div class="modal-body text-center p-4">
+                        <div class="mb-3">
+                            <i class="fas fa-user-slash fa-3x text-warning"></i>
+                        </div>
+                        <h5 id="confirmacaoModalMessage">Tem certeza que deseja desativar este colaborador?</h5>
+                        <p class="text-muted mb-0" id="confirmacaoModalDetails">Esta ação suspenderá o acesso do colaborador ao sistema.</p>
+                    </div>
+                    <div class="modal-footer justify-content-center">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </button>
+                        <button type="button" class="btn btn-warning" id="confirmarDesativacaoBtn">
+                            <i class="fas fa-check me-2"></i>Sim, Desativar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // ===================================
+        // DYNAMIC THEME AND COLORS
+        // ===================================
+
+        /**
+         * Converte uma cor hexadecimal para um objeto RGB.
+         */
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+        }
+
+        /**
+         * Escurece ou clareia uma cor hexadecimal.
+         */
+        function shadeHexColor(hex, percent) {
+            let f = parseInt(hex.slice(1), 16),
+                t = percent < 0 ? 0 : 255,
+                p = percent < 0 ? percent * -1 : percent,
+                R = f >> 16,
+                G = (f >> 8) & 0x00ff,
+                B = f & 0x0000ff;
+            return ("#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1));
+        }
+
+        /**
+         * Busca a configuração de cores e aplica os estilos dinamicamente.
+         */
+        async function applyDynamicStyles() {
+            const url = '{{ $json.dominio }}/webhook/consultaconfiguracoes';
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Network response was not ok, status: ${response.status}`);
+                
+                const data = await response.json();
+                if (data && data.length > 0 && data[0].primary_color) {
+                    const primaryColor = data[0].primary_color;
+                    console.log("🎨 Cor primária recebida:", primaryColor);
+                    
+                    const darkerColor = shadeHexColor(primaryColor, -0.15);
+                    const primaryRgb = hexToRgb(primaryColor);
+
+                    if (!primaryRgb) {
+                        console.error("Cor primária inválida:", primaryColor);
+                        return;
+                    }
+
+                    // Atualiza a variável root
+                    document.documentElement.style.setProperty('--primary-color', primaryColor);
+                    
+                    // Injeta estilos que dependem de variações da cor
+                    const style = document.createElement('style');
+                    style.innerHTML = `
+                        .auth-loading, .sidebar {
+                            background: linear-gradient(135deg, ${primaryColor} 0%, ${darkerColor} 100%) !important;
+                        }
+                        .btn-primary:hover {
+                            background-color: ${darkerColor} !important;
+                            border-color: ${darkerColor} !important;
+                        }
+                        .form-control:focus, .form-select:focus {
+                            border-color: ${primaryColor} !important;
+                            box-shadow: 0 0 0 0.2rem rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.25) !important;
+                        }
+                        .member-avatar {
+                            background: linear-gradient(135deg, ${primaryColor}, ${darkerColor});
+                        }
+                        .text-primary, .spinner {
+                           color: ${primaryColor} !important;
+                        }
+                        .modal-header.bg-primary {
+                           background-color: ${primaryColor} !important;
+                        }
+                         .spinner {
+                           border-top-color: ${primaryColor} !important;
+                         }
+
+                    `;
+                    document.head.appendChild(style);
+                } else {
+                    console.warn('⚠️ Não foi possível encontrar a cor primária. Usando cores padrão.');
+                }
+            } catch (error) {
+                console.error('❌ Falha ao buscar ou aplicar estilos dinâmicos:', error);
+            }
+        }
+
+        // ===================================
+        // AUTHENTICATION AND GLOBAL SETTINGS
+        // ===================================
+        const LOGIN_URL = '{{ $json.dominio }}/webhook/login';
+        
+        /**
+         * Verifica o status de login do usuário
+         * @returns {boolean} true se logado, false caso contrário
+         */
+        function checkLoginStatus() {
+            const userEmail = localStorage.getItem('loggedInUserEmail');
+            const userName = localStorage.getItem('loggedInUserName');
+            
+            console.log('🔐 Verificando status de login...');
+            console.log('📧 Email:', userEmail);
+            console.log('👤 Nome:', userName);
+            
+            return !!(userEmail && userName);
+        }
+
+        /**
+         * Limpa todos os dados da aplicação e redireciona para login
+         */
+        function redirectToLogin() {
+            console.log('🔄 Redirecionando para página de login...');
+            
+            // Limpar TODOS os dados do localStorage relacionados à aplicação
+            clearApplicationData();
+            
+            // Mostrar mensagem de redirecionamento
+            const authLoadingEl = document.getElementById('authLoading');
+            if (authLoadingEl) {
+                authLoadingEl.innerHTML = `
+                    <div class="spinner-auth"></div>
+                    <h4>Redirecionando...</h4>
+                    <p>Você será redirecionado para a página de login</p>
+                `;
+            }
+            
+            // Redirecionar após um pequeno delay
+            setTimeout(() => {
+                window.location.href = LOGIN_URL;
+            }, 1500);
+        }
+
+        /**
+         * Limpa todos os dados da aplicação
+         */
+        function clearApplicationData() {
+            console.log('🧹 Limpando dados da aplicação...');
+            
+            // Limpar dados de autenticação
+            localStorage.removeItem('loggedInUserEmail');
+            localStorage.removeItem('loggedInUserName');
+            localStorage.removeItem('loggedInUserTipo');
+            localStorage.removeItem('welcomeMessageShown');
+            
+            // Limpar dados da aplicação
+            localStorage.removeItem('equipeData');
+            
+            // Resetar variáveis globais
+            equipeData = [];
+            currentMember = null;
+            
+            // Limpar interface
+            clearInterface();
+        }
+
+        /**
+         * Limpa a interface da aplicação
+         */
+        function clearInterface() {
+            // Limpar estatísticas
+            const statElements = ['totalMembers', 'activeMembers', 'inactiveMembers'];
+            statElements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = '0';
+            });
+            
+            // Limpar container da equipe
+            const teamContainer = document.getElementById('teamContainer');
+            if (teamContainer) {
+                teamContainer.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <h5>Carregando equipe...</h5>
+                        <p class="text-muted">Aguarde enquanto buscamos os dados da sua equipe</p>
+                    </div>
+                `;
+            }
+            
+            // Limpar campo de busca
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            
+            // Resetar display do usuário
+            const userNameDisplay = document.getElementById('userNameDisplay');
+            if (userNameDisplay) {
+                userNameDisplay.textContent = 'Usuário';
+            }
+        }
+
+        /**
+         * Atualiza informações do usuário na interface
+         */
+        function updateUserInfo() {
+            const userName = localStorage.getItem('loggedInUserName');
+            const userNameDisplay = document.getElementById('userNameDisplay');
+            
+            if (userName && userNameDisplay) {
+                userNameDisplay.textContent = userName;
+                console.log('👤 Informações do usuário atualizadas:', userName);
+            } else {
+                console.warn('⚠️ Não foi possível atualizar informações do usuário');
+            }
+        }
+
+        /**
+         * Função de logout
+         */
+        function logout() {
+            console.log('🚪 Iniciando processo de logout...');
+            
+            // Mostrar notificação de logout
+            showNotification('✅ Logout efetuado com sucesso! Redirecionando...', 'success');
+            
+            // Aguardar um pouco para mostrar a notificação e então limpar e redirecionar
+            setTimeout(() => {
+                redirectToLogin();
+            }, 1500);
+        }
+
+        /**
+         * Mostra a interface principal após autenticação bem-sucedida
+         */
+        function showAuthenticatedInterface() {
+            console.log('✅ Mostrando interface autenticada');
+            
+            const authLoading = document.getElementById('authLoading');
+            const appContainer = document.getElementById('appContainer');
+            
+            if (authLoading && appContainer) {
+                // Ocultar tela de loading
+                authLoading.style.display = 'none';
+                
+                // Mostrar interface principal
+                appContainer.classList.add('authenticated');
+                
+                console.log('🎉 Interface principal ativada com sucesso');
+            }
+        }
+
+        // Global Variables
+        let equipeData = [];
+        let currentMember = null;
+        let memberParaAlterarStatus = null;
+        
+        // Webhook URLs
+        const WEBHOOK_GET_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/consultacolaboradores';
+        const WEBHOOK_POST_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/atualizacadastro';
+        const WEBHOOK_STATUS_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/salvatarefas';
+
+        // ===================================
+        // ROLE-BASED ACCESS CONTROL (RBAC)
+        // ===================================
+        /**
+         * Fetches collaborator list, identifies the current user's role, and stores it.
+         */
+        async function initializeUserSession() {
+            const userEmail = localStorage.getItem('loggedInUserEmail');
+            if (!userEmail) {
+                throw new Error('Email do usuário não encontrado');
+            }
+
+            try {
+                console.log('🔍 Verificando permissões do usuário...', userEmail);
+                const response = await fetch(WEBHOOK_GET_URL);
+                if (!response.ok) {
+                    throw new Error(`Falha ao buscar dados de colaboradores: ${response.statusText}`);
+                }
+                const allColaboradores = await response.json();
+                const currentUser = allColaboradores.find(c => c.email && c.email.toLowerCase() === userEmail.toLowerCase());
+
+                if (currentUser) {
+                    localStorage.setItem('loggedInUserTipo', currentUser.tipo || 'colaborador');
+                    // Importante: armazenar o nome exato do colaborador para comparação
+                    localStorage.setItem('loggedInUserName', currentUser.nome);
+                    console.log(`👤 Usuário identificado: ${currentUser.nome} (${currentUser.tipo})`);
+                } else {
+                    // If user is not found in the list, default to restricted role and notify.
+                    localStorage.setItem('loggedInUserTipo', 'colaborador');
+                    showNotification('⚠️ Seu usuário não foi encontrado na lista de colaboradores. O acesso será limitado.', 'warning');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao verificar permissões:', error);
+                showNotification('❌ Erro ao verificar permissões. O acesso foi limitado por segurança.', 'error');
+                // Default to most restrictive role on any error
+                localStorage.setItem('loggedInUserTipo', 'colaborador');
+            }
+        }
+        
+        /**
+         * Applies UI restrictions that are not context-dependent (e.g., hiding menu items).
+         */
+        function applyUIPermissions() {
+            const userType = localStorage.getItem('loggedInUserTipo') || 'admin'; // 'admin' ou 'colaborador'
+
+            // CORREÇÃO: O item 'partners' e 'team' foi adicionado para o perfil 'colaborador'.
+            const menuPermissions = {
+                admin: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'], // Admin tem acesso a tudo
+                colaborador: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'] // Adicionado 'clients', 'partners' e 'team'
+            };
+
+            const allowedMenus = menuPermissions[userType] || [];
+
+            const loadingElement = document.getElementById('sidebarLoading');
+            if (loadingElement) {
+                loadingElement.style.display = 'none';
+            }
+
+            document.querySelectorAll('#sidebarMenu .menu-item').forEach((item, index) => {
+                const menuData = item.getAttribute('data-menu');
+                // Se o usuário for admin, mostra todos os menus. Caso contrário, verifica as permissões.
+                if (userType === 'admin' || allowedMenus.includes(menuData)) {
+                    setTimeout(() => {
+                        item.classList.add('show');
+                    }, index * 50); // Efeito de animação stagger
+                } else {
+                    item.classList.remove('show');
+                }
+            });
+        }
+        
+        // ===================================
+        // UTILITY FUNCTIONS
+        // ===================================
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            const alertType = type === 'error' ? 'danger' : type;
+            notification.className = `alert alert-${alertType} alert-dismissible fade show notification`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'times-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                const instance = bootstrap.Alert.getInstance(notification);
+                if(instance) instance.close();
+            }, 5000);
+        }
+
+        function showCurrentDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const currentDateEl = document.getElementById('currentDate');
+            if (currentDateEl) {
+                currentDateEl.textContent = now.toLocaleDateString('pt-BR', options);
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (window.innerWidth <= 768) {
+                sidebar.classList.toggle('show');
+                overlay.classList.toggle('show');
+                document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+            } else {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+            }
+        }
+
+        function debugWebhook() {
+            console.log('🔧 Testando conectividade com webhooks...');
+            console.log('📡 Colaboradores GET URL:', WEBHOOK_GET_URL);
+            console.log('⚙️ Atualizar Cadastro URL:', WEBHOOK_POST_URL);
+            console.log('🔄 Status Update URL:', WEBHOOK_STATUS_URL);
+            console.log('📝 Cadastro Form URL: {{ $json.dominio }}/webhook/res/cadastro');
+            
+            const userType = localStorage.getItem('loggedInUserTipo');
+            const currentUserName = localStorage.getItem('loggedInUserName');
+            const userEmail = localStorage.getItem('loggedInUserEmail');
+            
+            console.log(`📊 Estado atual: ${equipeData.length} colaboradores carregados`);
+            console.log(`👤 Usuário: ${currentUserName} (${userEmail}) - Tipo: ${userType}`);
+            
+            showNotification('🔧 Testando conexão com servidor...', 'info');
+            fetch(WEBHOOK_GET_URL, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(async response => {
+                console.log('Status do teste:', response.status);
+                const text = await response.text();
+                console.log('Resposta do teste:', text);
+                if (response.ok) {
+                    showNotification('✅ Conexão com servidor OK!', 'success');
+                } else {
+                    showNotification(`⚠️ Servidor respondeu com status: ${response.status}`, 'warning');
+                }
+            })
+            .catch(error => {
+                console.error('Erro no teste:', error);
+                showNotification('❌ Erro de conexão com servidor: ' + error.message, 'error');
+            });
+        }
+
+        function abrirModalCadastro() {
+            // Verificar permissões
+            const userType = localStorage.getItem('loggedInUserTipo');
+            if (userType !== 'admin') {
+                showNotification('❌ Acesso negado! Apenas administradores podem cadastrar novos colaboradores.', 'error');
+                return;
+            }
+
+            // Mostrar loading e abrir modal
+            document.getElementById('cadastroLoading').style.display = 'block';
+            document.getElementById('cadastroFrame').style.display = 'none';
+            
+            const cadastroModal = new bootstrap.Modal(document.getElementById('cadastroModal'));
+            cadastroModal.show();
+            
+            // Recarregar iframe para garantir conteúdo atualizado
+            const iframe = document.getElementById('cadastroFrame');
+            iframe.src = '{{ $json.dominio }}/webhook/res/cadastro';
+        }
+
+        function cadastroFrameLoaded() {
+            // Ocultar loading e mostrar iframe quando carregado
+            document.getElementById('cadastroLoading').style.display = 'none';
+            document.getElementById('cadastroFrame').style.display = 'block';
+            
+            console.log('✅ Formulário de cadastro carregado com sucesso');
+        }
+
+        function reloadColaboradores() {
+            console.log('🔄 Recarregando lista de colaboradores...');
+            showNotification('🔄 Recarregando colaboradores...', 'info');
+            carregarEquipe().then(() => {
+                showNotification('✅ Lista de colaboradores atualizada!', 'success');
+            }).catch(() => {
+                showNotification('❌ Erro ao recarregar colaboradores', 'error');
+            });
+        }
+        
+        // ===================================
+        // DATA LOGIC
+        // ===================================
+        async function carregarEquipe() {
+            try {
+                showLoading();
+                console.log('🔄 Carregando dados da equipe...');
+                
+                const response = await fetch(WEBHOOK_GET_URL);
+                if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+                
+                equipeData = await response.json();
+                console.log('✅ Dados carregados:', equipeData);
+                
+                renderizarEquipe();
+                atualizarEstatisticas();
+                showNotification(`✅ ${equipeData.length} colaboradores carregados com sucesso!`, 'success');
+                
+            } catch (error) {
+                console.error('❌ Erro ao carregar equipe:', error);
+                showError('Erro ao carregar dados da equipe. Verifique sua conexão.');
+                showNotification(`❌ Erro ao carregar dados: ${error.message}`, 'error');
+            }
+        }
+
+        // ===================================
+        // UI RENDERING
+        // ===================================
+        function showLoading() {
+            const teamContainer = document.getElementById('teamContainer');
+            if (teamContainer) {
+                teamContainer.innerHTML = `
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <h5>Carregando equipe...</h5>
+                        <p class="text-muted">Aguarde enquanto buscamos os dados da sua equipe</p>
+                    </div>
+                `;
+            }
+        }
+
+        function showError(message) {
+            const teamContainer = document.getElementById('teamContainer');
+            if (teamContainer) {
+                teamContainer.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                        <h5>Ops! Algo deu errado</h5>
+                        <p class="text-muted">${message}</p>
+                        <button class="btn btn-primary" onclick="carregarEquipe()">
+                            <i class="fas fa-redo me-2"></i>Tentar Novamente
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        function renderizarEquipe(dados = equipeData) {
+            const container = document.getElementById('teamContainer');
+            if (!container) return;
+            
+            if (!dados || dados.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                        <h5>Nenhum colaborador encontrado</h5>
+                        <p class="text-muted">Não há colaboradores cadastrados no momento. ${dados === equipeData ? 'Tente atualizar ou adicione um novo.' : 'Nenhum resultado para sua busca.'}</p>
+                        <button class="btn btn-primary mt-2" onclick="abrirModalCadastro()">
+                            <i class="fas fa-user-plus me-2"></i>Cadastrar Colaborador
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const teamGrid = document.createElement('div');
+            teamGrid.className = 'team-grid';
+
+            dados.forEach(member => {
+                const memberCard = createMemberCard(member);
+                teamGrid.appendChild(memberCard);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(teamGrid);
+        }
+
+        function createMemberCard(member) {
+            const card = document.createElement('div');
+            card.className = 'member-card';
+
+            const avatar = member.nome && typeof member.nome === 'string' 
+                ? member.nome.split(' ')
+                    .map(word => word[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase() 
+                : '??';
+
+            // Verificar permissões para mostrar botão de configuração
+            const userType = localStorage.getItem('loggedInUserTipo');
+            const configButton = userType === 'admin' 
+                ? `<button class="btn btn-config flex-fill" onclick="abrirModal('${member.id}')">
+                                <i class="fas fa-cog"></i>
+                                Configurar
+                            </button>`
+                : `<button class="btn btn-secondary flex-fill" disabled title="Apenas administradores podem configurar">
+                                <i class="fas fa-lock"></i>
+                                Configuração Restrita
+                            </button>`;
+
+            // Verificar permissões para toggle de status
+            const statusToggle = userType === 'admin'
+                ? `<button class="status-toggle ${member.status ? 'active' : ''}" 
+                                onclick="handleStatusToggle('${member.id}', '${member.nome || ''}', '${member.whatsapp || ''}', ${member.status})"
+                                title="${member.status ? 'Desativar' : 'Ativar'} colaborador">
+                            </button>`
+                : `<div class="status-toggle ${member.status ? 'active' : ''}" 
+                                title="Status ${member.status ? 'ativo' : 'inativo'} - Apenas administradores podem alterar">
+                            </div>`;
+
+            card.innerHTML = `
+                <div class="member-header">
+                    <div style="display: flex; align-items: center;">
+                        <div class="member-avatar">${avatar}</div>
+                        <div class="member-info">
+                            <div class="member-name">${member.nome || 'Nome não disponível'}</div>
+                            <div class="member-phone">
+                                <i class="fab fa-whatsapp"></i>
+                                ${member.whatsapp || 'WhatsApp não disponível'}
+                            </div>
+                            ${member.email ? `<div class="text-muted small mt-1"><i class="fas fa-envelope me-1"></i>${member.email}</div>` : ''}
+                        </div>
+                    </div>
+                    ${statusToggle}
+                </div>
+                <div class="row text-center mt-3">
+                    <div class="col">
+                        <small class="text-muted">Status</small>
+                        <div class="fw-bold ${member.status ? 'text-success' : 'text-danger'}">
+                            ${member.status ? 'Ativo' : 'Inativo'}
+                        </div>
+                    </div>
+                    <div class="col">
+                        <small class="text-muted">Tipo</small>
+                        <div class="fw-bold text-primary">
+                            ${member.tipo ? member.tipo.charAt(0).toUpperCase() + member.tipo.slice(1) : 'Colaborador'}
+                        </div>
+                    </div>
+                </div>
+                <div class="member-actions">
+                    ${configButton}
+                </div>
+            `;
+
+            return card;
+        }
+
+        // ===================================
+        // DATA MANIPULATION
+        // ===================================
+        
+        function handleStatusToggle(id, nome, whatsapp, statusAtual) {
+            if (statusAtual === true) { // Se está ativo, vamos desativar
+                abrirModalConfirmacaoStatus(id, nome, whatsapp);
+            } else { // Se está inativo, vamos ativar diretamente
+                alterarStatus(id, nome, whatsapp, true);
+            }
+        }
+
+        function abrirModalConfirmacaoStatus(id, nome, whatsapp) {
+            memberParaAlterarStatus = { id, nome, whatsapp }; // Armazena os dados
+
+            const modalEl = document.getElementById('confirmacaoModal');
+            const messageEl = document.getElementById('confirmacaoModalMessage');
+            
+            messageEl.textContent = `Tem certeza que deseja desativar ${nome}?`;
+
+            const confirmacaoModal = new bootstrap.Modal(modalEl);
+            confirmacaoModal.show();
+        }
+
+        async function alterarStatus(id, nome, whatsapp, novoStatus) {
+            // Verificar permissões
+            const userType = localStorage.getItem('loggedInUserTipo');
+            if (userType !== 'admin') {
+                showNotification('❌ Acesso negado! Apenas administradores podem alterar status de colaboradores.', 'error');
+                return;
+            }
+
+            try {
+                console.log(`🔄 Alterando status de ${nome} para ${novoStatus ? 'ativo' : 'inativo'}`);
+                
+                const dados = { 
+                    id, 
+                    nome, 
+                    whatsapp, 
+                    status: novoStatus, 
+                    action: 'atualizar_status',
+                    timestamp: new Date().toISOString(),
+                    userEmail: localStorage.getItem('loggedInUserEmail')
+                };
+
+                // Enviar para o novo webhook de status
+                const response = await fetch(WEBHOOK_STATUS_URL, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    throw new Error(`Erro HTTP: ${response.status}. Detalhes: ${errorData}`);
+                }
+                
+                // Atualizar dados locais
+                const memberIndex = equipeData.findIndex(m => m.id === id);
+                if (memberIndex !== -1) {
+                    equipeData[memberIndex].status = novoStatus;
+                }
+
+                // Se a operação foi de desativação, fecha o modal de confirmação
+                if (novoStatus === false) {
+                    const confirmacaoModal = bootstrap.Modal.getInstance(document.getElementById('confirmacaoModal'));
+                    if (confirmacaoModal) {
+                        confirmacaoModal.hide();
+                    }
+                }
+
+                // Atualizar interface
+                renderizarEquipe(); 
+                atualizarEstatisticas();
+                
+                // Mostrar notificação de sucesso
+                showNotification(`✅ Status de ${nome} alterado para ${novoStatus ? 'ativo' : 'inativo'}.`, 'success');
+
+            } catch (error) {
+                console.error('❌ Erro ao alterar status:', error);
+                showNotification(`❌ Erro ao alterar status. ${error.message}`, 'error');
+            }
+        }
+
+        function abrirModal(memberId) {
+            // Verificar permissões
+            const userType = localStorage.getItem('loggedInUserTipo');
+            if (userType !== 'admin') {
+                showNotification('❌ Acesso negado! Apenas administradores podem configurar colaboradores.', 'error');
+                return;
+            }
+
+            const member = equipeData.find(m => m.id === memberId);
+            if (!member) {
+                showNotification('❌ Colaborador não encontrado para configuração.', 'error');
+                return;
+            }
+
+            currentMember = member;
+
+            document.getElementById('editId').value = member.id || '';
+            document.getElementById('editNome').value = member.nome || '';
+            document.getElementById('editRazaoSocial').value = member.razao_social || '';
+            document.getElementById('editCnpj').value = member.cnpj || '';
+            document.getElementById('editEndereco').value = member.endereco || '';
+            document.getElementById('editNumero').value = member.numero || '';
+            document.getElementById('editComplemento').value = member.complemento || '';
+            document.getElementById('editCep').value = member.cep || '';
+            document.getElementById('editWhatsapp').value = member.whatsapp || '';
+            document.getElementById('editEmail').value = member.email || '';
+            document.getElementById('editTipo').value = member.tipo || 'colaborador';
+            // Limpa o campo de senha por segurança
+            document.getElementById('editPassword').value = ''; 
+            
+            // **CORREÇÃO DEFINITIVA**
+            // Adiciona logs para depuração
+            console.log(`[abrirModal] Abrindo para: ${member.nome}`);
+            console.log(`[abrirModal] Valor de 'member.colaborador':`, member.colaborador);
+            console.log(`[abrirModal] Tipo de 'member.colaborador':`, typeof member.colaborador);
+
+            // A lógica correta: o interruptor deve estar marcado se e somente se o valor for o booleano true.
+            document.getElementById('editColaborador').checked = member.colaborador === true;
+
+            console.log(`[abrirModal] Estado do interruptor definido para:`, document.getElementById('editColaborador').checked);
+
+
+            const configModal = new bootstrap.Modal(document.getElementById('configModal'));
+            configModal.show();
+        }
+
+        async function salvarConfiguracao() {
+            if (!currentMember) return;
+
+            // Verificar permissões
+            const userType = localStorage.getItem('loggedInUserTipo');
+            if (userType !== 'admin') {
+                showNotification('❌ Acesso negado! Apenas administradores podem salvar configurações.', 'error');
+                return;
+            }
+
+            const nome = document.getElementById('editNome').value.trim();
+            const whatsapp = document.getElementById('editWhatsapp').value.trim();
+            const password = document.getElementById('editPassword').value.trim(); // Get password value
+
+            if (!nome || !whatsapp) {
+                showNotification('❌ Nome e WhatsApp são obrigatórios.', 'warning');
+                return;
+            }
+
+            try {
+                const dadosAtualizados = {
+                    id: currentMember.id,
+                    nome,
+                    razao_social: document.getElementById('editRazaoSocial').value,
+                    cnpj: document.getElementById('editCnpj').value,
+                    endereco: document.getElementById('editEndereco').value,
+                    numero: document.getElementById('editNumero').value,
+                    complemento: document.getElementById('editComplemento').value,
+                    cep: document.getElementById('editCep').value,
+                    whatsapp,
+                    email: document.getElementById('editEmail').value,
+                    tipo: document.getElementById('editTipo').value,
+                    status: currentMember.status, 
+                    colaborador: document.getElementById('editColaborador').checked, // Pega o valor do switch
+                    action: 'atualizar_colaborador',
+                    timestamp: new Date().toISOString(),
+                    userEmail: localStorage.getItem('loggedInUserEmail')
+                };
+
+                // Adiciona a senha ao payload APENAS se não estiver vazia
+                if (password) {
+                    dadosAtualizados.senha = password;
+                    console.log('🔒 Senha será atualizada.');
+                } else {
+                    console.log('🚫 Senha não será alterada (campo vazio).');
+                }
+
+                console.log('🔄 Preparando para enviar dados de atualização para:', WEBHOOK_POST_URL);
+                console.log('📝 Payload a ser enviado (sem senha no log para segurança):', { ...dadosAtualizados, senha: password ? '********' : 'não alterada' }); // Log sem a senha real
+
+                const response = await fetch(WEBHOOK_POST_URL, { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dadosAtualizados)
+                });
+
+                console.log('📡 Resposta da requisição HTTP. Status:', response.status, 'Status Text:', response.statusText);
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    throw new Error(`Erro HTTP: ${response.status}. Detalhes: ${errorData}`);
+                }
+                
+                // Atualizar dados locais
+                const memberIndex = equipeData.findIndex(m => m.id === currentMember.id);
+                if (memberIndex !== -1) {
+                    equipeData[memberIndex] = { ...equipeData[memberIndex], ...dadosAtualizados };
+                }
+
+                // Fechar modal
+                const configModal = bootstrap.Modal.getInstance(document.getElementById('configModal'));
+                if (configModal) configModal.hide();
+                
+                // Atualizar interface
+                renderizarEquipe(); 
+                atualizarEstatisticas();
+                
+                showNotification('✅ Configurações salvas com sucesso!', 'success');
+
+            } catch (error) {
+                console.error('❌ Erro ao salvar configuração:', error);
+                showNotification(`❌ Erro ao salvar configurações. ${error.message}`, 'error');
+            }
+        }
+
+        function filtrarEquipe(termo) {
+            const termoLower = termo.toLowerCase().trim();
+            if (!termoLower) {
+                renderizarEquipe(equipeData); 
+                return;
+            }
+
+            const dadosFiltrados = equipeData.filter(member => 
+                (member.nome && member.nome.toLowerCase().includes(termoLower)) ||
+                (member.whatsapp && member.whatsapp.includes(termo)) || 
+                (member.email && member.email.toLowerCase().includes(termoLower))
+            );
+
+            renderizarEquipe(dadosFiltrados);
+        }
+
+        function atualizarEstatisticas() {
+            const total = equipeData.length;
+            const ativos = equipeData.filter(m => m.status).length;
+            const inativos = total - ativos;
+
+            const totalEl = document.getElementById('totalMembers');
+            const activeEl = document.getElementById('activeMembers');
+            const inactiveEl = document.getElementById('inactiveMembers');
+
+            if (totalEl) totalEl.textContent = total;
+            if (activeEl) activeEl.textContent = ativos;
+            if (inactiveEl) inactiveEl.textContent = inativos;
+        }
+
+        // =========================
+        // INITIALIZATION
+        // =========================
+        /**
+         * Função principal de inicialização da aplicação
+         */
+        async function initializeApplication() {
+            console.log('🚀 Iniciando Sistema de Gestão de Equipe...');
+            
+            try {
+                // Step 1: Initialize session to determine user role (CRÍTICO - deve ser primeiro)
+                await initializeUserSession();
+                
+                // Step 2: Apply static UI permissions (agora com controle completo de menus)
+                applyUIPermissions();
+                
+                // Step 3: Load team data
+                await carregarEquipe();
+                
+                console.log('✅ Aplicação inicializada com sucesso');
+                
+            } catch (error) {
+                console.error('❌ Erro durante inicialização:', error);
+                showNotification('❌ Erro ao carregar sistema. Tentando continuar...', 'error');
+                
+                // Fallback: aplicar permissões de colaborador e continuar
+                localStorage.setItem('loggedInUserTipo', 'colaborador');
+                applyUIPermissions();
+            }
+        }
+
+        /**
+         * Configura todos os event listeners da aplicação
+         */
+        function setupEventListeners() {
+            console.log('🎯 Configurando event listeners...');
+            
+            const logoutButton = document.getElementById('logoutButton');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const searchInput = document.getElementById('searchInput');
+            const saveConfigBtn = document.getElementById('saveConfigBtn');
+            const cadastroModal = document.getElementById('cadastroModal');
+            const confirmarDesativacaoBtn = document.getElementById('confirmarDesativacaoBtn');
+            
+            if (logoutButton) {
+                logoutButton.addEventListener('click', logout);
+            }
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            }
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', toggleSidebar);
+            }
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => filtrarEquipe(e.target.value));
+            }
+            if (saveConfigBtn) {
+                saveConfigBtn.addEventListener('click', salvarConfiguracao);
+            }
+            if (confirmarDesativacaoBtn) {
+                confirmarDesativacaoBtn.addEventListener('click', () => {
+                    if (memberParaAlterarStatus) {
+                        alterarStatus(memberParaAlterarStatus.id, memberParaAlterarStatus.nome, memberParaAlterarStatus.whatsapp, false);
+                    }
+                });
+            }
+            
+            // Event listener para recarregar dados quando modal de cadastro for fechado
+            if (cadastroModal) {
+                cadastroModal.addEventListener('hidden.bs.modal', function () {
+                    console.log('📋 Modal de cadastro fechado - recarregando dados...');
+                    carregarEquipe();
+                });
+            }
+            
+            console.log('✅ Event listeners configurados com sucesso');
+        }
+
+        /**
+         * Função principal executada quando o DOM é carregado
+         */
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('📄 DOM carregado, verificando autenticação...');
+            
+            // Verificar se o usuário está logado ANTES de fazer qualquer coisa
+            if (!checkLoginStatus()) {
+                console.log('❌ Usuário não autenticado, redirecionando...');
+                redirectToLogin();
+                return;
+            }
+            
+            console.log('✅ Usuário autenticado, carregando aplicação...');
+            
+            // Mostrar interface autenticada
+            showAuthenticatedInterface();
+            
+            // Aplicar estilos dinâmicos (executa em paralelo)
+            applyDynamicStyles();
+            
+            // Configurar informações básicas da interface
+            updateUserInfo();
+            showCurrentDate();
+            
+            // Inicializar aplicação
+            await initializeApplication();
+            
+            // Configurar event listeners
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
