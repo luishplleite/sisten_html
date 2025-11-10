@@ -919,54 +919,6 @@
         }
 
         // ===================================
-        // SAFE STORAGE FOR SANDBOXED IFRAMES
-        // ===================================
-        const SafeStorage = (() => {
-            let memoryStorage = {};
-            let isLocalStorageAvailable = false;
-
-            try {
-                const test = '__storage_test__';
-                localStorage.setItem(test, test);
-                localStorage.removeItem(test);
-                isLocalStorageAvailable = true;
-            } catch (e) {
-                isLocalStorageAvailable = false;
-                console.warn('⚠️ localStorage não disponível, usando armazenamento em memória (sessão será perdida em navegações)');
-            }
-
-            return {
-                getItem: (key) => {
-                    if (isLocalStorageAvailable) {
-                        return localStorage.getItem(key);
-                    }
-                    return memoryStorage[key] || null;
-                },
-                setItem: (key, value) => {
-                    if (isLocalStorageAvailable) {
-                        localStorage.setItem(key, value);
-                    } else {
-                        memoryStorage[key] = value;
-                    }
-                },
-                removeItem: (key) => {
-                    if (isLocalStorageAvailable) {
-                        localStorage.removeItem(key);
-                    } else {
-                        delete memoryStorage[key];
-                    }
-                },
-                clear: () => {
-                    if (isLocalStorageAvailable) {
-                        localStorage.clear();
-                    } else {
-                        memoryStorage = {};
-                    }
-                }
-            };
-        })();
-        
-        // ===================================
         // AUTHENTICATION AND GLOBAL SETTINGS
         // ===================================
         const LOGIN_URL = '{{ $json.dominio }}/webhook/login';
@@ -976,8 +928,8 @@
          * @returns {boolean} true se logado, false caso contrário
          */
         function checkLoginStatus() {
-            const userEmail = SafeStorage.getItem('loggedInUserEmail');
-            const userName = SafeStorage.getItem('loggedInUserName');
+            const userEmail = localStorage.getItem('loggedInUserEmail');
+            const userName = localStorage.getItem('loggedInUserName');
             
             console.log('🔐 Verificando status de login...');
             console.log('📧 Email:', userEmail);
@@ -992,7 +944,7 @@
         function redirectToLogin() {
             console.log('🔄 Redirecionando para página de login...');
             
-            // Limpar TODOS os dados do SafeStorage relacionados à aplicação
+            // Limpar TODOS os dados do localStorage relacionados à aplicação
             clearApplicationData();
             
             // Mostrar mensagem de redirecionamento
@@ -1018,13 +970,13 @@
             console.log('🧹 Limpando dados da aplicação...');
             
             // Limpar dados de autenticação
-            SafeStorage.removeItem('loggedInUserEmail');
-            SafeStorage.removeItem('loggedInUserName');
-            SafeStorage.removeItem('loggedInUserTipo');
-            SafeStorage.removeItem('welcomeMessageShown');
+            localStorage.removeItem('loggedInUserEmail');
+            localStorage.removeItem('loggedInUserName');
+            localStorage.removeItem('loggedInUserTipo');
+            localStorage.removeItem('welcomeMessageShown');
             
             // Limpar dados da aplicação
-            SafeStorage.removeItem('equipeData');
+            localStorage.removeItem('equipeData');
             
             // Resetar variáveis globais
             equipeData = [];
@@ -1074,7 +1026,7 @@
          * Atualiza informações do usuário na interface
          */
         function updateUserInfo() {
-            const userName = SafeStorage.getItem('loggedInUserName');
+            const userName = localStorage.getItem('loggedInUserName');
             const userNameDisplay = document.getElementById('userNameDisplay');
             
             if (userName && userNameDisplay) {
@@ -1137,7 +1089,7 @@
          * Fetches collaborator list, identifies the current user's role, and stores it.
          */
         async function initializeUserSession() {
-            const userEmail = SafeStorage.getItem('loggedInUserEmail');
+            const userEmail = localStorage.getItem('loggedInUserEmail');
             if (!userEmail) {
                 throw new Error('Email do usuário não encontrado');
             }
@@ -1152,20 +1104,20 @@
                 const currentUser = allColaboradores.find(c => c.email && c.email.toLowerCase() === userEmail.toLowerCase());
 
                 if (currentUser) {
-                    SafeStorage.setItem('loggedInUserTipo', currentUser.tipo || 'colaborador');
+                    localStorage.setItem('loggedInUserTipo', currentUser.tipo || 'colaborador');
                     // Importante: armazenar o nome exato do colaborador para comparação
-                    SafeStorage.setItem('loggedInUserName', currentUser.nome);
+                    localStorage.setItem('loggedInUserName', currentUser.nome);
                     console.log(`👤 Usuário identificado: ${currentUser.nome} (${currentUser.tipo})`);
                 } else {
                     // If user is not found in the list, default to restricted role and notify.
-                    SafeStorage.setItem('loggedInUserTipo', 'colaborador');
+                    localStorage.setItem('loggedInUserTipo', 'colaborador');
                     showNotification('⚠️ Seu usuário não foi encontrado na lista de colaboradores. O acesso será limitado.', 'warning');
                 }
             } catch (error) {
                 console.error('❌ Erro ao verificar permissões:', error);
                 showNotification('❌ Erro ao verificar permissões. O acesso foi limitado por segurança.', 'error');
                 // Default to most restrictive role on any error
-                SafeStorage.setItem('loggedInUserTipo', 'colaborador');
+                localStorage.setItem('loggedInUserTipo', 'colaborador');
             }
         }
         
@@ -1173,7 +1125,7 @@
          * Applies UI restrictions that are not context-dependent (e.g., hiding menu items).
          */
         function applyUIPermissions() {
-            const userType = SafeStorage.getItem('loggedInUserTipo') || 'admin'; // 'admin' ou 'colaborador'
+            const userType = localStorage.getItem('loggedInUserTipo') || 'admin'; // 'admin' ou 'colaborador'
 
             // CORREÇÃO: O item 'partners' e 'team' foi adicionado para o perfil 'colaborador'.
             const menuPermissions = {
@@ -1253,9 +1205,9 @@
             console.log('🔄 Status Update URL:', WEBHOOK_STATUS_URL);
             console.log('📝 Cadastro Form URL: {{ $json.dominio }}/webhook/res/cadastro');
             
-            const userType = SafeStorage.getItem('loggedInUserTipo');
-            const currentUserName = SafeStorage.getItem('loggedInUserName');
-            const userEmail = SafeStorage.getItem('loggedInUserEmail');
+            const userType = localStorage.getItem('loggedInUserTipo');
+            const currentUserName = localStorage.getItem('loggedInUserName');
+            const userEmail = localStorage.getItem('loggedInUserEmail');
             
             console.log(`📊 Estado atual: ${equipeData.length} colaboradores carregados`);
             console.log(`👤 Usuário: ${currentUserName} (${userEmail}) - Tipo: ${userType}`);
@@ -1283,7 +1235,7 @@
 
         function abrirModalCadastro() {
             // Verificar permissões
-            const userType = SafeStorage.getItem('loggedInUserTipo');
+            const userType = localStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem cadastrar novos colaboradores.', 'error');
                 return;
@@ -1419,7 +1371,7 @@
                 : '??';
 
             // Verificar permissões para mostrar botão de configuração
-            const userType = SafeStorage.getItem('loggedInUserTipo');
+            const userType = localStorage.getItem('loggedInUserTipo');
             const configButton = userType === 'admin' 
                 ? `<button class="btn btn-config flex-fill" onclick="abrirModal('${member.id}')">
                                 <i class="fas fa-cog"></i>
@@ -1503,7 +1455,7 @@
 
         async function alterarStatus(id, nome, whatsapp, novoStatus) {
             // Verificar permissões
-            const userType = SafeStorage.getItem('loggedInUserTipo');
+            const userType = localStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem alterar status de colaboradores.', 'error');
                 return;
@@ -1519,7 +1471,7 @@
                     status: novoStatus, 
                     action: 'atualizar_status',
                     timestamp: new Date().toISOString(),
-                    userEmail: SafeStorage.getItem('loggedInUserEmail')
+                    userEmail: localStorage.getItem('loggedInUserEmail')
                 };
 
                 // Enviar para o novo webhook de status
@@ -1563,7 +1515,7 @@
 
         function abrirModal(memberId) {
             // Verificar permissões
-            const userType = SafeStorage.getItem('loggedInUserTipo');
+            const userType = localStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem configurar colaboradores.', 'error');
                 return;
@@ -1611,7 +1563,7 @@
             if (!currentMember) return;
 
             // Verificar permissões
-            const userType = SafeStorage.getItem('loggedInUserTipo');
+            const userType = localStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem salvar configurações.', 'error');
                 return;
@@ -1643,7 +1595,7 @@
                     colaborador: document.getElementById('editColaborador').checked, // Pega o valor do switch
                     action: 'atualizar_colaborador',
                     timestamp: new Date().toISOString(),
-                    userEmail: SafeStorage.getItem('loggedInUserEmail')
+                    userEmail: localStorage.getItem('loggedInUserEmail')
                 };
 
                 // Adiciona a senha ao payload APENAS se não estiver vazia
@@ -1748,7 +1700,7 @@
                 showNotification('❌ Erro ao carregar sistema. Tentando continuar...', 'error');
                 
                 // Fallback: aplicar permissões de colaborador e continuar
-                SafeStorage.setItem('loggedInUserTipo', 'colaborador');
+                localStorage.setItem('loggedInUserTipo', 'colaborador');
                 applyUIPermissions();
             }
         }
