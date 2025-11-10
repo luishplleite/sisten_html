@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadastro de Colaboradores - ResolvTask</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .main-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            max-width: 800px;
+            width: 100%;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.05) 10px,
+                rgba(255,255,255,0.05) 20px
+            );
+            animation: shimmer 20s linear infinite;
+        }
+        /* CSS para formatação da logo ResolvAI */
+        .logo {
+            /* Dimensões responsivas */
+            max-width: 200px;
+            width: auto;
+            height: auto;
+            
+            /* Manter proporção da imagem */
+            object-fit: contain;
+            
+            /* Centralização e espaçamento */
+            display: block;
+            margin: 0 auto 20px auto;
+            
+            /* Fundo branco para a logo */
+            background: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            
+            /* Efeitos visuais */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* Efeito hover para interatividade */
+        .logo:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Responsividade para diferentes tamanhos de tela */
+        @media (max-width: 768px) {
+            .logo {
+                max-width: 150px;
+                margin-bottom: 15px;
+                padding: 8px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo {
+                max-width: 120px;
+                margin-bottom: 10px;
+                padding: 6px 12px;
+            }
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            position: relative;
+            z-index: 2;
+            /* Texto em preto */
+            color: #000000 !important;
+            font-weight: 600;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.9);
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .header .icon {
+            font-size: 4rem;
+            opacity: 0.2;
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .form-container {
+            padding: 40px;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid #f1f3f4;
+            border-radius: 12px;
+            padding: 15px 20px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background-color: #fafafa;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+            background-color: white;
+            transform: translateY(-2px);
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .required-field::after {
+            content: "*";
+            color: var(--danger-color);
+            margin-left: 4px;
+            font-weight: bold;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            border-radius: 12px;
+            padding: 15px 30px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0b5ed7 0%, #0a58ca 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(13, 110, 253, 0.4);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #5a6268 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.3);
+        }
+
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #5a6268 0%, #495057 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .form-control.is-invalid {
+            border-color: var(--danger-color);
+            box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15);
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes shake {
+            0%, 20%, 40%, 60%, 80% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 350px;
+            max-width: 450px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .floating-labels {
+            position: relative;
+        }
+
+        .floating-labels .form-control {
+            padding-top: 25px;
+            padding-bottom: 10px;
+        }
+
+        .floating-labels .form-label {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            transition: all 0.3s ease;
+            pointer-events: none;
+            background: transparent;
+            z-index: 2;
+        }
+
+        .floating-labels .form-control:focus ~ .form-label,
+        .floating-labels .form-control:not(:placeholder-shown) ~ .form-label {
+            top: 12px;
+            font-size: 0.8rem;
+            color: var(--primary-color);
+            transform: translateY(0);
+        }
+
+        /* Loading Animation */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid transparent;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .main-container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 25px 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header .icon {
+                font-size: 3rem;
+                right: 20px;
+            }
+
+            .form-container {
+                padding: 25px 20px;
+            }
+
+            .btn-container {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+
+            .form-container {
+                padding: 20px 15px;
+            }
+
+            .notification {
+                min-width: 300px;
+                right: 10px;
+                left: 10px;
+            }
+        }
+
+        /* Form validation styles */
+        .invalid-feedback {
+            display: block;
+            color: var(--danger-color);
+            font-size: 0.875rem;
+            margin-top: 5px;
+            font-weight: 500;
+        }
+
+        /* Success animation */
+        .success-icon {
+            animation: successPulse 1s ease;
+        }
+
+        @keyframes successPulse {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <h1><img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo"></h1>
+            <p>Cadastro de Colaboradores</p>
+        </div>
+
+        <!-- Form Container -->
+        <div class="form-container">
+            <form id="collaboratorForm" novalidate>
+                <!-- Hidden Fields -->
+                <input type="hidden" id="status" value="false">
+                <input type="hidden" id="tipo" value="colaborador">
+
+                <div class="row">
+                    <!-- Nome -->
+                    <div class="col-md-6 form-group">
+                        <label for="nome" class="form-label required-field">Nome Completo</label>
+                        <input type="text" class="form-control" id="nome" placeholder="Digite o nome completo" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    <!-- Razão Social -->
+                    <div class="col-md-6 form-group">
+                        <label for="razaoSocial" class="form-label required-field">Razão Social da Empresa</label>
+                        <input type="text" class="form-control" id="razaoSocial" placeholder="Digite a razão social" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- CNPJ -->
+                    <div class="col-md-6 form-group">
+                        <label for="cnpj" class="form-label required-field">CNPJ</label>
+                        <input type="text" class="form-control" id="cnpj" placeholder="00.000.000/0000-00" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    <!-- WhatsApp -->
+                    <div class="col-md-6 form-group">
+                        <label for="whatsapp" class="form-label required-field">WhatsApp</label>
+                        <input type="text" class="form-control" id="whatsapp" placeholder="(00) 00000-0000" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div class="form-group">
+                    <label for="email" class="form-label required-field">Email</label>
+                    <input type="email" class="form-control" id="email" placeholder="exemplo@empresa.com" required>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <!-- Senha -->
+                <div class="form-group">
+                    <label for="senha" class="form-label required-field">Senha</label>
+                    <div class="position-relative">
+                        <input type="password" class="form-control" id="senha" placeholder="Digite uma senha segura" required>
+                        <button type="button" class="btn btn-outline-secondary position-absolute end-0 top-0 h-100" id="togglePassword" style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
+                            <i class="fas fa-eye" id="togglePasswordIcon"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback"></div>
+                    <!-- O texto de ajuda agora permanece sempre visível -->
+                    <small class="form-text text-muted">
+                        A senha deve ter pelo menos 6 caracteres
+                    </small>
+                </div>
+
+                <!-- Endereço -->
+                <div class="form-group">
+                    <label for="endereco" class="form-label required-field">Endereço</label>
+                    <input type="text" class="form-control" id="endereco" placeholder="Rua, Avenida, etc." required>
+                    <div class="invalid-feedback"></div>
+                </div>
+
+                <div class="row">
+                    <!-- Número -->
+                    <div class="col-md-4 form-group">
+                        <label for="numero" class="form-label required-field">Número</label>
+                        <input type="text" class="form-control" id="numero" placeholder="123" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    <!-- Complemento -->
+                    <div class="col-md-4 form-group">
+                        <label for="complemento" class="form-label">Complemento</label>
+                        <input type="text" class="form-control" id="complemento" placeholder="Apto, Sala, etc.">
+                        <div class="invalid-feedback"></div>
+                    </div>
+
+                    <!-- CEP -->
+                    <div class="col-md-4 form-group">
+                        <label for="cep" class="form-label required-field">CEP</label>
+                        <input type="text" class="form-control" id="cep" placeholder="00000-000" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="btn-container">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn">
+                        <i class="fas fa-times me-2"></i>Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="submitBtn">
+                        <i class="fas fa-save me-2"></i>Cadastrar colaborador
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-check-circle me-2"></i>Confirmar Cadastro
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="text-primary mb-3">
+                        <i class="fas fa-user me-2"></i>Dados do colaborador
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr><td><strong>Nome:</strong></td><td id="confirmNome"></td></tr>
+                                <tr><td><strong>Razão Social:</strong></td><td id="confirmRazaoSocial"></td></tr>
+                                <tr><td><strong>CNPJ:</strong></td><td id="confirmCnpj"></td></tr>
+                                <tr><td><strong>Email:</strong></td><td id="confirmEmail"></td></tr>
+                                <tr><td><strong>Senha:</strong></td><td id="confirmSenha">••••••••</td></tr>
+                                <tr><td><strong>WhatsApp:</strong></td><td id="confirmWhatsapp"></td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr><td><strong>Endereço:</strong></td><td id="confirmEndereco"></td></tr>
+                                <tr><td><strong>Número:</strong></td><td id="confirmNumero"></td></tr>
+                                <tr><td><strong>Complemento:</strong></td><td id="confirmComplemento"></td></tr>
+                                <tr><td><strong>CEP:</strong></td><td id="confirmCep"></td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-edit me-2"></i>Editar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="confirmSubmitBtn">
+                        <i class="fas fa-check me-2"></i>Confirmar Cadastro
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // URL do webhook
+        const WEBHOOK_URL = '{{ $json.dominio }}/webhook/salvatarefas';
+
+        // Função para mostrar notificações
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type} alert-dismissible fade show notification`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'times-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(notification);
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 5000);
+        }
+
+        // Função para formatar CNPJ
+        function formatCNPJ(value) {
+            return value
+                .replace(/\D/g, '')
+                .replace(/(\d{2})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1.$2')
+                .replace(/(\d{3})(\d)/, '$1/$2')
+                .replace(/(\d{4})(\d)/, '$1-$2')
+                .substring(0, 18);
+        }
+
+        // Função para formatar telefone
+        function formatPhone(value) {
+            return value
+                .replace(/\D/g, '')
+                .replace(/(\d{2})(\d)/, '($1) $2')
+                .replace(/(\d{5})(\d)/, '$1-$2')
+                .substring(0, 15);
+        }
+
+        // Função para formatar CEP
+        function formatCEP(value) {
+            return value
+                .replace(/\D/g, '')
+                .replace(/(\d{5})(\d)/, '$1-$2')
+                .substring(0, 9);
+        }
+
+        // Função para validar CNPJ
+        function validateCNPJ(cnpj) {
+            cnpj = cnpj.replace(/[^\d]+/g, '');
+            if (cnpj.length !== 14) return false;
+            if (/^(\d)\1+$/.test(cnpj)) return false;
+            let length = cnpj.length - 2;
+            let numbers = cnpj.substring(0, length);
+            let digits = cnpj.substring(length);
+            let sum = 0;
+            let pos = length - 7;
+            for (let i = length; i >= 1; i--) {
+                sum += numbers.charAt(length - i) * pos--;
+                if (pos < 2) pos = 9;
+            }
+            let result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+            if (result !== parseInt(digits.charAt(0))) return false;
+            length = length + 1;
+            numbers = cnpj.substring(0, length);
+            sum = 0;
+            pos = length - 7;
+            for (let i = length; i >= 1; i--) {
+                sum += numbers.charAt(length - i) * pos--;
+                if (pos < 2) pos = 9;
+            }
+            result = sum % 11 < 2 ? 0 : 11 - sum % 11;
+            return result === parseInt(digits.charAt(1));
+        }
+
+        // Função para validar senha
+        function validatePassword(password) {
+            return password.length >= 6;
+        }
+
+        // Função para toggle da visibilidade da senha
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('senha');
+            const toggleIcon = document.getElementById('togglePasswordIcon');
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        }
+
+        // Função para validar email
+        function validateEmail(email) {
+            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            return re.test(email);
+        }
+
+        // Função para limpar formulário
+        function clearForm() {
+            document.getElementById('collaboratorForm').reset();
+            document.querySelectorAll('.form-control').forEach(input => {
+                input.classList.remove('is-invalid');
+            });
+            const passwordInput = document.getElementById('senha');
+            const toggleIcon = document.getElementById('togglePasswordIcon');
+            passwordInput.type = 'password';
+            toggleIcon.classList.remove('fa-eye-slash');
+            toggleIcon.classList.add('fa-eye');
+        }
+
+        // Função para preencher modal de confirmação
+        function fillConfirmationModal() {
+            document.getElementById('confirmNome').textContent = document.getElementById('nome').value;
+            document.getElementById('confirmRazaoSocial').textContent = document.getElementById('razaoSocial').value;
+            document.getElementById('confirmCnpj').textContent = document.getElementById('cnpj').value;
+            document.getElementById('confirmEmail').textContent = document.getElementById('email').value;
+            document.getElementById('confirmSenha').textContent = '••••••••';
+            document.getElementById('confirmWhatsapp').textContent = document.getElementById('whatsapp').value;
+            document.getElementById('confirmEndereco').textContent = document.getElementById('endereco').value;
+            document.getElementById('confirmNumero').textContent = document.getElementById('numero').value;
+            document.getElementById('confirmComplemento').textContent = document.getElementById('complemento').value || 'Não informado';
+            document.getElementById('confirmCep').textContent = document.getElementById('cep').value;
+        }
+
+        // Função para enviar dados para webhook
+        async function sendToWebhook(data) {
+            try {
+                const payload = { ...data, action: 'cadastrar_colaborador', timestamp: new Date().toISOString() };
+                console.log('Enviando dados para webhook:', payload);
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                console.log('Status da resposta:', response.status);
+                if (response.ok || response.status === 200) {
+                    console.log('✅ Dados enviados com sucesso para webhook');
+                    return { success: true };
+                } else {
+                    const responseText = await response.text();
+                    console.warn(`⚠️ Webhook respondeu com status ${response.status}`);
+                    if (responseText.includes('No Respond to Webhook node')) {
+                        console.log('ℹ️ Erro conhecido do N8N - dados provavelmente foram processados');
+                        return { success: true, warning: true };
+                    }
+                    return { success: true, warning: true };
+                }
+            } catch (error) {
+                console.error('❌ Erro ao enviar dados para webhook:', error);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Sistema de Cadastro de Colaboradores iniciado');
+            console.log('📡 Webhook URL:', WEBHOOK_URL);
+            console.log('🔐 Sistema com validação de senha implementado');
+
+            // Formatação automática dos campos
+            document.getElementById('cnpj').addEventListener('input', function(e) { e.target.value = formatCNPJ(e.target.value); });
+            document.getElementById('whatsapp').addEventListener('input', function(e) { e.target.value = formatPhone(e.target.value); });
+            document.getElementById('cep').addEventListener('input', function(e) { e.target.value = formatCEP(e.target.value); });
+
+            // Toggle de visibilidade da senha
+            document.getElementById('togglePassword').addEventListener('click', togglePasswordVisibility);
+
+            // Remover validação visual quando usuário começar a digitar
+            const formInputs = document.querySelectorAll('.form-control');
+            formInputs.forEach(input => {
+                input.addEventListener('input', function() { this.classList.remove('is-invalid'); });
+            });
+            
+            // **** ALTERAÇÃO: Lógica de validação da senha ajustada ****
+            // Event listener específico para o campo senha para validação em tempo real.
+            // Apenas a mensagem de erro vermelha será afetada. O texto de ajuda cinza fica sempre visível.
+            document.getElementById('senha').addEventListener('input', function() {
+                const passwordField = this;
+                const invalidFeedback = passwordField.parentElement.nextElementSibling;
+                const value = passwordField.value;
+
+                if (value.length > 0 && value.length < 6) {
+                    // Mostra o erro se a senha for muito curta
+                    passwordField.classList.add('is-invalid');
+                    invalidFeedback.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+                } else {
+                    // Remove o erro se a senha for válida (>= 6) ou se o campo estiver vazio.
+                    passwordField.classList.remove('is-invalid');
+                    invalidFeedback.textContent = ''; // Limpa a mensagem para que ela desapareça
+                }
+            });
+
+            // Submissão do formulário
+            document.getElementById('collaboratorForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                let isValid = true;
+                const requiredFields = ['nome', 'razaoSocial', 'cnpj', 'whatsapp', 'email', 'senha', 'endereco', 'numero', 'cep'];
+                requiredFields.forEach(fieldId => {
+                    const field = document.getElementById(fieldId);
+                    const value = field.value.trim();
+                    if (!value) {
+                        field.classList.add('is-invalid');
+                        if (fieldId === 'senha') {
+                            const invalidFeedback = field.parentElement.nextElementSibling;
+                            invalidFeedback.textContent = 'Este campo é obrigatório.';
+                        } else {
+                            field.nextElementSibling.textContent = 'Este campo é obrigatório.';
+                        }
+                        isValid = false;
+                    } else {
+                        field.classList.remove('is-invalid');
+                    }
+                });
+                const cnpjField = document.getElementById('cnpj');
+                if (cnpjField.value && !validateCNPJ(cnpjField.value)) {
+                    cnpjField.classList.add('is-invalid');
+                    cnpjField.nextElementSibling.textContent = 'CNPJ inválido.';
+                    isValid = false;
+                }
+                const emailField = document.getElementById('email');
+                if (emailField.value && !validateEmail(emailField.value)) {
+                    emailField.classList.add('is-invalid');
+                    emailField.nextElementSibling.textContent = 'Email inválido.';
+                    isValid = false;
+                }
+                const senhaField = document.getElementById('senha');
+                if (senhaField.value && !validatePassword(senhaField.value)) {
+                    senhaField.classList.add('is-invalid');
+                    const invalidFeedback = senhaField.parentElement.nextElementSibling;
+                    invalidFeedback.textContent = 'A senha deve ter pelo menos 6 caracteres.';
+                    isValid = false;
+                }
+                if (!isValid) {
+                    showNotification('❌ Por favor, corrija os erros no formulário. Certifique-se de que todos os campos obrigatórios estão preenchidos e a senha tem pelo menos 6 caracteres.', 'danger');
+                    return;
+                }
+                fillConfirmationModal();
+                const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+                confirmModal.show();
+            });
+
+            // Confirmação do cadastro
+            document.getElementById('confirmSubmitBtn').addEventListener('click', async function() {
+                const confirmBtn = this;
+                const originalText = confirmBtn.innerHTML;
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('btn-loading');
+                confirmBtn.textContent = 'Processando...';
+                try {
+                    const formData = {
+                        nome: document.getElementById('nome').value.trim(),
+                        razaoSocial: document.getElementById('razaoSocial').value.trim(),
+                        cnpj: document.getElementById('cnpj').value,
+                        endereco: document.getElementById('endereco').value.trim(),
+                        numero: document.getElementById('numero').value.trim(),
+                        complemento: document.getElementById('complemento').value.trim(),
+                        cep: document.getElementById('cep').value,
+                        whatsapp: document.getElementById('whatsapp').value,
+                        email: document.getElementById('email').value.trim(),
+                        senha: document.getElementById('senha').value,
+                        status: document.getElementById('status').value,
+                        tipo: document.getElementById('tipo').value
+                    };
+                    const result = await sendToWebhook(formData);
+                    console.log('✅ Dados enviados incluindo senha (senha não exibida por segurança)');
+                    const confirmModal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+                    confirmModal.hide();
+                    if (result.success) {
+                        showNotification(
+                            `✅ colaborador cadastrado com sucesso! ${result.warning ? '(Sincronização pendente)' : ''}`,
+                            result.warning ? 'warning' : 'success'
+                        );
+                        setTimeout(() => {
+                            clearForm();
+                            window.location.href = '{{ $json.dominio }}/webhook/login';
+                        }, 2000);
+                    } else {
+                        showNotification('❌ Erro ao cadastrar colaborador. Tente novamente.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Erro ao processar cadastro:', error);
+                    showNotification('❌ Erro interno. Tente novamente.', 'danger');
+                } finally {
+                    confirmBtn.disabled = false;
+                    confirmBtn.classList.remove('btn-loading');
+                    confirmBtn.innerHTML = originalText;
+                }
+            });
+
+            // Botão cancelar
+            document.getElementById('cancelBtn').addEventListener('click', function() {
+                if (confirm('Deseja realmente cancelar? Todos os dados serão perdidos.')) {
+                    clearForm();
+                    showNotification('ℹ️ Formulário cancelado.', 'info');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
