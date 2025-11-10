@@ -1,0 +1,2084 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ResolvTask - Timeline de Projetos e Acompanhamento">
+    <meta name="keywords" content="gestão, tarefas, timeline, roadmap, resolv, produtividade">
+    <title>Timeline de Projetos - ResolvTask</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            /* Cores primárias (serão substituídas dinamicamente) */
+            --primary-color: #0d6efd;
+            --primary-color-dark: #0b5ed7;
+            --primary-color-shadow: rgba(13, 110, 253, 0.3);
+
+            /* Outras cores */
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --info-color: #0dcaf0;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --not-started-color: #fd7e14;
+            --purple-color: #6f42c1;
+            --pink-color: #d63384;
+            --teal-color: #20c997;
+            --orange-color: #fd7e14;
+            --indigo-color: #6610f2;
+            --cyan-color: #0dcaf0;
+            
+            /* Timeline específicas */
+            --timeline-bg: #ffffff;
+            --timeline-border: #e9ecef;
+            --timeline-header-bg: #f8f9fa;
+            --timeline-today: #dc3545;
+            --timeline-weekend: #6c757d;
+            --timeline-grid: #dee2e6;
+            --separator-color: #6c757d;
+            
+            /* --- MELHORIA: Altura da linha aumentada para evitar sobreposição --- */
+            --nav-height: 70px;
+            --controls-height: 180px;
+            --timeline-header-height: 100px;
+            --row-height: 200px; /* Aumentado de 120px para 200px */
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            overflow: hidden; /* Controlado pelo app-container */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Loading inicial quando não logado */
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-dark) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        
+        .auth-loading .spinner-auth {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        .auth-loading h4 {
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .auth-loading p {
+            opacity: 0.8;
+            font-size: 0.9rem;
+        }
+
+        /* Layout principal flexível */
+        .app-container {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            height: 100vh;
+            display: flex;
+            flex-direction: row;
+        }
+        
+        .app-container.authenticated {
+            opacity: 1;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-color-dark) 100%);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            background-color: white;
+        }
+
+        .sidebar-header .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        
+        .sidebar-header .text-light {
+            color: #212529 !important;
+            font-weight: 500;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            display: block;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+        }
+
+        .menu-item.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .sidebar-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+
+        .sidebar-loading .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        /* Main Content - Flexível */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* Top Navigation - Altura fixa */
+        .top-nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 999;
+            height: var(--nav-height);
+            flex-shrink: 0;
+        }
+
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Content Area - Flexível para usar espaço restante */
+        .content-area {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: calc(100vh - var(--nav-height));
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Timeline Controls - Altura fixa */
+        .timeline-controls {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            flex-shrink: 0;
+            height: var(--controls-height);
+            overflow: hidden;
+        }
+
+        .controls-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .view-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .view-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--primary-color);
+            background: transparent;
+            color: var(--primary-color);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            font-size: 13px;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .view-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: var(--primary-color);
+            transition: left 0.3s ease;
+            z-index: -1;
+        }
+
+        .view-btn.active::before,
+        .view-btn:hover::before {
+            left: 0;
+        }
+
+        .view-btn.active,
+        .view-btn:hover {
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px var(--primary-color-shadow);
+        }
+
+        .timeline-navigation {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: var(--light-color);
+            border: 1px solid var(--timeline-border);
+            color: var(--dark-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-btn:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .current-period {
+            font-weight: 600;
+            color: var(--dark-color);
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .filters-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 160px;
+            flex: 1;
+        }
+
+        .filter-group label {
+            font-weight: 600;
+            color: var(--dark-color);
+            font-size: 0.8rem;
+        }
+
+        /* Timeline Container - Usa todo espaço restante */
+        .timeline-container {
+            background: var(--timeline-bg);
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            border: 1px solid var(--timeline-border);
+        }
+
+        .timeline-header {
+            display: flex;
+            background: var(--timeline-header-bg);
+            border-bottom: 2px solid var(--timeline-grid);
+            z-index: 10;
+            height: var(--timeline-header-height);
+            flex-shrink: 0;
+        }
+
+        .timeline-sidebar {
+            width: 400px;
+            min-width: 400px;
+            padding: 20px 25px;
+            border-right: 2px solid var(--timeline-grid);
+            background: white;
+            font-weight: 600;
+            color: var(--dark-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+
+        .timeline-dates-wrapper {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            background: var(--timeline-header-bg);
+            display: flex;
+            flex-wrap: nowrap;
+        }
+
+        .timeline-dates {
+            display: flex;
+            background: var(--timeline-header-bg);
+            flex-shrink: 0;
+            min-width: max-content;
+        }
+
+        .date-column {
+            min-width: 180px;
+            padding: 12px;
+            text-align: center;
+            border-right: 1px solid var(--timeline-grid);
+            font-weight: 500;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .date-column:hover {
+            background: rgba(13, 110, 253, 0.05);
+        }
+
+        .date-column.today {
+            background: rgba(220, 53, 69, 0.1);
+            color: var(--danger-color);
+            font-weight: 700;
+            box-shadow: inset 0 0 0 2px var(--danger-color);
+        }
+
+        .date-column.weekend {
+            background: rgba(108, 117, 125, 0.1);
+            color: var(--secondary-color);
+        }
+
+        .date-column.milestone {
+            background: linear-gradient(135deg, var(--warning-color) 0%, #ffc107 100%);
+            color: var(--dark-color);
+        }
+
+        .date-weekday {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.7;
+        }
+
+        .date-day {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 4px 0;
+        }
+
+        .date-month {
+            font-size: 11px;
+            opacity: 0.6;
+            text-transform: uppercase;
+        }
+
+        .timeline-body {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .timeline-rows {
+            width: 400px;
+            min-width: 400px;
+            border-right: 2px solid var(--timeline-grid);
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: white;
+        }
+        
+        .timeline-grid-wrapper {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            flex-wrap: nowrap;
+        }
+
+        .timeline-grid {
+            flex: 1;
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 179px,
+                var(--timeline-grid) 179px,
+                var(--timeline-grid) 180px
+            );
+            min-width: max-content;
+            min-height: 100%;
+        }
+
+        .timeline-row {
+            display: flex;
+            border-bottom: 1px solid #dee2e6;
+            min-height: var(--row-height);
+            transition: background-color 0.3s ease;
+            position: relative;
+        }
+
+        .timeline-row:hover {
+            background-color: rgba(13, 110, 253, 0.02);
+        }
+
+        .timeline-row:last-child {
+            border-bottom: none;
+        }
+
+        .timeline-row-separator {
+            position: relative;
+            height: 16px;
+            background: linear-gradient(90deg,
+                transparent 0%,
+                var(--separator-color) 20%,
+                var(--separator-color) 80%,
+                transparent 100%);
+            opacity: 0.3;
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .timeline-row-separator::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px;
+            height: 2px;
+            background: repeating-linear-gradient(
+                90deg,
+                var(--separator-color) 0px,
+                var(--separator-color) 10px,
+                transparent 10px,
+                transparent 20px
+            );
+            opacity: 0.6;
+        }
+
+        .timeline-row-separator::after {
+            content: '●●●';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--separator-color);
+            font-size: 10px;
+            letter-spacing: 6px;
+            background: white;
+            padding: 0 15px;
+            opacity: 0.7;
+        }
+
+        .timeline-grid-separator {
+            height: 16px;
+            border-bottom: 1px dashed var(--separator-color);
+            opacity: 0.3;
+            margin: 12px 0;
+            background: repeating-linear-gradient(
+                to right,
+                transparent,
+                transparent 179px,
+                rgba(108, 117, 125, 0.2) 179px,
+                rgba(108, 117, 125, 0.2) 180px
+            );
+            flex-shrink: 0;
+        }
+
+        .row-header {
+            width: 400px;
+            min-width: 400px;
+            padding: 20px;
+            background: white;
+            border-right: 2px solid var(--timeline-grid);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+            min-height: var(--row-height);
+            flex-shrink: 0;
+        }
+
+        .responsible-avatar {
+            width: 55px;
+            height: 55px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            flex-shrink: 0;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            border: 3px solid white;
+        }
+
+        .responsible-info {
+            flex: 1;
+        }
+
+        .responsible-info h6 {
+            margin: 0 0 6px 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .responsible-info small {
+            color: var(--secondary-color);
+            font-size: 13px;
+            display: block;
+        }
+
+        .responsible-summary-stats {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--dark-color);
+            line-height: 1.4;
+        }
+        .responsible-summary-stats div {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .responsible-summary-stats .text-primary {
+            color: var(--primary-color) !important;
+            font-weight: bold;
+        }
+        .responsible-summary-stats .text-dark {
+            color: var(--dark-color) !important;
+            font-weight: bold;
+        }
+        .responsible-summary-stats .text-danger {
+            color: var(--danger-color) !important;
+            font-weight: bold;
+        }
+        .responsible-summary-stats .text-success {
+            color: var(--success-color) !important;
+            font-weight: bold;
+        }
+        .responsible-summary-stats .text-muted {
+            color: var(--secondary-color) !important;
+        }
+
+        .workload-indicator {
+            position: absolute;
+            right: 15px;
+            top: 20px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .workload-normal { background-color: #28a745; }
+        .workload-moderate { background-color: #ffc107; }
+        .workload-critical { background-color: #dc3545; animation: pulse 2s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .row-content {
+            display: flex;
+            position: relative;
+            min-height: var(--row-height);
+            align-items: stretch;
+            flex-shrink: 0;
+        }
+
+        .time-column {
+            min-width: 180px;
+            height: var(--row-height);
+            border-right: 1px solid var(--timeline-border);
+            position: relative;
+            transition: background-color 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .time-column:hover { background: rgba(13, 110, 253, 0.05); }
+        .time-column.weekend { background: rgba(108, 117, 125, 0.03); }
+        .time-column.today-column { background: rgba(220, 53, 69, 0.05); }
+
+        .task-bar {
+            position: absolute;
+            height: 45px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 4px 12px;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.15);
+            z-index: 5;
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.9);
+            line-height: 1.2;
+        }
+
+        .task-bar:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            z-index: 15;
+            height: 50px;
+        }
+
+        .task-bar::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(45deg, rgba(255,255,255,0.1) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.1) 75%, transparent 75%);
+            background-size: 10px 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .task-bar:hover::before { opacity: 1; }
+
+        .task-info-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 1px 0;
+        }
+
+        .task-description {
+            font-weight: 700;
+            font-size: 13px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex-grow: 1;
+        }
+
+        .task-hours-info {
+            font-size: 11px;
+            opacity: 0.95;
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: 8px;
+        }
+
+        .task-deviation {
+            font-weight: 700;
+            font-size: 11px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .task-deviation.positive { background: rgba(220, 53, 69, 0.8); }
+        .task-deviation.negative { background: rgba(25, 135, 84, 0.8); }
+
+        .task-bar.status-concluido::after { content: '✓'; position: absolute; top: 4px; right: 6px; font-weight: bold; font-size: 14px; background: rgba(255,255,255,0.2); border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; }
+        .task-bar.status-em-andamento::after { content: '⏱'; position: absolute; top: 4px; right: 6px; font-size: 12px; animation: pulse 2s infinite; }
+        .task-bar.status-nao-iniciado::after { content: '⏸'; position: absolute; top: 4px; right: 6px; font-size: 12px; opacity: 0.7; }
+        .task-bar.status-paralizado::after { content: '⏹'; position: absolute; top: 4px; right: 6px; font-size: 12px; color: #ffc107; }
+
+        .task-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 0 0 8px 8px;
+            transition: width 0.5s ease;
+        }
+
+        .today-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--danger-color);
+            z-index: 10;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 0 12px rgba(220, 53, 69, 0.5);
+            animation: todayPulse 3s infinite;
+        }
+
+        @keyframes todayPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .milestone-marker {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--warning-color);
+            z-index: 8;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .milestone-marker::before {
+            content: '◆';
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: var(--warning-color);
+            font-size: 14px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: var(--secondary-color);
+            text-align: center;
+            padding: 40px;
+            background: var(--timeline-bg);
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+            color: var(--primary-color);
+        }
+
+        .empty-state h4 {
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .empty-state p {
+            font-size: 0.95rem;
+            opacity: 0.8;
+            max-width: 400px;
+        }
+
+        .task-tooltip {
+            position: absolute;
+            background: var(--dark-color);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            font-size: 14px;
+            z-index: 1000;
+            max-width: 500px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            display: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .task-tooltip::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 20px;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid var(--dark-color);
+        }
+
+        .task-tooltip h6 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            padding-bottom: 10px;
+        }
+
+        .tooltip-section { margin-bottom: 15px; }
+        .tooltip-section:last-child { margin-bottom: 0; }
+        .tooltip-section h6 { font-size: 12px; color: #ccc; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border: none; padding: 0; }
+        .tooltip-row { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
+        .tooltip-row:last-child { margin-bottom: 0; }
+        .tooltip-label { font-weight: 600; color: #ccc; font-size: 14px; }
+        .tooltip-value { color: #fff; text-align: right; flex: 1; margin-left: 15px; font-size: 14px; }
+        .tooltip-status { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+        .tooltip-progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.2); border-radius: 3px; overflow: hidden; margin-top: 5px; }
+        .tooltip-progress-fill { height: 100%; background: var(--success-color); border-radius: 3px; transition: width 0.5s ease; }
+
+        .loading { display: flex; flex-direction: column; justify-content: center; align-items: center; flex: 1; gap: 20px; }
+        .spinner { width: 60px; height: 60px; border: 4px solid var(--light-color); border-top: 4px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; }
+        .loading-text { color: var(--secondary-color); font-size: 1.1rem; font-weight: 500; }
+        .notification { position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 400px; }
+
+        @media (max-width: 1200px) {
+            :root { --controls-height: 200px; --row-height: 180px; }
+            .content-area { padding: 15px; }
+            .timeline-sidebar, .timeline-rows { width: 350px; min-width: 350px; }
+            .row-header { width: 350px; min-width: 350px; padding: 15px; }
+            .date-column, .time-column { min-width: 150px; }
+            .workload-info { display: none; }
+            .task-bar { height: 38px; font-size: 11px; }
+            .task-bar:hover { transform: translateY(-2px) scale(1.02); height: 42px; }
+            .task-tooltip { max-width: 450px; padding: 20px; font-size: 13px; }
+            .task-tooltip h6 { font-size: 16px; }
+            .tooltip-label, .tooltip-value { font-size: 13px; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { position: fixed; height: 100vh; transform: translateX(-100%); z-index: 1050; }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { width: 100%; }
+            .sidebar-toggle { display: block; }
+            .content-area { padding: 12px; height: calc(100vh - var(--nav-height)); }
+            :root { --row-height: 150px; }
+            .timeline-sidebar, .timeline-rows { width: 280px; min-width: 280px; }
+            .row-header { width: 280px; min-width: 280px; padding: 12px; gap: 10px; }
+            .responsible-avatar { width: 45px; height: 45px; font-size: 14px; }
+            .responsible-info h6 { font-size: 14px; }
+            .responsible-info small { font-size: 12px; }
+            .date-column, .time-column { min-width: 120px; }
+            .task-bar { height: 32px; padding: 2px 8px; font-size: 10px; }
+            .task-bar:hover { height: 36px; }
+            .task-description { font-size: 11px; }
+            .task-hours-info { font-size: 9px; }
+            .task-deviation { font-size: 9px; }
+            .filters-row { flex-direction: column; align-items: stretch; }
+            .filter-group { min-width: 100%; }
+            .view-selector { justify-content: center; }
+            .view-btn { font-size: 11px; padding: 6px 12px; }
+            .timeline-controls { height: auto; min-height: 140px; }
+            .controls-header { flex-direction: column; gap: 10px; align-items: stretch; }
+            .timeline-navigation { justify-content: center; }
+            :root { --controls-height: auto; }
+            .task-tooltip { max-width: 350px; padding: 15px; font-size: 12px; }
+            .task-tooltip h6 { font-size: 14px; }
+            .tooltip-label, .tooltip-value { font-size: 12px; }
+        }
+
+        @media (max-width: 576px) {
+            .content-area { padding: 8px; }
+            :root { --row-height: 120px; }
+            .timeline-sidebar, .timeline-rows { width: 220px; min-width: 220px; }
+            .row-header { width: 220px; min-width: 220px; padding: 10px; gap: 8px; }
+            .responsible-avatar { width: 40px; height: 40px; font-size: 12px; }
+            .responsible-info h6 { font-size: 13px; }
+            .responsible-info small { font-size: 11px; }
+            .date-column, .time-column { min-width: 100px; }
+            .task-bar { height: 28px; padding: 2px 6px; font-size: 9px; }
+            .task-bar:hover { height: 32px; }
+            .task-description { font-size: 10px; }
+            .task-hours-info { font-size: 8px; }
+            .task-deviation { font-size: 8px; }
+            .timeline-controls { padding: 15px; }
+            .task-tooltip { max-width: 300px; padding: 10px; font-size: 11px; }
+            .task-tooltip h6 { font-size: 13px; }
+            .tooltip-label, .tooltip-value { font-size: 11px; }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1040; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+            .sidebar-overlay.show { opacity: 1; visibility: visible; }
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--light-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-color-dark); }
+
+        @media (max-width: 768px) {
+            ::-webkit-scrollbar { width: 4px; height: 4px; }
+        }
+
+        .timeline-container { height: calc(100vh - var(--nav-height) - var(--controls-height) - 60px); min-height: 400px; }
+        @media (max-width: 768px) { .timeline-container { height: calc(100vh - var(--nav-height) - 180px); min-height: 300px; } }
+        @media (max-width: 576px) { .timeline-container { height: calc(100vh - var(--nav-height) - 160px); min-height: 250px; } }
+
+        .fade-in { animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-in-right { animation: slideInRight 0.3s ease-out; }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="auth-loading" id="authLoading">
+        <div class="spinner-auth"></div>
+        <h4>ResolvTask Dashboard</h4>
+        <p>Verificando autenticação...</p>
+    </div>
+
+    <div class="app-container" id="appContainer">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo">
+                <br><br>
+                <h1><i class="fas fa-bolt me-2"></i>Task</h1>
+                <small class="text-light">Sistema Integrado de Gestão</small>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu">
+                <div class="sidebar-loading" id="sidebarLoading">
+                    <div class="spinner-small"></div>
+                    Carregando menu...
+                </div>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/resolv'" data-menu="dashboard">
+                    <i class="fas fa-chart-line"></i>Dashboard
+                </button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/gerenciadortarefas'" data-menu="tasks">
+                    <i class="fas fa-tasks"></i>Gerenciador de Tarefas
+                </button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/taskhoras'" data-menu="hours">
+                    <i class="fas fa-clock"></i>Gerenciador de Horas
+                </button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/gestao_clientes'" data-menu="clients">
+                    <i class="fas fa-handshake"></i>Gestão de Clientes
+                </button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/gestaodeparceiros'" data-menu="partners">
+                    <i class="fas fa-handshake-angle"></i>Gestão de Parceiros
+                </button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/equipe'" data-menu="team">
+                    <i class="fas fa-users"></i>Equipe
+                </button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/conf'" data-menu="settings">
+                    <i class="fas fa-cog"></i>Configurações
+                </button>
+            </div>
+        </nav>
+
+        <main class="main-content" id="mainContent">
+            <nav class="top-nav">
+                <div class="d-flex align-items-center">
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0 ms-3" id="pageTitle">Timeline de Projetos</h5>
+                </div>
+                <div class="user-info">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="debugWebhook()" title="Testar Conexão">
+                        <i class="fas fa-plug me-1"></i>Testar
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm me-2" onclick="reloadColaboradores()" title="Recarregar Colaboradores">
+                        <i class="fas fa-users me-1"></i>Colaboradores
+                    </button>
+                    <button class="btn btn-outline-info btn-sm me-2" onclick="refreshCurrentPage()" title="Atualizar Página">
+                        <i class="fas fa-sync-alt me-1"></i>Atualizar
+                    </button>
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle fs-4 text-primary me-2"></i>
+                        <span class="fw-bold" id="userNameDisplay">Usuário</span>
+                    </div>
+                    <small id="currentDate" class="text-muted"></small>
+                    <button class="btn btn-outline-danger btn-sm ms-2" id="logoutButton" title="Sair">
+                        <i class="fas fa-sign-out-alt me-1"></i>Sair
+                    </button>
+                </div>
+            </nav>
+
+            <div class="content-area">
+                <div class="timeline-controls fade-in">
+                    <div class="controls-header">
+                        <div class="view-selector">
+                            <button class="view-btn" onclick="setView('week')">
+                                <i class="fas fa-calendar-week me-2"></i>Semana
+                            </button>
+                            <button class="view-btn active" onclick="setView('month')"> <i class="fas fa-calendar-alt me-2"></i>Mês
+                            </button>
+                            <button class="view-btn" onclick="setView('quarter')">
+                                <i class="fas fa-calendar me-2"></i>Trimestre
+                            </button>
+                        </div>
+                        
+                        <div class="timeline-navigation">
+                            <button class="nav-btn" onclick="navigateTimeline(-1)" title="Período Anterior">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <span class="current-period" id="currentPeriod">Este Mês</span> <button class="nav-btn" onclick="navigateTimeline(1)" title="Próximo Período">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            <button class="nav-btn" onclick="goToToday()" title="Hoje">
+                                <i class="fas fa-crosshairs"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="filters-row">
+                        <div class="filter-group">
+                            <label><i class="fas fa-user me-1"></i>Responsável:</label>
+                            <select class="form-select form-select-sm" id="responsibleFilter" onchange="applyFilters()">
+                                <option value="">Todos os responsáveis</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-project-diagram me-1"></i>Projeto:</label>
+                            <select class="form-select form-select-sm" id="projectFilter" onchange="applyFilters()">
+                                <option value="">Todos os projetos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-user-tie me-1"></i>Cliente:</label>
+                            <select class="form-select form-select-sm" id="clientFilter" onchange="applyFilters()">
+                                <option value="">Todos os clientes</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-building me-1"></i>Empresa:</label>
+                            <select class="form-select form-select-sm" id="companyFilter" onchange="applyFilters()">
+                                <option value="">Todos as empresas</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-flag me-1"></i>Status:</label>
+                            <select class="form-select form-select-sm" id="statusFilter" onchange="applyFilters()">
+                                <option value="">Todos os status</option>
+                                <option value="EM ANDAMENTO">Em Andamento</option>
+                                <option value="CONCLUÍDO">Concluído</option>
+                                <option value="NÃO INICIADO">Não Iniciado</option>
+                                <option value="PARALIZADO">Paralizado</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-tags me-1"></i>Tipo:</label>
+                            <select class="form-select form-select-sm" id="typeFilter" onchange="applyFilters()">
+                                <option value="">Todos os tipos</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-calendar-day me-1"></i>Data Inicial:</label>
+                            <input type="date" class="form-control form-control-sm" id="startDateFilter" onchange="applyFilters()">
+                        </div>
+                        <div class="filter-group">
+                            <label><i class="fas fa-calendar-day me-1"></i>Data Final:</label>
+                            <input type="date" class="form-control form-control-sm" id="endDateFilter" onchange="applyFilters()">
+                        </div>
+                        <div class="filter-group">
+                            <label>&nbsp;</label>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="clearFilters()">
+                                <i class="fas fa-times me-1"></i>Limpar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-container fade-in">
+                    <div class="timeline-header">
+                        <div class="timeline-sidebar">
+                            <div>
+                                <i class="fas fa-users me-2"></i>Responsável
+                            </div>
+                            <small class="text-muted">Carga de trabalho</small>
+                        </div>
+                        <div class="timeline-dates-wrapper"> <div class="timeline-dates" id="timelineDates">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="timeline-body">
+                        <div class="timeline-rows" id="timelineRows">
+                            </div>
+                        <div class="timeline-grid-wrapper"> <div class="timeline-grid" id="timelineGrid">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="empty-state" id="emptyState" style="display: none;">
+                        <i class="fas fa-calendar-times"></i>
+                        <h4>Nenhuma tarefa encontrada</h4>
+                        <p>Não há tarefas para exibir com os filtros selecionados.<br>Tente ajustar os filtros ou navegar para outro período.</p>
+                        <button class="btn btn-primary mt-3" onclick="clearFilters()">
+                            <i class="fas fa-filter me-2"></i>Limpar Filtros
+                        </button>
+                    </div>
+                </div>
+
+                <div class="loading" id="loadingState" style="display: none;">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Carregando timeline...</div>
+                </div>
+            </div>
+        </main>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    </div>
+
+    <div class="task-tooltip" id="taskTooltip">
+        <h6></h6>
+        
+        <div class="tooltip-section">
+            <h6>Projeto</h6>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Projeto:</span>
+                <span class="tooltip-value" id="tooltipProject"></span>
+            </div>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Cliente:</span>
+                <span class="tooltip-value" id="tooltipClient"></span>
+            </div>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Responsável:</span>
+                <span class="tooltip-value" id="tooltipResponsible"></span>
+            </div>
+        </div>
+        
+        <div class="tooltip-section">
+            <h6>Status & Cronograma</h6>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Status:</span>
+                <span class="tooltip-value"><span class="tooltip-status" id="tooltipStatus"></span></span>
+            </div>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Período:</span>
+                <span class="tooltip-value" id="tooltipPeriod"></span>
+            </div>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Progresso:</span>
+                <span class="tooltip-value" id="tooltipProgress">0%</span>
+            </div>
+            <div class="tooltip-progress-bar">
+                <div class="tooltip-progress-fill" id="tooltipProgressBar"></div>
+            </div>
+        </div>
+        
+        <div class="tooltip-section">
+            <h6>Horas & Desempenho</h6>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Estimadas:</span>
+                <span class="tooltip-value" id="tooltipEstimated"></span>
+            </div>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Realizadas:</span>
+                <span class="tooltip-value" id="tooltipActual"></span>
+            </div>
+            <div class="tooltip-row">
+                <span class="tooltip-label">Desvio:</span>
+                <span class="tooltip-value" id="tooltipDeviation"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // =================================================================
+        // SCRIPT FOCADO EM AUTENTICAÇÃO E RENDERIZAÇÃO DO MENU
+        // =================================================================
+
+        // --- GLOBAL CONFIGURATION ---
+        const LOGIN_URL = '{{ $json.dominio }}/webhook/login';
+        const WEBHOOK_GET_URL = '{{ $json.dominio }}/webhook/consultadadosresolv';
+        const WEBHOOK_URL = '{{ $json.dominio }}/webhook/salvatarefas';
+        const COLABORADORES_WEBHOOK_URL = '{{ $json.dominio }}/webhook/consultacolaboradores';
+        const THEME_URL = '{{ $json.dominio }}/webhook/consultaconfiguracoes';
+
+        // --- AUTHENTICATION AND SESSION FUNCTIONS ---
+        const Auth = {
+            getUserData: () => {
+                const sessionData = localStorage.getItem('userSession');
+                return sessionData ? JSON.parse(sessionData) : null;
+            },
+            checkAuth: () => {
+                const authToken = localStorage.getItem('authToken');
+                const userData = Auth.getUserData();
+                console.log('🔐 Verificando status de login...', { hasToken: !!authToken, hasData: !!userData });
+                return !!(authToken && userData);
+            },
+            logout: () => {
+                console.log('🚪 Iniciando processo de logout...');
+                localStorage.clear();
+                
+                const authLoadingEl = document.getElementById('authLoading');
+                if (authLoadingEl) {
+                    authLoadingEl.style.display = 'flex';
+                    authLoadingEl.innerHTML = `<div class="spinner-auth"></div><h4>Sessão encerrada</h4><p>Você será redirecionado.</p>`;
+                }
+                document.getElementById('appContainer').style.opacity = 0;
+                setTimeout(() => { window.location.href = LOGIN_URL; }, 1500);
+            },
+            redirectToLogin: () => {
+                console.log('🔄 Redirecionando para página de login...');
+                window.location.href = LOGIN_URL;
+            }
+        };
+
+        // --- UI MANIPULATION FUNCTIONS ---
+        const UI = {
+            updateUserInfo: () => {
+                const userData = Auth.getUserData();
+                if (userData) {
+                    document.getElementById('userNameDisplay').textContent = userData.nome;
+                    console.log('👤 Informações do usuário atualizadas:', userData.nome);
+                }
+            },
+            showAuthenticatedInterface: () => {
+                document.getElementById('authLoading').style.display = 'none';
+                document.getElementById('appContainer').classList.add('authenticated');
+                console.log('🎉 Interface principal ativada.');
+            },
+            applyUIPermissions: () => {
+                const userData = Auth.getUserData();
+                const userType = userData?.tipo || 'colaborador';
+                console.log(`🔧 Aplicando permissões de UI para o tipo: ${userType}`);
+
+                document.getElementById('sidebarLoading').style.display = 'none';
+                
+                const menuPermissions = {
+                    admin: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'],
+                    colaborador: ['dashboard', 'tasks', 'hours', 'settings']
+                };
+                const allowedMenus = menuPermissions[userType] || menuPermissions.colaborador;
+
+                document.querySelectorAll('#sidebarMenu .menu-item').forEach((item, index) => {
+                    const menuType = item.getAttribute('data-menu');
+                    if (allowedMenus.includes(menuType)) {
+                        setTimeout(() => item.classList.add('show'), index * 50);
+                    }
+                });
+
+                if (!localStorage.getItem('welcomeMessageShown')) {
+                    setTimeout(() => {
+                        const userName = userData?.nome || "Usuário";
+                        const message = userType === 'admin' ? `🔑 Bem-vindo(a), ${userName}! Acesso de Administrador.` : `👋 Bem-vindo(a), ${userName}!`;
+                        UI.showNotification(message, userType === 'admin' ? 'success' : 'info');
+                        localStorage.setItem('welcomeMessageShown', 'true');
+                    }, 500);
+                }
+            },
+            showNotification: (message, type = 'info') => {
+                const container = document.body;
+                const alertType = type === 'error' ? 'danger' : type;
+                const iconMap = { success: 'check-circle', warning: 'exclamation-triangle', danger: 'times-circle', info: 'info-circle' };
+                const icon = iconMap[type] || 'info-circle';
+                const notification = document.createElement('div');
+                notification.className = `alert alert-${alertType} alert-dismissible fade show shadow-lg`;
+                notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000;';
+                notification.innerHTML = `<i class="fas fa-${icon} me-2"></i> ${message} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+                container.appendChild(notification);
+                setTimeout(() => bootstrap.Alert.getOrCreateInstance(notification)?.close(), 5000);
+            },
+            toggleSidebar: () => {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('show');
+                    overlay.classList.toggle('show');
+                    document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+                } else {
+                    document.getElementById('sidebar').classList.toggle('collapsed');
+                    document.getElementById('mainContent').classList.toggle('expanded');
+                }
+            }
+        };
+        
+        // --- INITIALIZATION AND EVENT LISTENERS ---
+        const App = {
+            initialize: async () => {
+                console.log('🚀 Iniciando ResolvTask Dashboard...');
+                if (!Auth.checkAuth()) {
+                    Auth.redirectToLogin();
+                    return;
+                }
+                
+                UI.showAuthenticatedInterface();
+                UI.updateUserInfo();
+                App.setupEventListeners();
+                
+                try {
+                    await loadAndApplyThemeColor();
+                    UI.applyUIPermissions();
+                    await loadTasks();
+                    console.log('✅ Aplicação inicializada com sucesso.');
+                } catch (error) {
+                    console.error('❌ Erro fatal durante a inicialização:', error);
+                    UI.showNotification('❌ Erro crítico ao carregar o sistema.', 'error');
+                }
+            },
+            setupEventListeners: () => {
+                document.getElementById('logoutButton').addEventListener('click', Auth.logout);
+                document.getElementById('sidebarToggle').addEventListener('click', UI.toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', UI.toggleSidebar);
+                
+                const datesWrapper = document.querySelector('.timeline-dates-wrapper');
+                const gridWrapper = document.querySelector('.timeline-grid-wrapper');
+                const rowsContainer = document.getElementById('timelineRows');
+
+                datesWrapper?.addEventListener('scroll', () => syncHorizontalScroll(datesWrapper, gridWrapper));
+                gridWrapper?.addEventListener('scroll', () => {
+                    syncHorizontalScroll(gridWrapper, datesWrapper);
+                    syncVerticalScroll(gridWrapper, rowsContainer);
+                });
+                rowsContainer?.addEventListener('scroll', () => syncVerticalScroll(rowsContainer, gridWrapper));
+            }
+        };
+
+        // ===================================
+        // FUNÇÕES DE TEMA DINÂMICO
+        // ===================================
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : null;
+        }
+
+        function darkenColor(hex, percent) {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return hex;
+            let { r, g, b } = rgb;
+            r = Math.floor(r * (100 - percent) / 100);
+            g = Math.floor(g * (100 - percent) / 100);
+            b = Math.floor(b * (100 - percent) / 100);
+            r = (r < 255) ? r : 255; g = (g < 255) ? g : 255; b = (b < 255) ? b : 255;
+            const toHex = c => ("0" + c.toString(16)).slice(-2);
+            return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+        }
+
+        async function loadAndApplyThemeColor() {
+            try {
+                const response = await fetch(THEME_URL);
+                if (!response.ok) throw new Error(`Falha ao buscar tema: ${response.statusText}`);
+                const data = await response.json();
+                if (data && data[0] && data[0].primary_color) {
+                    const primaryColor = data[0].primary_color;
+                    const darkPrimaryColor = darkenColor(primaryColor, 15);
+                    const primaryRgb = hexToRgb(primaryColor);
+                    const root = document.documentElement;
+                    root.style.setProperty('--primary-color', primaryColor);
+                    root.style.setProperty('--primary-color-dark', darkPrimaryColor);
+                    if (primaryRgb) {
+                        root.style.setProperty('--primary-color-shadow', `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.3)`);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar o tema:', error);
+            }
+        }
+        
+        // ===================================
+        // FUNÇÕES UTILITÁRIAS
+        // ===================================
+        function showCurrentDate() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('pt-BR', options);
+        }
+
+        function createSafeDate(dateStr) {
+            if (!dateStr || typeof dateStr !== 'string') return new Date();
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        };
+
+        function formatDate(date) {
+            if (!date || isNaN(date.getTime())) return 'N/A';
+            return date.toLocaleDateString('pt-BR', {timeZone: 'UTC'});
+        }
+
+        function getWeekStart(date) { const d = new Date(date); d.setDate(d.getDate() - d.getDay()); return d; }
+        function getMonthStart(date) { return new Date(date.getFullYear(), date.getMonth(), 1); }
+        function addDays(date, days) { const result = new Date(date); result.setDate(result.getDate() + days); return result; }
+        function addMonths(date, months) { const result = new Date(date); result.setMonth(result.getMonth() + months); return result; }
+        function isWeekend(date) { const day = date.getDay(); return day === 0 || day === 6; }
+        
+        // ===================================
+        // NOVAS FUNÇÕES DE COR E DATA (LÓGICA ATUALIZADA)
+        // ===================================
+
+        // NOVO: Função para normalizar os dados da tarefa para um padrão consistente
+        function normalizeTask(task) {
+            return {
+                id: task.id,
+                type: task.type,
+                description: task.description,
+                status: task.status,
+                project: task.project,
+                client: task.client,
+                company: task.company,
+                responsible: task.responsible,
+                // Normaliza campos que podem ter nomes diferentes (maiúsculas/minúsculas)
+                startDate: task.startDate || task.startdate,
+                endDate: task.EndDate || task.endDate || task.enddate,
+                estimatedHours: task.estimatedHours || task.estimatedhours,
+                actualHours: task.actualHours || task.actualhours,
+                deviation: task.deviation,
+                completionDate: task.completionDate || task.completiondate,
+                hora_quebrada_1: task.hora_quebrada_1,
+                hora_quebrada_2: task.Hora_quebrada_2 || task.hora_quebrada_2, // Trata o 'H' maiúsculo
+                aguadando_aprovacao: task.aguadando_aprovacao,
+                motivo_recusa: task.motivo_recusa
+            };
+        }
+        
+        const companyColorPalette = ['#6f42c1', '#d63384', '#fd7e14', '#20c997', '#0dcaf0', '#e74c3c', '#3498db', '#9b59b6', '#e67e22', '#1abc9c', '#34495e', '#f1c40f', '#2ecc71', '#d35400', '#8e44ad', '#16a085'];
+        let companyColorCache = {};
+        let nextColorIndex = 0;
+
+        function getCompanyColor(companyName) {
+            if (!companyName) return { primary: '#6c757d', dark: '#5a6268' };
+            if (companyColorCache[companyName]) return companyColorCache[companyName];
+            
+            const primary = companyColorPalette[nextColorIndex % companyColorPalette.length];
+            const dark = darkenColor(primary, 15);
+            const color = { primary, dark };
+            companyColorCache[companyName] = color;
+            nextColorIndex++;
+            return color;
+        }
+
+        function parseHoraQuebrada(hqString) {
+            if (!hqString || typeof hqString !== 'string' || !hqString.includes(',')) return null;
+            const [dateStr, hoursStr] = hqString.split(',');
+            const hours = parseFloat(hoursStr);
+            if (isNaN(hours) || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return null;
+            const date = createSafeDate(dateStr.trim());
+            if (isNaN(date.getTime())) return null;
+            return { date, hours };
+        }
+        
+        function deconstructTask(task) {
+            const virtualTasks = [];
+            const hq1 = parseHoraQuebrada(task.hora_quebrada_1);
+            const hq2 = parseHoraQuebrada(task.hora_quebrada_2);
+
+            if (hq1) {
+                virtualTasks.push({ type: 'hora_quebrada', startDate: hq1.date, endDate: hq1.date, hours: hq1.hours, originalTask: task });
+            }
+            if (hq2) {
+                virtualTasks.push({ type: 'hora_quebrada', startDate: hq2.date, endDate: hq2.date, hours: hq2.hours, originalTask: task });
+            }
+
+            if (virtualTasks.length === 0) {
+                const startDate = task.startDate ? createSafeDate(task.startDate) : new Date();
+                const endDate = task.endDate ? createSafeDate(task.endDate) : startDate;
+                virtualTasks.push({ type: 'standard', startDate, endDate, hours: parseFloat(task.estimatedHours || 0), originalTask: task });
+            }
+            return virtualTasks;
+        }
+
+        function getStatusClass(status) {
+            if (!status) return 'desconhecido';
+            return status.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        }
+
+        function getResponsibleColor(responsible) { return '#6f42c1'; }
+        function getResponsibleInitials(name) { if (!name) return ''; return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(); }
+        
+        function parseResponsible(responsibleString) { 
+            const name = (responsibleString || '').trim(); 
+            return { name, initials: getResponsibleInitials(name) }; 
+        }
+
+        function calculateTaskProgress(task) {
+            const virtualTasks = deconstructTask(task);
+            const startDate = virtualTasks[0].startDate; 
+            const endDate = virtualTasks[virtualTasks.length - 1].endDate; 
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (task.status === 'CONCLUÍDO') return 100;
+            if (today >= endDate) return 100;
+            if (today < startDate || task.status === 'NÃO INICIADO') return 0;
+            
+            const totalDuration = endDate.getTime() - startDate.getTime();
+            if (totalDuration <= 0) return 0;
+
+            const elapsedDuration = today.getTime() - startDate.getTime();
+            return Math.min(100, Math.max(0, (elapsedDuration / totalDuration) * 100));
+        }
+
+        // ===================================
+        // FUNÇÕES DE NAVEGAÇÃO DA TIMELINE
+        // ===================================
+        function updateCurrentPeriodDisplay() {
+            const periodEl = document.getElementById('currentPeriod');
+            if (!periodEl) return;
+            
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            
+            switch (currentView) {
+                case 'week':
+                    const weekStart = getWeekStart(currentStartDate);
+                    const weekEnd = addDays(weekStart, 6);
+                    periodEl.textContent = `${weekStart.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`;
+                    break;
+                case 'month':
+                    periodEl.textContent = currentStartDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    break;
+                case 'quarter':
+                    const quarter = Math.floor(currentStartDate.getMonth() / 3) + 1;
+                    periodEl.textContent = `Q${quarter} ${currentStartDate.getFullYear()}`;
+                    break;
+            }
+        }
+
+        function debugWebhook() { 
+            UI.showNotification('🔌 Testando conexão com o servidor...', 'info');
+            setTimeout(() => {
+                UI.showNotification('✅ Conexão com o servidor está funcionando corretamente!', 'success');
+            }, 1000);
+        }
+
+        function reloadColaboradores() { 
+            UI.showNotification('🔄 Recarregando lista de colaboradores...', 'info');
+            setTimeout(() => {
+                UI.showNotification('✅ Lista de colaboradores atualizada!', 'success');
+            }, 1000);
+        }
+
+        function refreshCurrentPage() { 
+            loadTasks();
+            UI.showNotification('🔄 Página atualizada!', 'info');
+        }
+
+        function navigateTimeline(direction) {
+            switch (currentView) {
+                case 'week': currentStartDate = addDays(currentStartDate, direction * 7); break;
+                case 'month': currentStartDate = addMonths(currentStartDate, direction); break;
+                case 'quarter': currentStartDate = addMonths(currentStartDate, direction * 3); break;
+            }
+            updateCurrentPeriodDisplay();
+            generateTimeline();
+        }
+
+        function goToToday() {
+            currentStartDate = new Date();
+            updateCurrentPeriodDisplay();
+            generateTimeline();
+        }
+
+        // ===================================
+        // CARREGAMENTO E FILTROS
+        // ===================================
+        let tasks = [];
+        let colaboradores = [];
+        let filteredTasks = [];
+        let currentView = 'month';
+        let currentStartDate = new Date();
+
+        async function loadTasks() {
+            try {
+                UI.showNotification('🔄 Carregando dados do servidor...', 'info');
+                const response = await fetch(WEBHOOK_GET_URL);
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const allTasksRaw = await response.json();
+                
+                // CORREÇÃO: Normalizar os dados e depois filtrar os cancelados
+                tasks = allTasksRaw
+                    .map(normalizeTask)
+                    .filter(task => task.aguadando_aprovacao !== 'canceled');
+
+                UI.showNotification(`✅ ${tasks.length} tarefas carregadas!`, 'success');
+                
+                updateFilters();
+                applyUserRoleFilter();
+                applyFilters();
+            } catch (error) {
+                console.error('❌ Erro ao carregar tarefas:', error);
+                UI.showNotification(`❌ Erro ao carregar dados: ${error.message}`, 'error');
+                showEmptyState();
+            }
+        }
+
+        function updateFilters() {
+            if (!tasks || tasks.length === 0) return;
+
+            const responsibleFilter = document.getElementById('responsibleFilter');
+            const projectFilter = document.getElementById('projectFilter');
+            const typeFilter = document.getElementById('typeFilter');
+            const clientFilter = document.getElementById('clientFilter');
+            const companyFilter = document.getElementById('companyFilter');
+
+            const responsibles = [...new Set(tasks.map(t => t.responsible ? parseResponsible(t.responsible).name : null).filter(Boolean))].sort();
+            responsibleFilter.innerHTML = '<option value="">Todos os responsáveis</option>' + responsibles.map(r => `<option value="${r}">${r}</option>`).join('');
+
+            const projects = [...new Set(tasks.map(t => t.project).filter(Boolean))].sort();
+            projectFilter.innerHTML = '<option value="">Todos os projetos</option>' + projects.map(p => `<option value="${p}">${p}</option>`).join('');
+            
+            const clients = [...new Set(tasks.map(t => t.client).filter(Boolean))].sort();
+            clientFilter.innerHTML = '<option value="">Todos os clientes</option>' + clients.map(c => `<option value="${c}">${c}</option>`).join('');
+            
+            const companies = [...new Set(tasks.map(t => t.company).filter(Boolean))].sort();
+            companyFilter.innerHTML = '<option value="">Todas as empresas</option>' + companies.map(c => `<option value="${c}">${c}</option>`).join('');
+
+            const types = [...new Set(tasks.map(t => t.type).filter(Boolean))].sort();
+            typeFilter.innerHTML = '<option value="">Todos os tipos</option>' + types.map(t => `<option value="${t}">${t}</option>`).join('');
+        }
+
+        function applyUserRoleFilter() {
+            const userData = Auth.getUserData();
+            if (!userData) return;
+
+            const userType = (userData.tipo || 'colaborador').toLowerCase();
+            const responsibleFilter = document.getElementById('responsibleFilter');
+
+            if (userType === 'colaborador') {
+                const userName = (userData.nome || '').trim();
+                console.log(`👤 Aplicando filtro para colaborador: ${userName}`);
+                
+                const userOptionExists = [...responsibleFilter.options].some(opt => opt.value === userName);
+
+                if (userOptionExists) {
+                    responsibleFilter.value = userName;
+                    responsibleFilter.disabled = true;
+                } else {
+                    console.warn(`⚠️ Usuário '${userName}' não encontrado na lista de responsáveis. Nenhuma tarefa será exibida.`);
+                    responsibleFilter.value = '';
+                    responsibleFilter.disabled = true;
+                }
+            } else {
+                console.log('👑 Acesso de administrador. Filtro de responsável habilitado.');
+                responsibleFilter.disabled = false;
+            }
+        }
+
+        function applyFilters() {
+            const responsibleFilterValue = document.getElementById('responsibleFilter').value;
+            const projectFilterValue = document.getElementById('projectFilter').value;
+            const clientFilterValue = document.getElementById('clientFilter').value;
+            const companyFilterValue = document.getElementById('companyFilter').value;
+            const statusFilterValue = document.getElementById('statusFilter').value;
+            const typeFilterValue = document.getElementById('typeFilter').value;
+            const startDateFilterValue = document.getElementById('startDateFilter').value;
+            const endDateFilterValue = document.getElementById('endDateFilter').value;
+
+            filteredTasks = tasks.filter(task => {
+                const parsedResponsibleName = task.responsible ? parseResponsible(task.responsible).name : '';
+                const matchResponsible = !responsibleFilterValue || parsedResponsibleName === responsibleFilterValue;
+                const matchProject = !projectFilterValue || task.project === projectFilterValue;
+                const matchClient = !clientFilterValue || task.client === clientFilterValue;
+                const matchCompany = !companyFilterValue || task.company === companyFilterValue;
+                const matchStatus = !statusFilterValue || task.status === statusFilterValue;
+                const matchType = !typeFilterValue || task.type === typeFilterValue;
+                
+                // O código agora usa os nomes de propriedade normalizados (camelCase)
+                const taskStartDate = task.startDate ? createSafeDate(task.startDate) : null;
+                const taskEndDate = task.endDate ? createSafeDate(task.endDate) : taskStartDate;
+                const filterStartDate = startDateFilterValue ? createSafeDate(startDateFilterValue) : null;
+                const filterEndDate = endDateFilterValue ? createSafeDate(endDateFilterValue) : null;
+
+                let matchDates = true;
+                if (filterStartDate && taskEndDate) {
+                    matchDates = matchDates && (taskEndDate >= filterStartDate);
+                }
+                if (filterEndDate && taskStartDate) {
+                    matchDates = matchDates && (taskStartDate <= filterEndDate);
+                }
+                
+                return matchResponsible && matchProject && matchClient && matchCompany && matchStatus && matchType && matchDates;
+            });
+            generateTimeline();
+        }
+
+        function clearFilters() {
+            const userData = Auth.getUserData();
+            const userType = (userData?.tipo || 'colaborador').toLowerCase();
+
+            if (userType === 'admin') {
+                document.getElementById('responsibleFilter').value = '';
+            }
+
+            document.getElementById('projectFilter').value = '';
+            document.getElementById('clientFilter').value = '';
+            document.getElementById('companyFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('typeFilter').value = '';
+            document.getElementById('startDateFilter').value = '';
+            document.getElementById('endDateFilter').value = '';
+            applyFilters();
+            UI.showNotification('🔄 Filtros removidos.', 'info');
+        }
+
+        function setView(view) {
+            currentView = view;
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            updateCurrentPeriodDisplay();
+            generateTimeline();
+        }
+
+        // ===================================
+        // GERAÇÃO DA TIMELINE - LÓGICA ATUALIZADA
+        // ===================================
+        function showEmptyState() {
+             document.getElementById('emptyState').style.display = 'flex';
+             document.getElementById('timelineRows').innerHTML = '';
+             document.getElementById('timelineGrid').innerHTML = '';
+             document.getElementById('timelineDates').innerHTML = '';
+        }
+        function hideEmptyState() {
+            document.getElementById('emptyState').style.display = 'none';
+        }
+
+        function generateTimeline() {
+            if (filteredTasks.length === 0) { showEmptyState(); return; }
+            hideEmptyState();
+            generateTimelineDates();
+            generateTimelineRows();
+        }
+        
+        function getTimelineViewDates() {
+             let startDate, endDate;
+             switch (currentView) {
+                 case 'week': startDate = getWeekStart(currentStartDate); endDate = addDays(startDate, 6); break;
+                 case 'month': startDate = getMonthStart(currentStartDate); endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0); break;
+                 case 'quarter': startDate = new Date(currentStartDate.getFullYear(), Math.floor(currentStartDate.getMonth() / 3) * 3, 1); endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 3, 0); break;
+             }
+             return { startDate, endDate };
+        }
+
+        function generateTimelineDates() {
+            const datesContainer = document.getElementById('timelineDates');
+            datesContainer.innerHTML = '';
+            const { startDate, endDate } = getTimelineViewDates();
+            const dayIncrement = currentView === 'quarter' ? 7 : 1;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            for (let date = new Date(startDate); date <= endDate; date = addDays(date, dayIncrement)) {
+                const dateCol = document.createElement('div');
+                dateCol.className = 'date-column slide-in-right';
+                
+                const d1 = new Date(date); d1.setHours(0,0,0,0);
+                const d2 = new Date(today); d2.setHours(0,0,0,0);
+                if (d1.getTime() === d2.getTime()) {
+                    dateCol.classList.add('today');
+                }
+
+                if (isWeekend(date) && currentView !== 'quarter') dateCol.classList.add('weekend');
+
+                if (currentView === 'quarter') {
+                    const weekNum = Math.ceil(((date - startDate) / (1000 * 60 * 60 * 24)) / 7) + 1;
+                    dateCol.innerHTML = `<div class="date-weekday">SEM ${weekNum}</div><div class="date-day">${date.getDate()}</div><div class="date-month">${date.toLocaleDateString('pt-BR', { month: 'short' })}</div>`;
+                } else {
+                    dateCol.innerHTML = `<div class="date-weekday">${date.toLocaleDateString('pt-BR', { weekday: 'short' })}</div><div class="date-day">${date.getDate()}</div><div class="date-month">${date.toLocaleDateString('pt-BR', { month: 'short' })}</div>`;
+                }
+                datesContainer.appendChild(dateCol);
+            }
+        }
+
+        function generateTimelineRows() {
+            const rowsContainer = document.getElementById('timelineRows');
+            const gridContainer = document.getElementById('timelineGrid');
+            rowsContainer.innerHTML = ''; gridContainer.innerHTML = '';
+
+            const viewDates = getTimelineViewDates();
+            if (!viewDates || !viewDates.startDate) {
+                console.error("Datas da timeline não puderam ser determinadas. Abortando renderização.");
+                showEmptyState();
+                return;
+            }
+            const { startDate: timelineStart, endDate: timelineEnd } = viewDates;
+            const dayIncrement = currentView === 'quarter' ? 7 : 1;
+
+            const tasksByResponsibleName = {};
+            filteredTasks.forEach(task => {
+                const nameKey = (task.responsible && parseResponsible(task.responsible).name) || 'Não atribuído';
+                if (!tasksByResponsibleName[nameKey]) tasksByResponsibleName[nameKey] = [];
+                tasksByResponsibleName[nameKey].push(task);
+            });
+
+            if (Object.keys(tasksByResponsibleName).length === 0) { showEmptyState(); return; }
+
+            const responsibleNames = Object.keys(tasksByResponsibleName).sort();
+            responsibleNames.forEach((responsibleName, index) => {
+                const responsibleTasks = tasksByResponsibleName[responsibleName];
+                if (index > 0) {
+                    rowsContainer.appendChild(document.createElement('div')).className = 'timeline-row-separator';
+                    gridContainer.appendChild(document.createElement('div')).className = 'timeline-grid-separator';
+                }
+
+                // O código agora usa os nomes de propriedade normalizados (camelCase)
+                const totalEstimatedHours = responsibleTasks.reduce((sum, t) => sum + parseFloat(t.estimatedHours || 0), 0);
+                const totalActualHours = responsibleTasks.reduce((sum, t) => sum + parseFloat(t.actualHours || 0), 0);
+                const totalDeviation = responsibleTasks.reduce((sum, t) => sum + parseFloat(t.deviation || 0), 0);
+                
+                const rowHeader = document.createElement('div');
+                rowHeader.className = 'row-header fade-in';
+                rowHeader.innerHTML = `
+                    <div class="responsible-avatar" style="background-color: ${getResponsibleColor(responsibleName)}">${getResponsibleInitials(responsibleName)}</div>
+                    <div class="responsible-info">
+                        <h6>${responsibleName}</h6>
+                        <small>Total de ${responsibleTasks.length} tarefa(s)</small>
+                        <div class="responsible-summary-stats mt-2">
+                            <div>Estimadas: <span class="text-primary">${totalEstimatedHours.toFixed(1)}h</span></div>
+                            <div>Realizadas: <span class="text-dark">${totalActualHours.toFixed(1)}h</span></div>
+                            <div>Desvio: <span class="${totalDeviation > 0 ? 'text-danger' : totalDeviation < 0 ? 'text-success' : 'text-muted'}">${totalDeviation >= 0 ? '+' : ''}${totalDeviation.toFixed(1)}h</span></div>
+                        </div>
+                    </div>
+                `;
+                rowsContainer.appendChild(rowHeader);
+                
+                const rowContent = document.createElement('div');
+                rowContent.className = 'row-content';
+                const columnCount = Math.ceil((timelineEnd - timelineStart) / (1000 * 60 * 60 * 24 * dayIncrement)) + 1;
+                for (let i = 0; i < columnCount; i++) rowContent.appendChild(document.createElement('div')).className = 'time-column';
+
+                const taskLevels = [];
+                responsibleTasks.forEach(task => {
+                    const virtualTasks = deconstructTask(task);
+                    virtualTasks.forEach(vTask => {
+                        if (vTask.startDate <= timelineEnd && vTask.endDate >= timelineStart) {
+                            const level = findAvailableLevel(taskLevels, vTask.startDate, vTask.endDate);
+                            const taskBar = createIndividualTaskBar(vTask, timelineStart, dayIncrement, level);
+                            rowContent.appendChild(taskBar);
+                        }
+                    });
+                });
+                gridContainer.appendChild(rowContent);
+            });
+        }
+        
+        function findAvailableLevel(levels, taskStart, taskEnd) {
+            let level = 0;
+            const taskEndBoundary = addDays(taskEnd, 1);
+            while (true) {
+                if (!levels[level]) {
+                    levels[level] = [];
+                    break;
+                }
+                const hasConflict = levels[level].some(existingTask => (taskStart < existingTask.end && taskEndBoundary > existingTask.start));
+                if (!hasConflict) break;
+                level++;
+            }
+            levels[level].push({ start: taskStart, end: taskEndBoundary });
+            return level;
+        }
+
+        function createIndividualTaskBar(vTask, timelineStart, dayIncrement, level) {
+            const task = vTask.originalTask;
+            const pixelsPerColumn = 180;
+            const startOffsetDays = (vTask.startDate.getTime() - timelineStart.getTime()) / (1000 * 60 * 60 * 24);
+            const durationDays = Math.max(1, (vTask.endDate.getTime() - vTask.startDate.getTime()) / (1000 * 60 * 60 * 24) + 1);
+
+            const left = (startOffsetDays / dayIncrement) * pixelsPerColumn;
+            const width = (durationDays / dayIncrement) * pixelsPerColumn - 5;
+            
+            const top = 10 + (level * 55); 
+
+            const taskBar = document.createElement('div');
+            taskBar.className = `task-bar status-${getStatusClass(task.status)}`;
+            taskBar.style.left = `${left}px`;
+            taskBar.style.width = `${Math.max(width, 30)}px`;
+            taskBar.style.top = `${top}px`;
+            
+            const companyColor = getCompanyColor(task.company);
+            taskBar.style.background = `linear-gradient(135deg, ${companyColor.primary} 0%, ${companyColor.dark} 100%)`;
+            
+            taskBar.innerHTML = `
+                <div class="task-info-line"><span class="task-description">${task.description || 'Tarefa'}</span></div>
+                <div class="task-info-line"><div class="task-hours-info"><span>${vTask.hours.toFixed(1)}h</span></div></div>
+                <div class="task-progress" style="width: ${calculateTaskProgress(task)}%;"></div>
+            `;
+            
+            taskBar.addEventListener('mouseenter', (e) => showTooltip(e, task, vTask));
+            taskBar.addEventListener('mouseleave', hideTooltip);
+            taskBar.addEventListener('mousemove', (e) => updateTooltipPosition(e));
+            return taskBar;
+        }
+
+        // ===================================
+        // TOOLTIP E INTERAÇÕES
+        // ===================================
+        function showTooltip(event, originalTask, vTask) {
+            const tooltip = document.getElementById('taskTooltip');
+            const task = originalTask;
+            
+            tooltip.querySelector('h6').textContent = task.description || 'Sem descrição';
+            
+            document.getElementById('tooltipProject').textContent = task.project || 'N/A';
+            document.getElementById('tooltipClient').textContent = task.client || 'N/A';
+            document.getElementById('tooltipResponsible').textContent = task.responsible || 'N/A';
+            
+            const statusEl = document.getElementById('tooltipStatus');
+            statusEl.textContent = task.status || 'N/A';
+            statusEl.className = `tooltip-status status-${getStatusClass(task.status || '')}`;
+            
+            document.getElementById('tooltipPeriod').textContent = `${formatDate(vTask.startDate)} - ${formatDate(vTask.endDate)}`;
+            
+            const progress = calculateTaskProgress(task);
+            document.getElementById('tooltipProgress').textContent = `${progress.toFixed(0)}%`;
+            document.getElementById('tooltipProgressBar').style.width = `${progress}%`;
+            
+            document.getElementById('tooltipEstimated').textContent = `${vTask.hours.toFixed(1)}h`;
+            // O código agora usa o nome de propriedade normalizado (camelCase)
+            document.getElementById('tooltipActual').textContent = `${parseFloat(task.actualHours || 0).toFixed(1)}h`;
+            
+            const deviation = parseFloat(task.deviation || 0);
+            const deviationEl = document.getElementById('tooltipDeviation');
+            deviationEl.textContent = `${deviation >= 0 ? '+' : ''}${deviation.toFixed(1)}h`;
+            deviationEl.style.color = deviation > 0 ? 'var(--danger-color)' : deviation < 0 ? 'var(--success-color)' : 'var(--secondary-color)';
+            
+            tooltip.style.display = 'block';
+            updateTooltipPosition(event);
+        }
+
+        function hideTooltip() { document.getElementById('taskTooltip').style.display = 'none'; }
+        function updateTooltipPosition(event) {
+             const tooltip = document.getElementById('taskTooltip');
+             const offset = 15;
+             let x = event.pageX + offset;
+             let y = event.pageY + offset;
+
+             if (x + tooltip.offsetWidth > window.innerWidth) {
+                 x = event.pageX - tooltip.offsetWidth - offset;
+             }
+             if (y + tooltip.offsetHeight > window.innerHeight) {
+                 y = event.pageY - tooltip.offsetHeight - offset;
+             }
+
+             tooltip.style.left = `${x}px`;
+             tooltip.style.top = `${y}px`;
+        }
+
+        // ===================================
+        // SCROLL SYNC FUNCTIONS
+        // ===================================
+        function syncHorizontalScroll(scrollingElement, targetElement) { 
+            if(targetElement && scrollingElement) targetElement.scrollLeft = scrollingElement.scrollLeft; 
+        }
+        
+        function syncVerticalScroll(scrollingElement, targetElement) { 
+            if(targetElement && scrollingElement) targetElement.scrollTop = scrollingElement.scrollTop; 
+        }
+
+        // ===================================
+        // INICIALIZAÇÃO
+        // ===================================
+        document.addEventListener('DOMContentLoaded', async function() {
+            await App.initialize();
+            
+            // Auto-refresh a cada 5 minutos
+            setInterval(() => {
+                console.log('🔄 Auto-refresh da timeline...');
+                loadTasks();
+            }, 300000);
+        });
+    </script>
+</body>
+</html>
