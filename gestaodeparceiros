@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resolv Task - Gestão de Parceiros</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #0D6EFD;
+            --secondary-color: #17A2B8;
+            --accent-color: #6C757D;
+            --success-color: #28A745;
+            --warning-color: #FFC107;
+            --danger-color: #DC3545;
+            --light-bg: #F8F9FA;
+            --dark-text: #333333;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+            overflow-x: hidden;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        body.authenticated {
+            opacity: 1;
+        }
+
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+
+        .auth-loading .spinner-auth {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .sidebar {
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            background-color: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .sidebar-header .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+
+        .sidebar-header .text-light {
+            color: var(--dark-text) !important;
+            font-weight: 500;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+            flex-grow: 1;
+        }
+
+        .menu-item {
+            display: block;
+            padding: 15px 25px;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+        }
+
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        .top-nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-toggle {
+            display: block;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: var(--dark-text);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+        }
+
+        .stats-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .debug-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            margin-bottom: 1rem;
+        }
+
+        .filter-group label {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .sidebar-toggle {
+                display: block;
+            }
+
+            .sidebar-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: rgba(0, 0, 0, 0.5);
+                z-index: 1040;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.3s ease;
+            }
+
+            .sidebar-overlay.show {
+                opacity: 1;
+                visibility: visible;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="auth-loading" id="authLoading">
+        <div class="spinner-auth"></div>
+        <h4>ResolvTask</h4>
+        <p>Verificando autenticação...</p>
+    </div>
+
+    <div class="app-container" id="appContainer" style="display:none;">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="Resolv AI Logo" class="logo">
+                <br><br>
+                <h1 class="h5 mb-0"><i class="fas fa-bolt me-2"></i>Task</h1>
+                <small class="text-light">Sistema Integrado de Gestão</small>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu">
+            </div>
+        </nav>
+
+        <main class="main-content" id="mainContent">
+            <nav class="top-nav">
+                <div class="d-flex align-items-center">
+                    <button class="sidebar-toggle" id="sidebarToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h5 class="mb-0 ms-3" id="mainTitle">Gestão de Parceiros</h5>
+                </div>
+                <div class="user-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle fs-4 text-primary me-2"></i>
+                        <span class="fw-bold" id="userNameDisplay">Nome do Usuário</span>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm ms-2" id="logoutButton" title="Sair" onclick="redirectToLogin()">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <div id="main-content-wrapper">
+                <section class="content-section active" id="gestao-parceiros">
+                    <div class="row mb-4 align-items-end">
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="searchPartners" placeholder="Buscar parceiros..." oninput="filterPartners()">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="filterPartnerStatus" onchange="filterPartners()">
+                                <option value="">Todos os status</option>
+                                <option value="active">Ativos</option>
+                                <option value="inactive">Inativos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filterStartDate" class="form-label">Data Início</label>
+                            <input type="date" class="form-control" id="filterStartDate" onchange="filterPartners()">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filterEndDate" class="form-label">Data Final</label>
+                            <input type="date" class="form-control" id="filterEndDate" onchange="filterPartners()">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-primary">
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>CNPJ do Colaborador</th>
+                                    <th>Empresa do Colaborador</th>
+                                    <th>Valor/h Resolv AI</th>
+                                    <th>Valor/h Resolv</th>
+                                    <th>Valor/h Amigu</th>
+                                    <th>Horas/Mês</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="partnersTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-primary" id="totalPartners">0</h5>
+                                    <p class="card-text">Total de Parceiros</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-success" id="activePartners">0</h5>
+                                    <p class="card-text">Parceiros Ativos</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-info" id="totalPartnerHours">0</h5>
+                                    <p class="card-text">Horas no Período</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h5 class="card-title text-warning" id="totalPartnerValue">R$ 0,00</h5>
+                                    <p class="card-text">Valor no Período</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-calendar-alt me-2"></i>Fechamento Mensal de Horas</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="closingStartDate" class="form-label">Data Início</label>
+                                    <input type="date" class="form-control" id="closingStartDate">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="closingEndDate" class="form-label">Data Final</label>
+                                    <input type="date" class="form-control" id="closingEndDate">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="closingPartner" class="form-label">Parceiro</label>
+                                <select class="form-select" id="closingPartner">
+                                    <option value="">Todos os Parceiros</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary w-100" onclick="generateMonthlyClosing()">
+                                <i class="fas fa-file-excel me-2"></i>Gerar Fechamento Mensal
+                            </button>
+                            <div id="closingReportContainer" class="mt-3"></div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-building me-2"></i>Cadastro de Empresas</h5>
+                        </div>
+                        <div class="card-body">
+                            <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#companyModal">
+                                <i class="fas fa-plus me-2"></i>Cadastrar Nova Empresa
+                            </button>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-info">
+                                        <tr>
+                                            <th>Razão Social</th>
+                                            <th>CNPJ</th>
+                                            <th>Ações</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="companiesTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    </div>
+
+    <div class="debug-info" id="debugInfo" style="display: none;">
+        <h6>Debug Information:</h6>
+        <div id="debugContent"></div>
+    </div>
+
+    <div class="modal fade" id="partnerModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="partnerModalTitle">Novo Parceiro</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="partnerForm">
+                        <input type="hidden" id="partnerId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="partnerName" class="form-label">Nome do Parceiro *</label>
+                                    <input type="text" class="form-control" id="partnerName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="partnerCnpj" class="form-label">CNPJ do Colaborador</label>
+                                    <input type="text" class="form-control" id="partnerCnpj" placeholder="00.000.000/0001-00">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="partnerHourlyRateResolvAi" class="form-label">Valor/Hora (Resolv Ai - R$)</label>
+                                    <input type="number" class="form-control" id="partnerHourlyRateResolvAi" step="0.01" placeholder="0,00">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="partnerHourlyRateResolv" class="form-label">Valor/Hora (Resolv - R$)</label>
+                                    <input type="number" class="form-control" id="partnerHourlyRateResolv" step="0.01" placeholder="0,00">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="partnerHourlyRateAmigu" class="form-label">Valor/Hora (Amigu - R$)</label>
+                                    <input type="number" class="form-control" id="partnerHourlyRateAmigu" step="0.01" placeholder="0,00">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="partnerEmail" class="form-label">E-mail</label>
+                                    <input type="email" class="form-control" id="partnerEmail">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="partnerPhone" class="form-label">Telefone</label>
+                                    <input type="tel" class="form-control" id="partnerPhone" placeholder="(00) 00000-0000">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="partnerActive" checked>
+                                <label class="form-check-label" for="partnerActive">
+                                    Parceiro ativo
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="savePartner()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="companyModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="companyModalTitle">Cadastrar Nova Empresa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="companyForm">
+                        <input type="hidden" id="companyId">
+                        <div class="mb-3">
+                            <label for="companyName" class="form-label">Razão Social *</label>
+                            <input type="text" class="form-control" id="companyName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="companyCnpj" class="form-label">CNPJ *</label>
+                            <input type="text" class="form-control" id="companyCnpj" placeholder="00.000.000/0001-00" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveCompany()">Salvar Empresa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Confirmar Exclusão</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir este parceiro?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteButton">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmDeleteCompanyModal" tabindex="-1" aria-labelledby="confirmDeleteCompanyModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteCompanyModalLabel">Confirmar Exclusão de Empresa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Tem certeza que deseja excluir esta empresa?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteCompanyButton">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script>
+        /**
+         * Exibe uma notificação flutuante.
+         * @param {string} message - A mensagem a ser exibida.
+         * @param {string} type - O tipo de notificação (success, danger, warning, info).
+         */
+        function showNotification(message, type = 'success') {
+            const alertDiv = document.createElement('div');
+            alertDiv.id = `notification-${Date.now()}`;
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.top = '20px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            document.body.appendChild(alertDiv);
+
+            setTimeout(() => {
+                const notification = document.getElementById(alertDiv.id);
+                if (notification) {
+                    const bsAlert = new bootstrap.Alert(notification);
+                    bsAlert.close();
+                }
+            }, 5000);
+        }
+
+        // Funções de navegação do menu lateral
+        function setupNavigation() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('mainContent');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+            function toggleSidebar() {
+                sidebar.classList.toggle('collapsed');
+                mainContent.classList.toggle('expanded');
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('show');
+                    sidebarOverlay.classList.toggle('show');
+                }
+            }
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            }
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', toggleSidebar);
+            }
+        }
+
+        // --- LÓGICA DE AUTENTICAÇÃO E INJEÇÃO DO CONTEÚDO ---
+        const LOGIN_URL = 'https://n8n.dev.resolvrisk.com.br/webhook/login';
+
+        /**
+         * Verifica se as credenciais do usuário (email e nome) estão salvas no localStorage.
+         * @returns {boolean} Retorna true se o usuário estiver logado, caso contrário, false.
+         */
+        function checkLoginStatus() {
+            return localStorage.getItem('loggedInUserEmail') && localStorage.getItem('loggedInUserName');
+        }
+
+        /**
+         * Verifica o papel do usuário (administrador ou colaborador) com base nos dados do nó.
+         * @param {string} userEmail - O e-mail do usuário logado.
+         * @returns {string} Retorna 'admin' ou 'colaborador'.
+         */
+        function checkUserRole(userEmail) {
+            if (!processedDataFromNode || !processedDataFromNode.detalhesColaboradores) {
+                return 'colaborador';
+            }
+            const user = processedDataFromNode.detalhesColaboradores.find(col => col.email === userEmail);
+            return user ? user.tipo : 'colaborador';
+        }
+
+        /**
+         * Limpa os dados de autenticação e redireciona para a página de login.
+         */
+        function redirectToLogin() {
+            localStorage.clear();
+            window.location.href = LOGIN_URL;
+        }
+
+        /**
+         * Esconde a tela de carregamento, exibe o container da aplicação e preenche o nome e o menu do usuário.
+         */
+        function showAuthenticatedInterface() {
+            const authLoading = document.getElementById('authLoading');
+            const appContainer = document.getElementById('appContainer');
+
+            if (authLoading) {
+                authLoading.style.display = 'none';
+            }
+            if (appContainer) {
+                appContainer.style.display = 'block';
+                document.body.classList.add('authenticated');
+            }
+            const userEmail = localStorage.getItem('loggedInUserEmail');
+            const userName = localStorage.getItem('loggedInUserName');
+            const userNameElement = document.getElementById('userNameDisplay');
+
+            if (userNameElement) {
+                userNameElement.textContent = userName || 'Usuário';
+            }
+            renderMenu();
+        }
+
+        /**
+         * Renderiza o menu lateral com base no papel do usuário.
+         */
+        function renderMenu() {
+            const sidebarMenu = document.getElementById('sidebarMenu');
+            const userEmail = localStorage.getItem('loggedInUserEmail');
+            const userRole = checkUserRole(userEmail);
+
+            const menuItems = [{
+                id: 'dashboard',
+                text: 'Dashboard',
+                icon: 'fas fa-chart-line',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/resolv',
+                roles: ['admin', 'colaborador']
+            }, {
+                id: 'tasks',
+                text: 'Gerenciador de Tarefas',
+                icon: 'fas fa-tasks',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/gerenciadortarefas',
+                roles: ['admin', 'colaborador']
+            }, {
+                id: 'hours',
+                text: 'Gerenciador de Horas',
+                icon: 'fas fa-clock',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/taskhoras',
+                roles: ['admin', 'colaborador']
+            }, {
+                id: 'clients',
+                text: 'Gestão de Clientes',
+                icon: 'fas fa-handshake',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/gestao_clientes',
+                roles: ['admin']
+            }, {
+                id: 'gestao-parceiros',
+                text: 'Gestão de Parceiros',
+                icon: 'fas fa-handshake-angle',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/gestaodeparceiros',
+                roles: ['admin']
+            }, {
+                id: 'team',
+                text: 'Equipe',
+                icon: 'fas fa-users',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/equipe',
+                roles: ['admin']
+            }, {
+                id: 'settings',
+                text: 'Configurações',
+                icon: 'fas fa-cog',
+                url: 'https://n8n.dev.resolvrisk.com.br/webhook/conf',
+                roles: ['admin', 'colaborador']
+            }];
+
+            sidebarMenu.innerHTML = '';
+            menuItems.forEach(item => {
+                if (item.roles.includes(userRole)) {
+                    const isActive = window.location.href.includes(item.url);
+                    const link = document.createElement('a');
+                    link.href = item.url;
+                    link.className = `menu-item ${isActive ? 'active' : ''}`;
+                    link.setAttribute('data-menu', item.id);
+                    link.innerHTML = `<i class="${item.icon}"></i>${item.text}`;
+                    sidebarMenu.appendChild(link);
+                }
+            });
+        }
+
+        // --- DATA LOADING AND PROCESSING ---
+        let processedDataFromNode;
+        try {
+            // No N8N, esta linha irá injetar os dados do nó anterior.
+             processedDataFromNode = {{ JSON.stringify($json) }};
+            // Se houver um array, pegue o primeiro objeto
+            if (Array.isArray(processedDataFromNode)) {
+                 processedDataFromNode = processedDataFromNode[0] || {};
+            }
+        } catch (e) {
+            console.error("Não foi possível analisar os dados do n8n:", e);
+            processedDataFromNode = {}; // Fallback para um objeto vazio
+        }
+        
+        // *** CORREÇÃO PRINCIPAL ***
+        // A fonte de dados original `detalhesHoras` estava incorreta.
+        // Vamos agora construir uma fonte de dados confiável a partir de `rawDadosHoras`.
+        let allRawHours = processedDataFromNode.rawDadosHoras || [];
+        let allDetailedHours = allRawHours.map(rawEntry => {
+            const partnerDetail = (processedDataFromNode.detalhesColaboradores || []).find(p => p.nome === rawEntry.responsible);
+            let hourlyRate = 0;
+            if (partnerDetail) {
+                const company = rawEntry.company?.toLowerCase() || '';
+                if (company.includes('resolv ai') || company.includes('resolv tecnologia e inovação')) {
+                    hourlyRate = partnerDetail.valor_hora_resolv_ai;
+                } else if (company.includes('resolv') && !company.includes('ai')) {
+                    hourlyRate = partnerDetail.valor_hora_resolv;
+                } else if (company.includes('amigu')) {
+                    hourlyRate = partnerDetail.valor_hora_amigu;
+                } else {
+                    hourlyRate = partnerDetail.valor_hora_resolv_ai || partnerDetail.valor_hora_resolv || partnerDetail.valor_hora_amigu;
+                }
+            }
+            const hours = parseFloat(String(rawEntry.actualHours || '0').replace(',', '.')) || 0;
+
+            // Normalizando o objeto para o formato esperado pelo resto do script
+            return {
+                id: rawEntry.id,
+                responsavel: rawEntry.responsible,
+                horasReais: hours,
+                timestamp: rawEntry.startDate || rawEntry.timestamp, // Priorizar startDate que é mais consistente
+                projeto: rawEntry.project,
+                empresaContratante: rawEntry.company,
+                status: rawEntry.status,
+                custoTotal: hours * (parseFloat(hourlyRate) || 0),
+                description: rawEntry.description,
+            };
+        });
+        
+        // Mantém a filtragem por status CONCLUÍDO
+        const completedDetailedHours = allDetailedHours.filter(entry => {
+            return entry.status === 'CONCLUÍDO' || entry.status === 'CONCLUÃDO';
+        });
+
+        const companyNameMap = {
+            'Resolv Ai': 'RESOLV TECNOLOGIA E INOVAÇÃO LTDA',
+            'Resolv': 'RESOLV TECNOLOGIA E SERVIÇOS DE INTELIGENCIA EM DADOS LTDA ',
+            'Instituto Amigu': 'INSTITUTO AMIGU ENSINO DE TECNOLOGIA PARA FAMÍLIAS',
+            'Amigu': 'INSTITUTO AMIGU ENSINO DE TECNOLOGIA PARA FAMÍLIAS'
+        };
+
+        function getStandardCompanyName(shortName) {
+            return companyNameMap[shortName] || shortName;
+        }
+
+        function safeParse(value, defaultValue = 0) {
+            if (value === null || value === undefined || value === '') {
+                return defaultValue;
+            }
+            const parsed = parseFloat(String(value).replace(',', '.'));
+            return isNaN(parsed) ? defaultValue : parsed;
+        }
+
+        function parseDate(dateString) {
+            if (!dateString) return null;
+            
+            if (dateString instanceof Date) {
+                return isNaN(dateString.getTime()) ? null : dateString;
+            }
+            
+            const dateStr = String(dateString).trim();
+            if (!dateStr) return null;
+            
+            let parsedDate;
+            
+            if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                parsedDate = new Date(dateStr);
+            }
+            else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(dateStr)) {
+                const [day, month, year] = dateStr.split('/').map(num => parseInt(num, 10));
+                parsedDate = new Date(year, month - 1, day);
+            }
+            else if (/^\d{1,2}-\d{1,2}-\d{4}/.test(dateStr)) {
+                const [month, day, year] = dateStr.split('-').map(num => parseInt(num, 10));
+                parsedDate = new Date(year, month - 1, day);
+            }
+            else {
+                parsedDate = new Date(dateStr);
+            }
+            
+            return isNaN(parsedDate.getTime()) ? null : parsedDate;
+        }
+        
+        function isDateInRange(entryDateStr, startDateStr, endDateStr) {
+            const entryDate = parseDate(entryDateStr);
+            if (!entryDate) {
+                return false;
+            }
+
+            // Normalize the entry date to midnight to ignore time
+            entryDate.setHours(0, 0, 0, 0);
+
+            let afterStart = true;
+            let beforeEnd = true;
+
+            if (startDateStr) {
+                const startDate = parseDate(startDateStr);
+                if (startDate) {
+                    startDate.setHours(0, 0, 0, 0);
+                    afterStart = entryDate >= startDate;
+                }
+            }
+
+            if (endDateStr) {
+                const endDate = parseDate(endDateStr);
+                if (endDate) {
+                    endDate.setHours(0, 0, 0, 0);
+                    beforeEnd = entryDate <= endDate;
+                }
+            }
+
+            return afterStart && beforeEnd;
+        }
+
+
+        if (!processedDataFromNode || !processedDataFromNode.detalhesColaboradores) {
+            console.error('Dados não encontrados ou estrutura inválida. Inicializando com arrays vazios.');
+            showNotification('Erro ao carregar dados do nó anterior. Verifique a estrutura.', 'danger');
+            processedDataFromNode = {
+                detalhesColaboradores: [],
+                rawDadosColaboradores: [],
+                empresasCadastradas: [],
+                horasPorResponsavel: {},
+                custoTotalPorResponsavel: {},
+                detalhesHoras: []
+            };
+        }
+
+        let partnersData = (processedDataFromNode.detalhesColaboradores || [])
+            .map(detail => {
+                const rawData = (processedDataFromNode.rawDadosColaboradores || []).find(raw => raw.email === detail.email);
+                return {
+                    id: detail.id,
+                    name: detail.nome,
+                    cnpjColaborador: rawData?.cnpj || 'N/A',
+                    empresaColaborador: rawData?.razao_social || detail.nome,
+                    active: detail.status === true,
+                    valor_hora_resolv_ai: safeParse(detail.valor_hora_resolv_ai),
+                    valor_hora_resolv: safeParse(detail.valor_hora_resolv),
+                    valor_hora_amigu: safeParse(detail.valor_hora_amigu),
+                    email: detail.email || '',
+                    phone: rawData?.whatsapp || '',
+                    monthlyHours: 0,
+                    isColaborador: rawData ? rawData.colaborador !== false : true
+                };
+            })
+            .filter(partner => partner.isColaborador);
+
+        let companiesData = (processedDataFromNode.empresasCadastradas || []).map(item => ({
+            id: item.id,
+            name: item.razao_social,
+            cnpj: item.cnpj
+        }));
+
+        let filteredPartners = [];
+        let currentReportData = [];
+
+        function getCompanyCnpjByName(companyName) {
+            const company = companiesData.find(c => c.name === companyName);
+            return company ? company.cnpj : '';
+        }
+
+        function calculateHoursForPartnerInDateRange(partnerName, startDate, endDate) {
+            if (!completedDetailedHours) return 0;
+            
+            let totalHours = 0;
+            completedDetailedHours
+                .filter(entry => entry.responsavel === partnerName)
+                .forEach(entry => {
+                    if (isDateInRange(entry.timestamp, startDate, endDate)) {
+                        totalHours += safeParse(entry.horasReais);
+                    }
+                });
+            return totalHours;
+        }
+
+        function calculateCostForPartnerInDateRange(partnerName, startDate, endDate) {
+            if (!completedDetailedHours) return 0;
+            let totalCost = 0;
+
+            completedDetailedHours
+                .filter(entry => entry.responsavel === partnerName)
+                .forEach(entry => {
+                    if (isDateInRange(entry.timestamp, startDate, endDate)) {
+                        totalCost += safeParse(entry.custoTotal);
+                    }
+                });
+            return totalCost;
+        }
+
+        function renderPartnersTable(partnersToDisplay) {
+            const tableBody = document.getElementById('partnersTableBody');
+            if (!tableBody) return;
+
+            tableBody.innerHTML = '';
+            partnersToDisplay.forEach(partner => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${partner.name}</td>
+                    <td>${partner.cnpjColaborador}</td>
+                    <td>${partner.empresaColaborador}</td>
+                    <td>R$ ${partner.valor_hora_resolv_ai.toFixed(2)}</td>
+                    <td>R$ ${partner.valor_hora_resolv.toFixed(2)}</td>
+                    <td>R$ ${partner.valor_hora_amigu.toFixed(2)}</td>
+                    <td>${partner.monthlyHours.toFixed(2)}h</td>
+                    <td><span class="badge bg-${partner.active ? 'success' : 'secondary'}">${partner.active ? 'Ativo' : 'Inativo'}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editPartner('${partner.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+            });
+            updatePartnerStats(partnersToDisplay);
+            loadClosingPartnerSelect();
+        }
+
+        function updatePartnerStats(displayedPartners) {
+            const total = partnersData.length;
+            const active = partnersData.filter(p => p.active).length;
+            const totalHours = displayedPartners.reduce((sum, p) => sum + p.monthlyHours, 0);
+
+            let totalValue = 0;
+            const startDate = document.getElementById('filterStartDate')?.value;
+            const endDate = document.getElementById('filterEndDate')?.value;
+
+            displayedPartners.forEach(partner => {
+                totalValue += calculateCostForPartnerInDateRange(partner.name, startDate, endDate);
+            });
+            document.getElementById('totalPartners').textContent = total;
+            document.getElementById('activePartners').textContent = active;
+            document.getElementById('totalPartnerHours').textContent = `${totalHours.toFixed(2)}h`;
+            document.getElementById('totalPartnerValue').textContent = `R$ ${totalValue.toFixed(2)}`;
+        }
+
+        function filterPartners() {
+            const searchTerm = document.getElementById('searchPartners')?.value.toLowerCase() || '';
+            const statusFilter = document.getElementById('filterPartnerStatus')?.value || '';
+            const startDate = document.getElementById('filterStartDate')?.value;
+            const endDate = document.getElementById('filterEndDate')?.value;
+
+            let partnersWithHours = partnersData.map(partner => {
+                const totalHours = calculateHoursForPartnerInDateRange(partner.name, startDate, endDate);
+                return { ...partner,
+                    monthlyHours: totalHours
+                };
+            });
+
+            let filteredResults = partnersWithHours.filter(partner => {
+                const matchesSearch = partner.name.toLowerCase().includes(searchTerm) ||
+                    (partner.cnpjColaborador && partner.cnpjColaborador.includes(searchTerm)) ||
+                    (partner.empresaColaborador && partner.empresaColaborador.toLowerCase().includes(searchTerm));
+
+                let matchesStatus = true;
+                if (statusFilter === 'active') {
+                    matchesStatus = partner.active;
+                } else if (statusFilter === 'inactive') {
+                    matchesStatus = !partner.active;
+                }
+
+                return matchesSearch && matchesStatus;
+            });
+
+            renderPartnersTable(filteredResults);
+        }
+
+        function resetPartnerFilters() {
+            document.getElementById('searchPartners').value = '';
+            document.getElementById('filterPartnerStatus').value = '';
+            document.getElementById('filterStartDate').value = '';
+            document.getElementById('filterEndDate').value = '';
+            filterPartners();
+        }
+
+        function openPartnerModal(partner = null) {
+            const modal = document.getElementById('partnerModal');
+            const title = document.getElementById('partnerModalTitle');
+            const form = document.getElementById('partnerForm');
+            if (partner) {
+                title.textContent = 'Editar Parceiro';
+                document.getElementById('partnerId').value = partner.id;
+                document.getElementById('partnerName').value = partner.name;
+                document.getElementById('partnerCnpj').value = partner.cnpjColaborador !== 'N/A' ? partner.cnpjColaborador : '';
+                document.getElementById('partnerHourlyRateResolvAi').value = partner.valor_hora_resolv_ai || '';
+                document.getElementById('partnerHourlyRateResolv').value = partner.valor_hora_resolv || '';
+                document.getElementById('partnerHourlyRateAmigu').value = partner.valor_hora_amigu || '';
+                document.getElementById('partnerEmail').value = partner.email || '';
+                document.getElementById('partnerPhone').value = partner.phone || '';
+                document.getElementById('partnerActive').checked = partner.active;
+            } else {
+                title.textContent = 'Novo Parceiro';
+                form.reset();
+                document.getElementById('partnerId').value = '';
+                document.getElementById('partnerActive').checked = true;
+            }
+            new bootstrap.Modal(modal).show();
+        }
+
+        async function savePartner() {
+            const id = document.getElementById('partnerId').value;
+            const name = document.getElementById('partnerName').value;
+            const cnpjColaborador = document.getElementById('partnerCnpj').value || '';
+            const valor_hora_resolv_ai = safeParse(document.getElementById('partnerHourlyRateResolvAi').value);
+            const valor_hora_resolv = safeParse(document.getElementById('partnerHourlyRateResolv').value);
+            const valor_hora_amigu = safeParse(document.getElementById('partnerHourlyRateAmigu').value);
+            const email = document.getElementById('partnerEmail').value;
+            const phone = document.getElementById('partnerPhone').value;
+            const active = document.getElementById('partnerActive').checked;
+
+            if (!name) {
+                showNotification('Por favor, preencha o nome do parceiro.', 'danger');
+                return;
+            }
+
+            const isNew = id === '';
+            const action = isNew ? 'add_parceiro' : 'atualiza_colaborador';
+            
+            const partnerDataPayload = {
+                id: isNew ? `new_${Date.now()}` : id,
+                nome: name,
+                cnpj: cnpjColaborador,
+                email: email,
+                whatsapp: phone,
+                status: active,
+                valor_hora_resolv_ai: valor_hora_resolv_ai,
+                valor_hora_resolv: valor_hora_resolv,
+                valor_hora_amigu: valor_hora_amigu
+            };
+
+            const payload = { action, data: partnerDataPayload };
+            const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    const updatedPartnerData = {
+                        id: isNew ? (result.id || partnerDataPayload.id) : id,
+                        name: name,
+                        cnpjColaborador: cnpjColaborador || 'N/A',
+                        empresaColaborador: (isNew ? 'N/A' : partnersData.find(p => p.id === id)?.empresaColaborador) || 'N/A',
+                        active: active,
+                        valor_hora_resolv_ai: valor_hora_resolv_ai,
+                        valor_hora_resolv: valor_hora_resolv,
+                        valor_hora_amigu: valor_hora_amigu,
+                        email: email,
+                        phone: phone,
+                        monthlyHours: 0 
+                    };
+
+                    if (isNew) {
+                        partnersData.push(updatedPartnerData);
+                    } else {
+                        const index = partnersData.findIndex(p => p.id === id);
+                        if (index !== -1) {
+                            updatedPartnerData.monthlyHours = partnersData[index].monthlyHours;
+                            partnersData[index] = updatedPartnerData;
+                        }
+                    }
+
+                    filterPartners(); 
+                    showNotification(`Parceiro ${isNew ? 'criado' : 'atualizado'} com sucesso!`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    console.error('Erro no webhook:', errorText);
+                    showNotification(`Erro ao salvar parceiro.`, 'danger');
+                }
+            } catch (error) {
+                console.error('Erro na requisição:', error);
+                showNotification(`Erro na requisição: ${error.message}`, 'danger');
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('partnerModal')).hide();
+        }
+
+        function editPartner(id) {
+            const partner = partnersData.find(p => p.id === id);
+            if (partner) {
+                openPartnerModal(partner);
+            }
+        }
+
+        function deletePartner(id) {
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+            document.getElementById('confirmDeleteButton').onclick = async () => {
+                const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+                const payload = {
+                    action: 'delete_parceiro',
+                    data: {
+                        id: id
+                    }
+                };
+                try {
+                    const response = await fetch(webhookUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    if (response.ok) {
+                        partnersData = partnersData.filter(p => p.id !== id);
+                        filterPartners();
+                        showNotification('Parceiro excluído com sucesso!', 'success');
+                    } else {
+                        const errorText = await response.text();
+                        console.error('Erro ao deletar parceiro:', errorText);
+                        showNotification('Erro ao excluir parceiro.', 'danger');
+                    }
+                } catch (error) {
+                    console.error('Erro na requisição de exclusão:', error);
+                    showNotification(`Erro na requisição: ${error.message}`, 'danger');
+                }
+
+                confirmModal.hide();
+            };
+            confirmModal.show();
+        }
+
+        function loadClosingPartnerSelect() {
+            const select = document.getElementById('closingPartner');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Todos os Parceiros</option>';
+            partnersData.forEach(partner => {
+                const option = document.createElement('option');
+                option.value = partner.id;
+                option.textContent = partner.name;
+                select.appendChild(option);
+            });
+        }
+
+        function generateMonthlyClosing() {
+            const startDate = document.getElementById('closingStartDate').value;
+            const endDate = document.getElementById('closingEndDate').value;
+            const partnerId = document.getElementById('closingPartner').value;
+            const reportContainer = document.getElementById('closingReportContainer');
+            
+            console.clear(); // Limpa o console para uma nova geração
+            console.log('======================================================');
+            console.log('🚀 INICIANDO GERAÇÃO DE FECHAMENTO MENSAL DETALHADO 🚀');
+            console.log('======================================================');
+
+            if (!startDate || !endDate) {
+                showNotification('Por favor, selecione a Data Início e a Data Final.', 'danger');
+                console.error('ERRO: Datas de início e/ou fim não selecionadas.');
+                return;
+            }
+            console.log(`Período Selecionado: de ${startDate} a ${endDate}`);
+
+            const selectedPartnerObj = partnersData.find(p => p.id === partnerId);
+            const partnerName = selectedPartnerObj ? selectedPartnerObj.name : "Todos";
+            console.log(`Parceiro Selecionado: ${partnerName} (ID: ${partnerId || 'N/A'})`);
+
+            currentReportData = [];
+
+            if (!completedDetailedHours || completedDetailedHours.length === 0) {
+                reportContainer.innerHTML = '<div class="alert alert-warning">Nenhum detalhe de horas concluídas encontrado nos dados.</div>';
+                showNotification('Nenhum dado de horas concluídas encontrado.', 'info');
+                console.warn('AVISO: Array `completedDetailedHours` está vazio.');
+                return;
+            }
+            console.log(`Total de entradas concluídas para processar: ${completedDetailedHours.length}`);
+            
+            // 1. Filtrar por parceiro (se aplicável)
+            let filteredHoursByPartner = completedDetailedHours;
+            if (partnerId && selectedPartnerObj) {
+                filteredHoursByPartner = completedDetailedHours.filter(entry => entry.responsavel === selectedPartnerObj.name);
+                console.log(`Após filtro por parceiro "${selectedPartnerObj.name}", restaram ${filteredHoursByPartner.length} entradas.`);
+            }
+
+            // 2. Filtrar por data
+            console.log('\n--- Iniciando Filtro por Data ---');
+            const filteredHours = filteredHoursByPartner.filter(entry => {
+                if (!entry.responsavel) {
+                     console.log(`Entrada com ID ${entry.id} descartada (sem responsável).`);
+                     return false;
+                }
+                
+                const dateFields = [entry.timestamp, entry.data, entry.startDate, entry.completionDate, entry.created_at, entry.updated_at];
+                
+                for (const dateField of dateFields) {
+                    if (dateField && isDateInRange(dateField, startDate, endDate)) {
+                        console.log(`✅ ID ${entry.id} (${entry.responsavel}) INCLUÍDO. Data Válida: ${dateField}`);
+                        return true; // Encontrou uma data válida no período
+                    }
+                }
+                console.log(`❌ ID ${entry.id} (${entry.responsavel}) DESCARTADO. Nenhuma data no período. (Timestamp: ${entry.timestamp})`);
+                return false; // Nenhuma data no período foi encontrada
+            });
+            console.log(`--- Fim do Filtro por Data. Total de entradas no período: ${filteredHours.length} ---`);
+
+            // 3. Agrupar dados
+            console.log('\n--- Iniciando Agrupamento por Projeto/Empresa ---');
+            const groupedReportData = {};
+            filteredHours.forEach(entry => {
+                const partner = partnersData.find(p => p.name === entry.responsavel);
+                const projectKey = `${entry.responsavel}-${entry.projeto}-${getStandardCompanyName(entry.empresaContratante)}`;
+
+                if (!groupedReportData[projectKey]) {
+                    let hourlyRate = 0;
+                    if (partner) {
+                        const empresaContratante = entry.empresaContratante?.toLowerCase() || '';
+                        if (empresaContratante.includes('resolv ai') || empresaContratante.includes('resolv tecnologia e inovação')) {
+                            hourlyRate = partner.valor_hora_resolv_ai;
+                        } else if (empresaContratante.includes('resolv') && !empresaContratante.includes('ai')) {
+                            hourlyRate = partner.valor_hora_resolv;
+                        } else if (empresaContratante.includes('amigu')) {
+                            hourlyRate = partner.valor_hora_amigu;
+                        } else {
+                            hourlyRate = partner.valor_hora_resolv_ai || partner.valor_hora_resolv || partner.valor_hora_amigu;
+                        }
+                    }
+
+                    groupedReportData[projectKey] = {
+                        partnerName: entry.responsavel,
+                        partnerCnpj: partner ? partner.cnpjColaborador : 'N/A',
+                        project: entry.projeto || 'Projeto não especificado',
+                        hours: 0,
+                        companyContratante: getStandardCompanyName(entry.empresaContratante),
+                        companyContratanteCnpj: getCompanyCnpjByName(getStandardCompanyName(entry.empresaContratante)),
+                        hourlyRate: hourlyRate,
+                        value: 0,
+                        entries: []
+                    };
+                     console.log(`Novo grupo criado: ${projectKey}`);
+                }
+
+                const hours = safeParse(entry.horasReais);
+                groupedReportData[projectKey].hours += hours;
+                groupedReportData[projectKey].value += hours * groupedReportData[projectKey].hourlyRate;
+                groupedReportData[projectKey].entries.push({
+                    id: entry.id,
+                    timestamp: entry.timestamp,
+                    hours: hours,
+                    description: entry.description
+                });
+            });
+            console.log('--- Fim do Agrupamento ---');
+            
+            currentReportData = Object.values(groupedReportData);
+            
+            let totalHoursReport = currentReportData.reduce((sum, item) => sum + item.hours, 0);
+            let totalValueReport = currentReportData.reduce((sum, item) => sum + item.value, 0);
+
+            console.log('\n--- RESULTADO FINAL ---');
+            console.log('Dados Finais Agrupados:', currentReportData);
+            console.log(`Total de Horas do Relatório: ${totalHoursReport.toFixed(2)}h`);
+            console.log(`Valor Total do Relatório: R$ ${totalValueReport.toFixed(2)}`);
+            console.log(`Total de Linhas no Relatório (Projetos Agrupados): ${currentReportData.length}`);
+            console.log('======================================================');
+            console.log('✅ GERAÇÃO DE FECHAMENTO CONCLUÍDA ✅');
+            console.log('======================================================');
+
+            if (currentReportData.length === 0) {
+                reportContainer.innerHTML = '<div class="alert alert-info">Nenhum dado encontrado para o período e parceiro selecionados.</div>';
+                showNotification('Nenhum relatório gerado.', 'info');
+                return;
+            }
+
+            let tableHtml = `
+                <h6 class="mt-4">Relatório de Fechamento Mensal - ${formatDate(startDate)} a ${formatDate(endDate)}</h6>
+                <div class="alert alert-info">
+                    <strong>Estatísticas do Relatório:</strong><br>
+                    • Total de entradas processadas: ${filteredHours.length}<br>
+                    • Projetos únicos: ${currentReportData.length}<br>
+                    • Total de horas: ${totalHoursReport.toFixed(2)}h<br>
+                    • Valor total: R$ ${totalValueReport.toFixed(2)}
+                </div>
+                <table class="table table-bordered table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Parceiro</th>
+                            <th>CNPJ do Colaborador</th>
+                            <th>Projeto</th>
+                            <th>Horas</th>
+                            <th>Valor/Hora</th>
+                            <th>Empresa Contratante</th>
+                            <th>CNPJ da Empresa Contratante</th>
+                            <th>Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            currentReportData.forEach(row => {
+                tableHtml += `
+                    <tr>
+                        <td>${row.partnerName}</td>
+                        <td>${row.partnerCnpj}</td>
+                        <td>${row.project}</td>
+                        <td>${row.hours.toFixed(2)}h</td>
+                        <td>R$ ${row.hourlyRate.toFixed(2)}</td>
+                        <td>${row.companyContratante}</td>
+                        <td>${row.companyContratanteCnpj}</td>
+                        <td>R$ ${row.value.toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHtml += `
+                    <tr class="table-primary">
+                        <td colspan="3"><strong>Total Geral</strong></td>
+                        <td><strong>${totalHoursReport.toFixed(2)}h</strong></td>
+                        <td></td>
+                        <td colspan="2"></td>
+                        <td><strong>R$ ${totalValueReport.toFixed(2)}</strong></td>
+                    </tr>
+                </tbody>
+                </table>
+                <button class="btn btn-success mt-3" onclick="exportMonthlyClosingToExcel()">
+                    <i class="fas fa-file-excel me-2"></i>Exportar para Excel
+                </button>
+            `;
+
+            reportContainer.innerHTML = tableHtml;
+            showNotification('Fechamento mensal gerado com sucesso!', 'success');
+        }
+
+
+        function exportMonthlyClosingToExcel() {
+            if (currentReportData.length === 0) {
+                showNotification('Gere um relatório primeiro para exportar.', 'warning');
+                return;
+            }
+
+            const startDate = document.getElementById('closingStartDate').value;
+            const endDate = document.getElementById('closingEndDate').value;
+            const partnerId = document.getElementById('closingPartner').value;
+            const selectedPartner = partnersData.find(p => p.id === partnerId);
+            const partnerName = selectedPartner ? selectedPartner.name : 'Todos os Parceiros';
+            const partnerCnpj = selectedPartner ? selectedPartner.cnpjColaborador : '';
+
+            const fileName = `Fechamento_Mensal_${formatDate(startDate).replace(/\//g, '-')}_a_${formatDate(endDate).replace(/\//g, '-')}_${partnerName.replace(/\s/g, '_')}.xlsx`;
+
+            const ws_data_header = [
+                ["ACOMPANHAMENTO DE HORAS PRODUTIVAS PARA INFORMAR | VALIDAR | APROVAR | EMITIR NF | PAGAR NF"],
+                [],
+                ["Período:", formatDate(startDate), "até", formatDate(endDate)],
+                ["Prestador do Serviço:", `${partnerName} ${partnerCnpj}`],
+                []
+            ];
+
+            const ws_data_table_header = ["Projeto", "Horas Produtivas", "Valor (R$)", "Empresa Contratante", "CNPJ da Empresa Contratante", "Solicitante", "Aprovador"];
+            const ws_data_table_rows = [];
+
+            let totalHoursGlobal = 0;
+            let totalValueGlobal = 0;
+            const groupedByCompanyAndProject = {};
+            currentReportData.forEach(row => {
+                const companyKey = `${row.companyContratante}-${row.companyContratanteCnpj}`;
+                if (!groupedByCompanyAndProject[companyKey]) {
+                    groupedByCompanyAndProject[companyKey] = {
+                        companyName: row.companyContratante,
+                        companyCnpj: row.companyContratanteCnpj,
+                        projects: {}
+                    };
+                }
+                const projectKey = row.project;
+                if (!groupedByCompanyAndProject[companyKey].projects[projectKey]) {
+                    groupedByCompanyAndProject[companyKey].projects[projectKey] = {
+                        hours: 0,
+                        value: 0
+                    };
+                }
+                groupedByCompanyAndProject[companyKey].projects[projectKey].hours += row.hours;
+                groupedByCompanyAndProject[companyKey].projects[projectKey].value += row.value;
+            });
+
+            Object.values(groupedByCompanyAndProject).forEach(companyGroup => {
+                Object.entries(companyGroup.projects).forEach(([project, projectData]) => {
+                    ws_data_table_rows.push([
+                        project,
+                        projectData.hours,
+                        projectData.value,
+                        `${companyGroup.companyName}`,
+                        `${companyGroup.companyCnpj}`,
+                        "", // Solicitante
+                        "", // Aprovador
+                    ]);
+                    totalHoursGlobal += projectData.hours;
+                    totalValueGlobal += projectData.value;
+                });
+            });
+            const totalRow = ["Total Geral", totalHoursGlobal, totalValueGlobal, "", "", "", ""];
+
+            const ws_data = [...ws_data_header, ws_data_table_header, ...ws_data_table_rows, [], totalRow];
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+            ws['!merges'] = [{
+                s: {
+                    r: 0,
+                    c: 0
+                },
+                e: {
+                    r: 0,
+                    c: 6
+                }
+            }, {
+                s: {
+                    r: 3,
+                    c: 1
+                },
+                e: {
+                    r: 3,
+                    c: 6
+                }
+            }];
+
+            ws['!cols'] = [{
+                wch: 30
+            }, {
+                wch: 15
+            }, {
+                wch: 15
+            }, {
+                wch: 50
+            }, {
+                wch: 25
+            }, {
+                wch: 25
+            }, {
+                wch: 15
+            }];
+
+            const tableHeaderRowIndex = ws_data_header.length;
+            for (let C = 0; C < ws_data_table_header.length; ++C) {
+                const cell_address = XLSX.utils.encode_cell({
+                    r: tableHeaderRowIndex,
+                    c: C
+                });
+                if (!ws[cell_address]) ws[cell_address] = {};
+                ws[cell_address].s = {
+                    font: {
+                        bold: true
+                    },
+                    border: {
+                        top: {
+                            style: "thin"
+                        },
+                        bottom: {
+                            style: "thin"
+                        },
+                        left: {
+                            style: "thin"
+                        },
+                        right: {
+                            style: "thin"
+                        }
+                    }
+                };
+            }
+
+            const summaryRowIndex = ws_data.length - 1;
+            for (let C = 0; C < totalRow.length; ++C) {
+                const cell_address = XLSX.utils.encode_cell({
+                    r: summaryRowIndex,
+                    c: C
+                });
+                if (!ws[cell_address]) ws[cell_address] = {};
+                ws[cell_address].s = {
+                    font: {
+                        bold: true
+                    },
+                    border: {
+                        top: {
+                            style: "thin"
+                        },
+                        bottom: {
+                            style: "thin"
+                        },
+                        left: {
+                            style: "thin"
+                        },
+                        right: {
+                            style: "thin"
+                        }
+                    }
+                };
+            }
+            const firstDataRowIndex = tableHeaderRowIndex + 1;
+            for (let R = firstDataRowIndex; R < summaryRowIndex; ++R) {
+                const hoursCell = ws[XLSX.utils.encode_cell({
+                    r: R,
+                    c: 1
+                })];
+                if (hoursCell) {
+                    hoursCell.t = 'n';
+                    hoursCell.z = '0.00"h"';
+                }
+                const valueCell = ws[XLSX.utils.encode_cell({
+                    r: R,
+                    c: 2
+                })];
+                if (valueCell) {
+                    valueCell.t = 'n';
+                    valueCell.z = 'R$ #,##0.00';
+                }
+            }
+            const summaryHoursCell = ws[XLSX.utils.encode_cell({
+                r: summaryRowIndex,
+                c: 1
+            })];
+            if (summaryHoursCell) {
+                summaryHoursCell.t = 'n';
+                summaryHoursCell.z = '0.00"h"';
+            }
+            const summaryValueCell = ws[XLSX.utils.encode_cell({
+                r: summaryRowIndex,
+                c: 2
+            })];
+            if (summaryValueCell) {
+                summaryValueCell.t = 'n';
+                summaryValueCell.z = 'R$ #,##0.00';
+            }
+
+            XLSX.utils.book_append_sheet(wb, ws, "Fechamento Mensal");
+            XLSX.writeFile(wb, fileName);
+            showNotification('Relatório exportado para Excel com sucesso!', 'success');
+        }
+
+        function formatDate(dateString) {
+             if (!dateString) return '';
+             const [year, month, day] = dateString.split('-');
+             return `${day}/${month}/${year}`;
+        }
+
+        function formatCnpj(value) {
+            if (!value) return "";
+            value = value.replace(/\D/g, ''); // Remove caracteres não numéricos
+            value = value.substring(0, 14); // Limita a 14 dígitos
+            value = value.replace(/^(\d{2})(\d)/, '$1.$2');
+            value = value.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+            value = value.replace(/\.(\d{3})(\d)/, '.$1/$2');
+            value = value.replace(/(\d{4})(\d)/, '$1-$2');
+            return value;
+        }
+
+        // --- Funções de Gerenciamento de Empresas ---
+        function loadCompanies() {
+            const tableBody = document.getElementById('companiesTableBody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+            companiesData.forEach(company => {
+                const row = tableBody.insertRow();
+                row.innerHTML = `
+                    <td>${company.name}</td>
+                    <td>${formatCnpj(company.cnpj)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editCompany(${company.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+            });
+        }
+
+        function openCompanyModal(company = null) {
+            const modal = document.getElementById('companyModal');
+            const title = document.getElementById('companyModalTitle');
+            const form = document.getElementById('companyForm');
+            if (company) {
+                title.textContent = 'Editar Empresa';
+                document.getElementById('companyId').value = company.id;
+                document.getElementById('companyName').value = company.name;
+                document.getElementById('companyCnpj').value = formatCnpj(company.cnpj);
+            } else {
+                title.textContent = 'Cadastrar Nova Empresa';
+                form.reset();
+                document.getElementById('companyId').value = '';
+            }
+            new bootstrap.Modal(modal).show();
+        }
+
+        async function saveCompany() {
+            const id = document.getElementById('companyId').value;
+            const name = document.getElementById('companyName').value;
+            const cnpj = document.getElementById('companyCnpj').value;
+
+            if (!name || !cnpj) {
+                showNotification('Por favor, preencha a Razão Social e o CNPJ da empresa.', 'danger');
+                return;
+            }
+            
+            const unformattedCnpj = cnpj.replace(/\D/g, '');
+
+            const isNew = id === '';
+            const action = isNew ? 'add_empresas' : 'update_empresa';
+            const webhookUrl = 'https://n8n.dev.resolvrisk.com.br/webhook/recebedados';
+
+            const companyPayloadData = {
+                razao_social: name,
+                cnpj: unformattedCnpj
+            };
+
+            if (!isNew) {
+                companyPayloadData.id = id;
+            }
+
+            const payload = {
+                action: action,
+                data: companyPayloadData
+            };
+
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const result = await response.json(); 
+
+                    if (isNew) {
+                        const newCompany = {
+                            id: result.id || `new_${Date.now()}`,
+                            name: name,
+                            cnpj: unformattedCnpj
+                        };
+                        companiesData.push(newCompany);
+                        showNotification('Empresa cadastrada com sucesso!', 'success');
+                    } else {
+                        const index = companiesData.findIndex(c => c.id == id);
+                        if (index !== -1) {
+                            companiesData[index] = { ...companiesData[index], name, cnpj: unformattedCnpj };
+                            showNotification('Empresa atualizada com sucesso!', 'success');
+                        }
+                    }
+                    loadCompanies();
+                } else {
+                    const errorText = await response.text();
+                    console.error('Erro no webhook:', errorText);
+                    showNotification(`Erro ao salvar empresa. O servidor respondeu com erro.`, 'danger');
+                }
+            } catch (error) {
+                console.error('Erro na requisição fetch:', error);
+                showNotification(`Erro de rede ao tentar salvar a empresa: ${error.message}`, 'danger');
+            }
+
+            bootstrap.Modal.getInstance(document.getElementById('companyModal')).hide();
+        }
+
+        function editCompany(id) {
+            const company = companiesData.find(c => c.id === id);
+            if (company) {
+                openCompanyModal(company);
+            }
+        }
+
+        function deleteCompany(id) {
+            const confirmModal = new bootstrap.Modal(document.getElementById('confirmDeleteCompanyModal'));
+            document.getElementById('confirmDeleteCompanyButton').onclick = () => {
+                companiesData = companiesData.filter(c => c.id !== id);
+                loadCompanies();
+                showNotification('Empresa excluída com sucesso!', 'success');
+                confirmModal.hide();
+            };
+            confirmModal.show();
+        }
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!checkLoginStatus()) {
+                console.log('Usuário não autenticado. Redirecionando...');
+                redirectToLogin();
+                return;
+            }
+            console.log('Usuário autenticado. Exibindo interface...');
+            showAuthenticatedInterface();
+            setupNavigation();
+
+            console.log('Iniciando carregamento dos dados...');
+            console.log('Dados processados:', processedDataFromNode);
+
+            const filterStartDate = document.getElementById('filterStartDate');
+            const filterEndDate = document.getElementById('filterEndDate');
+            const closingStartDateInput = document.getElementById('closingStartDate');
+            const closingEndDateInput = document.getElementById('closingEndDate');
+
+            // Definir período padrão como agosto de 2025 para teste
+            filterStartDate.value = '2025-08-01';
+            filterEndDate.value = '2025-08-31';
+            closingStartDateInput.value = '2025-08-01';
+            closingEndDateInput.value = '2025-08-31';
+
+            const companyCnpjInput = document.getElementById('companyCnpj');
+            if(companyCnpjInput) {
+                companyCnpjInput.addEventListener('input', (e) => {
+                    e.target.value = formatCnpj(e.target.value);
+                });
+            }
+
+            try {
+                filterPartners();
+                loadCompanies();
+                showNotification('Dados carregados com sucesso!', 'success');
+                console.log(`Carregados ${partnersData.length} parceiros e ${companiesData.length} empresas`);
+                console.log(`Dados de horas: ${completedDetailedHours.length} entradas concluídas`);
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+                showNotification('Erro ao carregar alguns dados. Verifique o console.', 'warning');
+            }
+        });
+    </script>
+</body>
+
+</html>
+
