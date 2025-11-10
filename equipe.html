@@ -831,6 +831,54 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <script>
+        // =================================================================
+        // SAFE STORAGE FOR SANDBOXED IFRAMES
+        // =================================================================
+        const SafeStorage = (() => {
+            let memoryStorage = {};
+            let isLocalStorageAvailable = false;
+
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                isLocalStorageAvailable = true;
+            } catch (e) {
+                isLocalStorageAvailable = false;
+                console.warn('⚠️ localStorage não disponível, usando armazenamento em memória (sessão será perdida em navegações)');
+            }
+
+            return {
+                getItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        return localStorage.getItem(key);
+                    }
+                    return memoryStorage[key] || null;
+                },
+                setItem: (key, value) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.setItem(key, value);
+                    } else {
+                        memoryStorage[key] = value;
+                    }
+                },
+                removeItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.removeItem(key);
+                    } else {
+                        delete memoryStorage[key];
+                    }
+                },
+                clear: () => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.clear();
+                    } else {
+                        memoryStorage = {};
+                    }
+                }
+            };
+        })();
+
         // ===================================
         // DYNAMIC THEME AND COLORS
         // ===================================
@@ -924,43 +972,129 @@
         const LOGIN_URL = '{{ $json.dominio }}/webhook/login';
         
         /**
+         * Obtém os dados da sessão do usuário
+         * @returns {object|null} Dados do usuário ou null se não estiver logado
+         */
+        function getUserData() {
+            const sessionData = SafeStorage.getItem('userSession');
+            return sessionData ? JSON.parse(sessionData) : null;
+        }
+        
+        /**
          * Verifica o status de login do usuário
          * @returns {boolean} true se logado, false caso contrário
          */
         function checkLoginStatus() {
-            const userEmail = localStorage.getItem('loggedInUserEmail');
-            const userName = localStorage.getItem('loggedInUserName');
+            const authToken = SafeStorage.getItem('authToken');
+            const userData = getUserData();
             
             console.log('🔐 Verificando status de login...');
-            console.log('📧 Email:', userEmail);
-            console.log('👤 Nome:', userName);
+            console.log('📧 Email:', userData?.email);
+            console.log('👤 Nome:', userData?.nome);
+            console.log('🔑 Token:', authToken ? 'Presente' : 'Ausente');
             
-            return !!(userEmail && userName);
+            return !!(authToken && userData);
         }
 
         /**
-         * Limpa todos os dados da aplicação e redireciona para login
+         * Mostra erro de autenticação detalhado ao invés de redirecionar
          */
-        function redirectToLogin() {
-            console.log('🔄 Redirecionando para página de login...');
+        function showAuthenticationError() {
+            console.log('❌ ========================================');
+            console.log('❌ ERRO DE AUTENTICAÇÃO DETECTADO');
+            console.log('❌ ========================================');
             
-            // Limpar TODOS os dados do localStorage relacionados à aplicação
-            clearApplicationData();
+            // Verificar todos os dados de autenticação
+            const authToken = SafeStorage.getItem('authToken');
+            const userSession = SafeStorage.getItem('userSession');
+            const userEmail = SafeStorage.getItem('loggedInUserEmail');
+            const userName = SafeStorage.getItem('loggedInUserName');
+            const userTipo = SafeStorage.getItem('loggedInUserTipo');
             
-            // Mostrar mensagem de redirecionamento
+            console.log('🔍 Diagnóstico completo de autenticação:');
+            console.log('');
+            console.log('1️⃣ authToken:', authToken ? '✅ PRESENTE' : '❌ AUSENTE');
+            if (!authToken) {
+                console.error('   ⚠️ O token de autenticação não foi encontrado');
+                console.error('   💡 Isso significa que o login não salvou o token corretamente');
+            }
+            
+            console.log('2️⃣ userSession:', userSession ? '✅ PRESENTE' : '❌ AUSENTE');
+            if (userSession) {
+                try {
+                    const parsed = JSON.parse(userSession);
+                    console.log('   📋 Conteúdo da sessão:', parsed);
+                    console.log('   📧 Email:', parsed.email || '❌ AUSENTE');
+                    console.log('   👤 Nome:', parsed.nome || '❌ AUSENTE');
+                    console.log('   🔐 Tipo:', parsed.tipo || '❌ AUSENTE');
+                } catch (e) {
+                    console.error('   ⚠️ Erro ao parsear userSession:', e);
+                }
+            } else {
+                console.error('   ⚠️ A sessão do usuário não foi encontrada');
+                console.error('   💡 O login deveria ter criado este objeto JSON');
+            }
+            
+            console.log('3️⃣ loggedInUserEmail:', userEmail || '❌ AUSENTE');
+            console.log('4️⃣ loggedInUserName:', userName || '❌ AUSENTE');
+            console.log('5️⃣ loggedInUserTipo:', userTipo || '❌ AUSENTE');
+            
+            console.log('');
+            console.log('📊 RESUMO DO PROBLEMA:');
+            
+            const problems = [];
+            if (!authToken) problems.push('- Token de autenticação não encontrado');
+            if (!userSession) problems.push('- Sessão do usuário não encontrada');
+            if (!userEmail) problems.push('- Email do usuário não encontrado');
+            if (!userName) problems.push('- Nome do usuário não encontrado');
+            
+            if (problems.length > 0) {
+                console.error('❌ Problemas encontrados:');
+                problems.forEach(p => console.error('   ' + p));
+                console.log('');
+                console.log('💡 SOLUÇÃO:');
+                console.log('   1. Faça login novamente em /login.html');
+                console.log('   2. Verifique se o login está salvando os dados corretamente');
+                console.log('   3. Certifique-se de que não há bloqueios de localStorage');
+            }
+            
+            console.log('❌ ========================================');
+            
+            // Mostrar erro visual na tela
             const authLoadingEl = document.getElementById('authLoading');
             if (authLoadingEl) {
+                authLoadingEl.style.display = 'flex';
                 authLoadingEl.innerHTML = `
-                    <div class="spinner-auth"></div>
-                    <h4>Redirecionando...</h4>
-                    <p>Você será redirecionado para a página de login</p>
+                    <div style="text-align: center; max-width: 600px; padding: 40px;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 60px; margin-bottom: 20px; color: #ffc107;"></i>
+                        <h3 style="margin-bottom: 20px;">❌ Erro de Autenticação</h3>
+                        <p style="margin-bottom: 15px; font-size: 16px;">
+                            Não foi possível carregar a página porque você não está autenticado.
+                        </p>
+                        <div style="background: rgba(255,255,255,0.2); padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: left;">
+                            <strong>🔍 Problemas detectados:</strong>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                ${!authToken ? '<li>Token de autenticação ausente</li>' : ''}
+                                ${!userSession ? '<li>Sessão do usuário ausente</li>' : ''}
+                                ${!userEmail ? '<li>Email do usuário ausente</li>' : ''}
+                                ${!userName ? '<li>Nome do usuário ausente</li>' : ''}
+                            </ul>
+                        </div>
+                        <p style="margin-bottom: 20px; opacity: 0.9;">
+                            <strong>💡 Abra o Console do Navegador (F12)</strong> para ver os detalhes completos do erro.
+                        </p>
+                        <a href="/login.html" class="btn" style="background: white; color: #0d6efd; padding: 12px 30px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600;">
+                            🔐 Ir para Login
+                        </a>
+                    </div>
                 `;
             }
             
-            // Redirecionar após um pequeno delay
-            setTimeout(() => {
-                window.location.href = LOGIN_URL;
-            }, 1500);
+            // Ocultar container principal
+            const appContainer = document.getElementById('appContainer');
+            if (appContainer) {
+                appContainer.style.display = 'none';
+            }
         }
 
         /**
@@ -970,13 +1104,13 @@
             console.log('🧹 Limpando dados da aplicação...');
             
             // Limpar dados de autenticação
-            localStorage.removeItem('loggedInUserEmail');
-            localStorage.removeItem('loggedInUserName');
-            localStorage.removeItem('loggedInUserTipo');
-            localStorage.removeItem('welcomeMessageShown');
+            SafeStorage.removeItem('loggedInUserEmail');
+            SafeStorage.removeItem('loggedInUserName');
+            SafeStorage.removeItem('loggedInUserTipo');
+            SafeStorage.removeItem('welcomeMessageShown');
             
             // Limpar dados da aplicação
-            localStorage.removeItem('equipeData');
+            SafeStorage.removeItem('equipeData');
             
             // Resetar variáveis globais
             equipeData = [];
@@ -1026,12 +1160,12 @@
          * Atualiza informações do usuário na interface
          */
         function updateUserInfo() {
-            const userName = localStorage.getItem('loggedInUserName');
+            const userData = getUserData();
             const userNameDisplay = document.getElementById('userNameDisplay');
             
-            if (userName && userNameDisplay) {
-                userNameDisplay.textContent = userName;
-                console.log('👤 Informações do usuário atualizadas:', userName);
+            if (userData && userNameDisplay) {
+                userNameDisplay.textContent = userData.nome;
+                console.log('👤 Informações do usuário atualizadas:', userData.nome);
             } else {
                 console.warn('⚠️ Não foi possível atualizar informações do usuário');
             }
@@ -1089,10 +1223,12 @@
          * Fetches collaborator list, identifies the current user's role, and stores it.
          */
         async function initializeUserSession() {
-            const userEmail = localStorage.getItem('loggedInUserEmail');
-            if (!userEmail) {
+            const userData = getUserData();
+            if (!userData || !userData.email) {
                 throw new Error('Email do usuário não encontrado');
             }
+            
+            const userEmail = userData.email;
 
             try {
                 console.log('🔍 Verificando permissões do usuário...', userEmail);
@@ -1104,20 +1240,36 @@
                 const currentUser = allColaboradores.find(c => c.email && c.email.toLowerCase() === userEmail.toLowerCase());
 
                 if (currentUser) {
-                    localStorage.setItem('loggedInUserTipo', currentUser.tipo || 'colaborador');
-                    // Importante: armazenar o nome exato do colaborador para comparação
-                    localStorage.setItem('loggedInUserName', currentUser.nome);
+                    // Atualizar userSession com o tipo correto do colaborador
+                    const sessionData = getUserData();
+                    if (sessionData) {
+                        sessionData.tipo = currentUser.tipo || 'colaborador';
+                        sessionData.nome = currentUser.nome;
+                        SafeStorage.setItem('userSession', JSON.stringify(sessionData));
+                    }
+                    SafeStorage.setItem('loggedInUserTipo', currentUser.tipo || 'colaborador');
+                    SafeStorage.setItem('loggedInUserName', currentUser.nome);
                     console.log(`👤 Usuário identificado: ${currentUser.nome} (${currentUser.tipo})`);
                 } else {
                     // If user is not found in the list, default to restricted role and notify.
-                    localStorage.setItem('loggedInUserTipo', 'colaborador');
+                    const sessionData = getUserData();
+                    if (sessionData) {
+                        sessionData.tipo = 'colaborador';
+                        SafeStorage.setItem('userSession', JSON.stringify(sessionData));
+                    }
+                    SafeStorage.setItem('loggedInUserTipo', 'colaborador');
                     showNotification('⚠️ Seu usuário não foi encontrado na lista de colaboradores. O acesso será limitado.', 'warning');
                 }
             } catch (error) {
                 console.error('❌ Erro ao verificar permissões:', error);
                 showNotification('❌ Erro ao verificar permissões. O acesso foi limitado por segurança.', 'error');
                 // Default to most restrictive role on any error
-                localStorage.setItem('loggedInUserTipo', 'colaborador');
+                const sessionData = getUserData();
+                if (sessionData) {
+                    sessionData.tipo = 'colaborador';
+                    SafeStorage.setItem('userSession', JSON.stringify(sessionData));
+                }
+                SafeStorage.setItem('loggedInUserTipo', 'colaborador');
             }
         }
         
@@ -1125,7 +1277,8 @@
          * Applies UI restrictions that are not context-dependent (e.g., hiding menu items).
          */
         function applyUIPermissions() {
-            const userType = localStorage.getItem('loggedInUserTipo') || 'admin'; // 'admin' ou 'colaborador'
+            const userData = getUserData();
+            const userType = userData?.tipo || SafeStorage.getItem('loggedInUserTipo') || 'colaborador'; // 'admin' ou 'colaborador'
 
             // CORREÇÃO: O item 'partners' e 'team' foi adicionado para o perfil 'colaborador'.
             const menuPermissions = {
@@ -1205,9 +1358,10 @@
             console.log('🔄 Status Update URL:', WEBHOOK_STATUS_URL);
             console.log('📝 Cadastro Form URL: {{ $json.dominio }}/webhook/res/cadastro');
             
-            const userType = localStorage.getItem('loggedInUserTipo');
-            const currentUserName = localStorage.getItem('loggedInUserName');
-            const userEmail = localStorage.getItem('loggedInUserEmail');
+            const userData = getUserData();
+            const userType = userData?.tipo || SafeStorage.getItem('loggedInUserTipo');
+            const currentUserName = userData?.nome || SafeStorage.getItem('loggedInUserName');
+            const userEmail = userData?.email;
             
             console.log(`📊 Estado atual: ${equipeData.length} colaboradores carregados`);
             console.log(`👤 Usuário: ${currentUserName} (${userEmail}) - Tipo: ${userType}`);
@@ -1235,7 +1389,7 @@
 
         function abrirModalCadastro() {
             // Verificar permissões
-            const userType = localStorage.getItem('loggedInUserTipo');
+            const userType = SafeStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem cadastrar novos colaboradores.', 'error');
                 return;
@@ -1371,7 +1525,7 @@
                 : '??';
 
             // Verificar permissões para mostrar botão de configuração
-            const userType = localStorage.getItem('loggedInUserTipo');
+            const userType = SafeStorage.getItem('loggedInUserTipo');
             const configButton = userType === 'admin' 
                 ? `<button class="btn btn-config flex-fill" onclick="abrirModal('${member.id}')">
                                 <i class="fas fa-cog"></i>
@@ -1455,7 +1609,7 @@
 
         async function alterarStatus(id, nome, whatsapp, novoStatus) {
             // Verificar permissões
-            const userType = localStorage.getItem('loggedInUserTipo');
+            const userType = SafeStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem alterar status de colaboradores.', 'error');
                 return;
@@ -1471,7 +1625,7 @@
                     status: novoStatus, 
                     action: 'atualizar_status',
                     timestamp: new Date().toISOString(),
-                    userEmail: localStorage.getItem('loggedInUserEmail')
+                    userEmail: getUserData()?.email
                 };
 
                 // Enviar para o novo webhook de status
@@ -1515,7 +1669,7 @@
 
         function abrirModal(memberId) {
             // Verificar permissões
-            const userType = localStorage.getItem('loggedInUserTipo');
+            const userType = SafeStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem configurar colaboradores.', 'error');
                 return;
@@ -1563,7 +1717,7 @@
             if (!currentMember) return;
 
             // Verificar permissões
-            const userType = localStorage.getItem('loggedInUserTipo');
+            const userType = SafeStorage.getItem('loggedInUserTipo');
             if (userType !== 'admin') {
                 showNotification('❌ Acesso negado! Apenas administradores podem salvar configurações.', 'error');
                 return;
@@ -1595,7 +1749,7 @@
                     colaborador: document.getElementById('editColaborador').checked, // Pega o valor do switch
                     action: 'atualizar_colaborador',
                     timestamp: new Date().toISOString(),
-                    userEmail: localStorage.getItem('loggedInUserEmail')
+                    userEmail: getUserData()?.email
                 };
 
                 // Adiciona a senha ao payload APENAS se não estiver vazia
@@ -1700,7 +1854,7 @@
                 showNotification('❌ Erro ao carregar sistema. Tentando continuar...', 'error');
                 
                 // Fallback: aplicar permissões de colaborador e continuar
-                localStorage.setItem('loggedInUserTipo', 'colaborador');
+                SafeStorage.setItem('loggedInUserTipo', 'colaborador');
                 applyUIPermissions();
             }
         }
@@ -1758,15 +1912,19 @@
          */
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('📄 DOM carregado, verificando autenticação...');
+            console.log('');
             
             // Verificar se o usuário está logado ANTES de fazer qualquer coisa
             if (!checkLoginStatus()) {
-                console.log('❌ Usuário não autenticado, redirecionando...');
-                redirectToLogin();
+                console.error('❌ Usuário não autenticado!');
+                console.log('');
+                showAuthenticationError();
                 return;
             }
             
-            console.log('✅ Usuário autenticado, carregando aplicação...');
+            console.log('✅ Usuário autenticado com sucesso!');
+            console.log('✅ Carregando aplicação...');
+            console.log('');
             
             // Mostrar interface autenticada
             showAuthenticatedInterface();
