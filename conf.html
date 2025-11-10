@@ -483,10 +483,56 @@
         const PROFILE_UPDATE_URL = '{{ $json.dominio }}/webhook/salvatarefas';
         let currentUser = null; // Armazena os dados do usuário logado
 
+        // --- SAFE STORAGE FOR SANDBOXED IFRAMES ---
+        const SafeStorage = (() => {
+            let memoryStorage = {};
+            let isLocalStorageAvailable = false;
+
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                isLocalStorageAvailable = true;
+            } catch (e) {
+                isLocalStorageAvailable = false;
+                console.warn('⚠️ localStorage não disponível, usando armazenamento em memória (sessão será perdida em navegações)');
+            }
+
+            return {
+                getItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        return localStorage.getItem(key);
+                    }
+                    return memoryStorage[key] || null;
+                },
+                setItem: (key, value) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.setItem(key, value);
+                    } else {
+                        memoryStorage[key] = value;
+                    }
+                },
+                removeItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.removeItem(key);
+                    } else {
+                        delete memoryStorage[key];
+                    }
+                },
+                clear: () => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.clear();
+                    } else {
+                        memoryStorage = {};
+                    }
+                }
+            };
+        })();
+        
         // --- MÓDULO DE AUTENTICAÇÃO E SESSÃO ---
         const Auth = {
             getUserData: () => {
-                const sessionData = localStorage.getItem('userSession');
+                const sessionData = SafeStorage.getItem('userSession');
                 try {
                     return sessionData ? JSON.parse(sessionData) : null;
                 } catch (e) {
@@ -495,14 +541,14 @@
                 }
             },
             checkAuth: () => {
-                const authToken = localStorage.getItem('authToken');
+                const authToken = SafeStorage.getItem('authToken');
                 const userData = Auth.getUserData();
                 console.log('🔐 Verificando status de login...', { hasToken: !!authToken, hasData: !!userData });
                 return !!(authToken && userData);
             },
             logout: () => {
                 console.log('🚪 Iniciando processo de logout...');
-                localStorage.clear();
+                SafeStorage.clear();
                 const authLoadingEl = document.getElementById('authLoading');
                 if (authLoadingEl) {
                     authLoadingEl.style.display = 'flex';
