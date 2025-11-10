@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ResolvTask - Configurações de Perfil e Sistema">
+    <meta name="keywords" content="gestão, tarefas, perfil, configurações, resolv, produtividade">
+    <title>Configurações - ResolvTask</title>
+
+    <!-- External Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <style>
+        /* Color Variables */
+        :root {
+            --primary-color: #0d6efd;
+            --secondary-color: #6c757d;
+            --light-color: #f8f9fa;
+            --dark-color: #212529;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+        }
+
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-color);
+            overflow-x: hidden;
+        }
+        .app-container {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        .app-container.authenticated {
+            opacity: 1;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: var(--primary-color); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0b5ed7; }
+
+        /* Auth Loading Screen */
+        .auth-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        .auth-loading .spinner-auth {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        .auth-loading h4 {
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0b5ed7 100%);
+            position: fixed;
+            left: 0;
+            top: 0;
+            transition: transform 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+        .sidebar-header {
+            padding: 20px;
+            text-align: center;
+            background-color: white;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .sidebar-header .logo {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .sidebar-header .text-light {
+            color: var(--dark-color) !important;
+            font-weight: 500;
+        }
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+        .menu-item {
+            display: block;
+            padding: 15px 25px;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            display: none; /* Hidden by default, shown by JS */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .menu-item:hover, .menu-item.active {
+            background-color: rgba(255,255,255,0.1);
+            color: white;
+        }
+        .menu-item i {
+            width: 20px;
+            margin-right: 15px;
+        }
+        .menu-item.show {
+            display: block;
+            opacity: 1;
+        }
+        .sidebar-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .sidebar-loading .spinner-small {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+            min-height: 100vh;
+        }
+        .main-content.expanded {
+            margin-left: 0;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 999;
+        }
+        .sidebar-toggle {
+            display: none;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 25px;
+        }
+        
+        /* Config Sections */
+        .config-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+        .config-section h3 {
+            color: var(--primary-color);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        /* Form Styles */
+        .profile-form {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            font-weight: 600;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+            display: block;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 1px solid #ddd;
+            padding: 12px 15px;
+            transition: border-color 0.3s;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        .form-control[readonly] {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+        .btn-custom {
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        .btn-primary-custom {
+            background: var(--primary-color);
+            color: white;
+        }
+        .btn-primary-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(13, 110, 253, 0.3);
+            color: white;
+        }
+        .btn-secondary-custom {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Spin Animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .sidebar { width: 260px; }
+            .main-content { margin-left: 260px; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); width: 280px; z-index: 1050; }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .sidebar-toggle { display: block; }
+            .top-nav { flex-wrap: wrap; gap: 10px; }
+            .sidebar-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 1040; opacity: 0; visibility: hidden; transition: all 0.3s ease; }
+            .sidebar-overlay.show { opacity: 1; visibility: visible; }
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth loading screen -->
+    <div class="auth-loading" id="authLoading">
+        <div class="spinner-auth"></div>
+        <h4>ResolvTask</h4>
+        <p>Verificando autenticação...</p>
+    </div>
+
+    <!-- Main interface (hidden until authenticated) -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar -->
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo">
+                <br><br>
+                <h1><i class="fas fa-bolt me-2"></i>Task</h1>
+                <small class="text-light">Sistema Integrado de Gestão</small>
+            </div>
+            <div class="sidebar-menu" id="sidebarMenu">
+                <div class="sidebar-loading" id="sidebarLoading">
+                    <div class="spinner-small"></div>
+                    Carregando menu...
+                </div>
+                <!-- Menu items will be populated by JS based on user permissions -->
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/resolv'" data-menu="dashboard"><i class="fas fa-chart-line"></i>Dashboard</button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/gerenciadortarefas'" data-menu="tasks"><i class="fas fa-tasks"></i>Gerenciador de Tarefas</button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/taskhoras'" data-menu="hours"><i class="fas fa-clock"></i>Gerenciador de Horas</button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/gestao_clientes'" data-menu="clients"><i class="fas fa-handshake"></i>Gestão de Clientes</button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/gestaodeparceiros'" data-menu="partners"><i class="fas fa-handshake-angle"></i>Gestão de Parceiros</button>
+                <button class="menu-item" onclick="window.location.href='{{ $json.dominio }}/webhook/equipe'" data-menu="team"><i class="fas fa-users"></i>Equipe</button>
+                <button class="menu-item active" onclick="window.location.reload();" data-menu="settings"><i class="fas fa-cog"></i>Configurações</button>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content" id="mainContent">
+            <nav class="top-nav">
+                <div class="d-flex align-items-center">
+                    <button class="sidebar-toggle" id="sidebarToggle"><i class="fas fa-bars"></i></button>
+                    <h5 class="mb-0 ms-3">Configurações</h5>
+                </div>
+                <div class="user-info">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-user-circle fs-4 text-primary me-2"></i>
+                        <span class="fw-bold" id="userNameDisplay">Usuário</span>
+                    </div>
+                    <button class="btn btn-outline-danger btn-sm ms-2" id="logoutButton" title="Sair">
+                        <i class="fas fa-sign-out-alt me-1"></i>Sair
+                    </button>
+                </div>
+            </nav>
+
+            <div class="content-area">
+                <!-- User Profile Section -->
+                <div class="config-section">
+                    <h3><i class="fas fa-user-edit me-2"></i>Meu Perfil</h3>
+                    
+                    <form class="profile-form" id="profileForm">
+                        <h5 class="mb-4">Informações de Contato e Acesso</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="nome">Nome Completo *</label>
+                                <input type="text" class="form-control" id="nome" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="email">E-mail (Login) *</label>
+                                <input type="email" class="form-control" id="email" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="whatsapp">WhatsApp</label>
+                                <input type="tel" class="form-control" id="whatsapp" placeholder="(00) 00000-0000">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                           <div class="form-group">
+                                <label for="senha">Nova Senha (obrigatório para salvar)</label>
+                                <div class="input-group">
+                                    <input type="password" class="form-control" id="senha" placeholder="Digite uma nova senha" required>
+                                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-5">
+
+                        <h5 class="mb-4">Informações da Empresa</h5>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="razao_social">Razão Social</label>
+                                <input type="text" class="form-control" id="razao_social">
+                            </div>
+                             <div class="form-group">
+                                <label for="cnpj">CNPJ</label>
+                                <input type="text" class="form-control" id="cnpj" placeholder="00.000.000/0001-00">
+                            </div>
+                        </div>
+
+                        <h5 class="mb-4 mt-4">Endereço</h5>
+                        <div class="form-row">
+                            <div class="form-group" style="max-width: 200px;">
+                                <label for="cep">CEP</label>
+                                <input type="text" class="form-control" id="cep" placeholder="00000-000">
+                            </div>
+                            <div class="form-group flex-grow-1">
+                                <label for="endereco">Logradouro</label>
+                                <input type="text" class="form-control" id="endereco">
+                            </div>
+                            <div class="form-group" style="max-width: 150px;">
+                                <label for="numero">Número</label>
+                                <input type="text" class="form-control" id="numero">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                             <div class="form-group">
+                                <label for="complemento">Complemento</label>
+                                <input type="text" class="form-control" id="complemento">
+                            </div>
+                        </div>
+                        
+                        <hr class="my-5">
+
+                        <h5 class="mb-4">Configurações de Conta</h5>
+                        <div class="form-row">
+                             <div class="form-group">
+                                <label for="tipo">Tipo de Usuário</label>
+                                <select class="form-select" id="tipo" disabled>
+                                    <option value="colaborador">Colaborador</option>
+                                    <option value="admin">Administrador</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="status">Status da Conta</label>
+                                <select class="form-select" id="status" disabled>
+                                    <option value="true">Ativo</option>
+                                    <option value="false">Inativo</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-5">
+                            <button type="button" class="btn btn-custom btn-secondary-custom me-2" id="resetFormButton">
+                                <i class="fas fa-times me-2"></i>Descartar Alterações
+                            </button>
+                            <button type="submit" class="btn btn-custom btn-primary-custom">
+                                <i class="fas fa-save me-2"></i>Salvar Alterações
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <!-- Sidebar Overlay -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    </div>
+
+    <!-- Loading Overlay for async operations -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        // =================================================================
+        // SCRIPT UNIFICADO PARA AUTENTICAÇÃO, UI E LÓGICA DA PÁGINA
+        // =================================================================
+
+        // --- CONFIGURAÇÃO GLOBAL E CONSTANTES ---
+        const LOGIN_URL = '{{ $json.dominio }}/webhook/login';
+        const COLABORADORES_GET_URL = '{{ $json.dominio }}/webhook/consultacolaboradores';
+        const PROFILE_UPDATE_URL = '{{ $json.dominio }}/webhook/salvatarefas';
+        let currentUser = null; // Armazena os dados do usuário logado
+
+        // --- MÓDULO DE AUTENTICAÇÃO E SESSÃO ---
+        const Auth = {
+            getUserData: () => {
+                const sessionData = localStorage.getItem('userSession');
+                try {
+                    return sessionData ? JSON.parse(sessionData) : null;
+                } catch (e) {
+                    console.error("Erro ao parsear dados da sessão:", e);
+                    return null;
+                }
+            },
+            checkAuth: () => {
+                const authToken = localStorage.getItem('authToken');
+                const userData = Auth.getUserData();
+                console.log('🔐 Verificando status de login...', { hasToken: !!authToken, hasData: !!userData });
+                return !!(authToken && userData);
+            },
+            logout: () => {
+                console.log('🚪 Iniciando processo de logout...');
+                localStorage.clear();
+                const authLoadingEl = document.getElementById('authLoading');
+                if (authLoadingEl) {
+                    authLoadingEl.style.display = 'flex';
+                    authLoadingEl.innerHTML = `<div class="spinner-auth"></div><h4>Sessão encerrada</h4><p>Você será redirecionado.</p>`;
+                }
+                document.getElementById('appContainer').style.opacity = 0;
+                setTimeout(() => { window.location.href = LOGIN_URL; }, 1500);
+            },
+            redirectToLogin: () => {
+                console.log('🔄 Redirecionando para página de login...');
+                window.location.href = LOGIN_URL;
+            }
+        };
+
+        // --- MÓDULO DE MANIPULAÇÃO DA UI ---
+        const UI = {
+            showLoading: (show) => {
+                document.getElementById('loadingOverlay').classList.toggle('show', show);
+            },
+            updateUserInfo: () => {
+                const userData = Auth.getUserData();
+                if (userData && userData.nome) {
+                    document.getElementById('userNameDisplay').textContent = userData.nome;
+                    console.log('👤 Informações do usuário atualizadas:', userData.nome);
+                }
+            },
+            showAuthenticatedInterface: () => {
+                document.getElementById('authLoading').style.display = 'none';
+                document.getElementById('appContainer').classList.add('authenticated');
+                console.log('🎉 Interface principal ativada.');
+            },
+            applyUIPermissions: () => {
+                console.log('--- Iniciando depuração de permissões ---');
+                const userData = Auth.getUserData();
+
+                if (!userData) {
+                    console.warn('⚠️ userSession não encontrado ou inválido no localStorage. Usando permissões de "colaborador".');
+                    // Mesmo sem userData, continua para aplicar permissões padrão
+                } else {
+                    console.log('✅ Dados de userSession encontrados:', userData);
+                }
+
+                const userType = userData?.tipo || 'colaborador';
+                console.log(`🔧 Aplicando permissões de UI para o tipo: "${userType}"`);
+
+                document.getElementById('sidebarLoading').style.display = 'none';
+                
+                const menuPermissions = {
+                    admin: ['dashboard', 'tasks', 'hours', 'clients', 'partners', 'team', 'settings'],
+                    colaborador: ['dashboard', 'tasks', 'hours', 'settings']
+                };
+                const allowedMenus = menuPermissions[userType] || menuPermissions.colaborador;
+                console.log('🔑 Menus permitidos para este tipo:', allowedMenus);
+
+                document.querySelectorAll('#sidebarMenu .menu-item').forEach((item, index) => {
+                    const menuType = item.getAttribute('data-menu');
+                    if (allowedMenus.includes(menuType)) {
+                        setTimeout(() => item.classList.add('show'), index * 50);
+                    }
+                });
+                console.log('--- Fim da depuração de permissões ---');
+            },
+            showNotification: (message, type = 'info') => {
+                const container = document.body;
+                const alertType = type === 'error' ? 'danger' : type;
+                const iconMap = { success: 'check-circle', warning: 'exclamation-triangle', danger: 'times-circle', info: 'info-circle' };
+                const icon = iconMap[type] || 'info-circle';
+                const notification = document.createElement('div');
+                notification.className = `alert alert-${alertType} alert-dismissible fade show shadow-lg`;
+                notification.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 10000; min-width: 250px;';
+                notification.innerHTML = `<i class="fas fa-${icon} me-2"></i> ${message} <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+                container.appendChild(notification);
+                setTimeout(() => bootstrap.Alert.getOrCreateInstance(notification)?.close(), 5000);
+            },
+            toggleSidebar: () => {
+                const sidebar = document.getElementById('sidebar');
+                const overlay = document.getElementById('sidebarOverlay');
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.toggle('show');
+                    overlay.classList.toggle('show');
+                    document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
+                } else {
+                    document.getElementById('sidebar').classList.toggle('collapsed');
+                    document.getElementById('mainContent').classList.toggle('expanded');
+                }
+            }
+        };
+
+        // --- LÓGICA ESPECÍFICA DA PÁGINA DE CONFIGURAÇÕES ---
+        const SettingsPage = {
+            loadUserProfile: async () => {
+                const userData = Auth.getUserData();
+                if (!userData || !userData.email) {
+                    UI.showNotification('Erro: Email do usuário não encontrado. Faça login novamente.', 'error');
+                    Auth.redirectToLogin();
+                    return;
+                }
+
+                UI.showLoading(true);
+                try {
+                    const response = await fetch(COLABORADORES_GET_URL);
+                    if (!response.ok) throw new Error(`Erro ao carregar colaboradores: ${response.statusText}`);
+                    
+                    const colaboradores = await response.json();
+                    currentUser = colaboradores.find(c => c.email && c.email.toLowerCase() === userData.email.toLowerCase());
+                    
+                    if (currentUser) {
+                        SettingsPage.populateProfileForm(currentUser);
+                    } else {
+                        UI.showNotification('Usuário não encontrado na base de dados.', 'warning');
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar perfil:', error);
+                    UI.showNotification('Erro fatal ao carregar seus dados.', 'error');
+                } finally {
+                    UI.showLoading(false);
+                }
+            },
+            populateProfileForm: (userData) => {
+                document.getElementById('nome').value = userData.nome || '';
+                document.getElementById('email').value = userData.email || '';
+                document.getElementById('whatsapp').value = userData.whatsapp || '';
+                document.getElementById('senha').value = '';
+                document.getElementById('razao_social').value = userData.razao_social || '';
+                document.getElementById('cnpj').value = userData.cnpj || '';
+                document.getElementById('cep').value = userData.cep || '';
+                document.getElementById('endereco').value = userData.endereco || '';
+                document.getElementById('numero').value = userData.numero || '';
+                document.getElementById('complemento').value = userData.complemento || '';
+                document.getElementById('tipo').value = userData.tipo || 'colaborador';
+                document.getElementById('status').value = userData.status !== false ? 'true' : 'false';
+            },
+            handleProfileUpdate: async (event) => {
+                event.preventDefault();
+                if (!currentUser) {
+                    UI.showNotification('Erro: Dados do usuário não carregados.', 'error');
+                    return;
+                }
+
+                const nome = document.getElementById('nome').value.trim();
+                const newPassword = document.getElementById('senha').value.trim();
+
+                if (!nome || !newPassword) {
+                    UI.showNotification('Os campos "Nome Completo" e "Nova Senha" são obrigatórios.', 'warning');
+                    return;
+                }
+
+                UI.showLoading(true);
+                const updatedData = {
+                    id: currentUser.id,
+                    nome: nome,
+                    whatsapp: document.getElementById('whatsapp').value,
+                    senha: newPassword,
+                    razao_social: document.getElementById('razao_social').value,
+                    cnpj: document.getElementById('cnpj').value,
+                    cep: document.getElementById('cep').value,
+                    endereco: document.getElementById('endereco').value,
+                    numero: document.getElementById('numero').value,
+                    complemento: document.getElementById('complemento').value,
+                    email: currentUser.email,
+                    tipo: currentUser.tipo,
+                    status: currentUser.status,
+                };
+
+                try {
+                    const response = await fetch(PROFILE_UPDATE_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'update_colaborador', data: updatedData })
+                    });
+
+                    if (!response.ok) throw new Error('Falha na comunicação com o servidor.');
+                    
+                    const currentSession = Auth.getUserData();
+                    currentSession.nome = updatedData.nome;
+                    localStorage.setItem('userSession', JSON.stringify(currentSession));
+
+                    UI.updateUserInfo();
+                    currentUser = { ...currentUser, ...updatedData };
+                    document.getElementById('senha').value = '';
+                    UI.showNotification('Perfil atualizado com sucesso!', 'success');
+
+                } catch (error) {
+                    console.error('Erro ao atualizar perfil:', error);
+                    UI.showNotification('Erro ao salvar suas alterações.', 'error');
+                } finally {
+                    UI.showLoading(false);
+                }
+            },
+            setupInputMasks: () => {
+                const masks = {
+                    whatsapp: v => v.replace(/\D/g, '').replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').slice(0, 15),
+                    cnpj: v => v.replace(/\D/g, '').replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2').slice(0, 18),
+                    cep: v => v.replace(/\D/g, '').replace(/^(\d{5})(\d)/, '$1-$2').slice(0, 9),
+                };
+                Object.keys(masks).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', e => e.target.value = masks[id](e.target.value));
+                });
+            },
+            setupCepLookup: () => {
+                document.getElementById('cep').addEventListener('blur', async function() {
+                    const cep = this.value.replace(/\D/g, '');
+                    if (cep.length === 8) {
+                        UI.showLoading(true);
+                        try {
+                            const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                            const data = await response.json();
+                            if (!data.erro) {
+                                document.getElementById('endereco').value = data.logradouro || '';
+                                document.getElementById('numero').focus();
+                            } else {
+                                UI.showNotification('CEP não encontrado', 'warning');
+                            }
+                        } catch (error) {
+                            console.error('Erro ao buscar CEP:', error);
+                            UI.showNotification('Falha ao consultar o CEP.', 'error');
+                        } finally {
+                            UI.showLoading(false);
+                        }
+                    }
+                });
+            }
+        };
+
+        // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+        const App = {
+            initialize: async () => {
+                console.log('🚀 Iniciando página de Configurações do ResolvTask...');
+                if (!Auth.checkAuth()) {
+                    Auth.redirectToLogin();
+                    return;
+                }
+                
+                UI.showAuthenticatedInterface();
+                UI.updateUserInfo();
+                UI.applyUIPermissions();
+                
+                App.setupEventListeners();
+                
+                await SettingsPage.loadUserProfile();
+            },
+            setupEventListeners: () => {
+                document.getElementById('logoutButton').addEventListener('click', Auth.logout);
+                document.getElementById('sidebarToggle').addEventListener('click', UI.toggleSidebar);
+                document.getElementById('sidebarOverlay').addEventListener('click', UI.toggleSidebar);
+                document.getElementById('profileForm').addEventListener('submit', SettingsPage.handleProfileUpdate);
+                document.getElementById('resetFormButton').addEventListener('click', () => {
+                    if (confirm('Deseja realmente descartar as alterações?')) {
+                        if (currentUser) {
+                            SettingsPage.populateProfileForm(currentUser);
+                            UI.showNotification('Alterações descartadas.', 'info');
+                        }
+                    }
+                });
+                document.getElementById('togglePassword').addEventListener('click', function() {
+                    const passwordInput = document.getElementById('senha');
+                    const icon = this.querySelector('i');
+                    const isPassword = passwordInput.type === 'password';
+                    passwordInput.type = isPassword ? 'text' : 'password';
+                    icon.classList.toggle('fa-eye', !isPassword);
+                    icon.classList.toggle('fa-eye-slash', isPassword);
+                });
+
+                SettingsPage.setupInputMasks();
+                SettingsPage.setupCepLookup();
+            }
+        };
+
+        // --- Inicia a aplicação ---
+        await App.initialize();
+    });
+    </script>
+</body>
+</html>
