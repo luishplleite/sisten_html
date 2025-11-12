@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - ResolvTask</title>
-    <!-- Carrega Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Carrega Font Awesome (Ícones) -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
         body { 
@@ -60,17 +58,11 @@
         .signup-link:hover {
             text-decoration: underline;
         }
-        /* Área para mostrar alertas (ex: "Login com sucesso") */
-        .notification-area { 
-            position: fixed; 
-            top: 20px; 
-            right: 20px; 
-            z-index: 1050; 
-            min-width: 300px; 
-        }
-        .alert { 
-            border-radius: 8px; 
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1080;
         }
         .spinner-border-sm { 
             margin-right: 5px; 
@@ -78,15 +70,12 @@
     </style>
 </head>
 <body>
-    <!-- Container Principal do Login -->
     <div class="login-container">
-        <!-- Logo com fallback para placehold.co -->
-        <img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo" onerror="this.onerror=null;this.src='https://placehold.co/180x40/0d6efd/ffffff?text=ResolvTask';">
+        <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo" onerror="this.onerror=null;this.src='https://placehold.co/180x40/0d6efd/ffffff?text=ResolvTask';">
         <br>
         <h1><i class="fas fa-users me-3"></i>Task</h1>
         <p class="text-muted mb-4">Faça login para continuar.</p>
         
-        <!-- Formulário de Login -->
         <form id="loginForm">
             <div class="mb-3 text-start">
                 <label for="email" class="form-label">E-mail:</label>
@@ -97,20 +86,16 @@
                 <input type="password" class="form-control" id="password" required placeholder="Sua senha" autocomplete="current-password">
             </div>
             <button type="submit" class="btn btn-login w-100 mt-3" id="loginButton">
-                <!-- Spinner de carregamento (escondido por padrão) -->
                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                 <span id="buttonText">Login</span>
             </button>
         </form>
         
-        <!-- Link de Cadastro (URL vinda do n8n) -->
-        <a href="{{ $json.dominio.cadastro }}" class="signup-link">Não tem uma conta? Cadastre-se</a>
+        <a href="cadastro.html" class="signup-link">Não tem uma conta? Cadastre-se</a>
     </div>
     
-    <!-- Área onde as notificações (pop-ups) irão aparecer -->
-    <div class="notification-area" id="notificationArea"></div>
+    <div class="toast-container" id="toastContainer"></div>
     
-    <!-- Modal (Popup) para Contas Inativas -->
     <div class="modal fade" id="activationPendingModal" tabindex="-1" aria-labelledby="activationPendingModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -132,21 +117,56 @@
         </div>
     </div>
 
-    <!-- Carrega Bootstrap JS (necessário para Modals e Alertas) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // ===========================================
-        // CONFIGURAÇÃO
-        // Estas URLs são injetadas pelo n8n
-        // ===========================================
+        const SafeStorage = (() => {
+            let memoryStorage = {};
+            let isLocalStorageAvailable = false;
+
+            try {
+                const test = '__storage_test__';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                isLocalStorageAvailable = true;
+            } catch (e) {
+                isLocalStorageAvailable = false;
+                console.warn('⚠️ localStorage não disponível, usando armazenamento em memória');
+            }
+
+            return {
+                getItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        return localStorage.getItem(key);
+                    }
+                    return memoryStorage[key] || null;
+                },
+                setItem: (key, value) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.setItem(key, value);
+                    } else {
+                        memoryStorage[key] = value;
+                    }
+                },
+                removeItem: (key) => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.removeItem(key);
+                    } else {
+                        delete memoryStorage[key];
+                    }
+                },
+                clear: () => {
+                    if (isLocalStorageAvailable) {
+                        localStorage.clear();
+                    } else {
+                        memoryStorage = {};
+                    }
+                }
+            };
+        })();
         
-        const WEBHOOK_AUTHENTICATE_URL = '{{ $json.dominio.autenticar }}';
-        const REDIRECT_URL_ON_SUCCESS = '{{ $json.dominio.resolv }}';
-        
-        // ===========================================
-        // ELEMENTOS DO DOM (Atalhos)
-        // ===========================================
+        const WEBHOOK_AUTHENTICATE_URL = 'https://n8n.resolv.ai/webhook/autenticar';
+        const DASHBOARD_URL = 'index.html';
         
         const loginForm = document.getElementById('loginForm');
         const loginButton = document.getElementById('loginButton');
@@ -155,159 +175,71 @@
         const passwordInput = document.getElementById('password');
         const spinner = loginButton.querySelector('.spinner-border');
 
-        // ===========================================
-        // FUNÇÕES AUXILIARES
-        // ===========================================
-
-        /**
-         * Mostra uma notificação (toast) no canto da tela.
-         * @param {string} message - A mensagem para exibir.
-         * @param {string} type - 'success', 'danger', 'warning', 'info'
-         */
-        function showNotification(message, type = 'success') {
-            const notificationArea = document.getElementById('notificationArea');
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-            alertDiv.role = 'alert';
+        function showToast(message, type = 'success') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toastId = 'toast-' + Date.now();
             
-            // Define o ícone com base no tipo
+            const bgClass = type === 'success' ? 'bg-success' : 
+                           type === 'danger' ? 'bg-danger' : 
+                           type === 'warning' ? 'bg-warning' : 'bg-info';
+            
             const icon = type === 'success' ? 'check-circle' : 
-                         type === 'danger' ? 'exclamation-circle' : 
-                         type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+                        type === 'danger' ? 'exclamation-circle' : 
+                        type === 'warning' ? 'exclamation-triangle' : 'info-circle';
             
-            alertDiv.innerHTML = `
-                <i class="fas fa-${icon} me-2"></i>${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            const toastHTML = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <i class="fas fa-${icon} me-2"></i>${message}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
             `;
-            notificationArea.appendChild(alertDiv);
             
-            // Remove o alerta automaticamente após 5 segundos
-            setTimeout(() => {
-                try {
-                    // Usa a API do Bootstrap para fechar suavemente
-                    const alertInstance = bootstrap.Alert.getOrCreateInstance(alertDiv);
-                    if (alertInstance) { 
-                        alertInstance.close(); 
-                    }
-                } catch (e) {
-                    // Fallback caso o JS do Bootstrap falhe
-                    alertDiv.remove();
-                }
-            }, 5000);
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
+            toast.show();
+            
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
         }
 
-        /**
-         * Ativa/desativa o estado de carregamento do botão de login.
-         * @param {boolean} isLoading - True para mostrar o spinner, false para voltar ao normal.
-         */
         function setLoadingState(isLoading) {
             loginButton.disabled = isLoading;
             if (isLoading) {
-                spinner.classList.remove('d-none'); // Mostra o spinner
+                spinner.classList.remove('d-none');
                 buttonText.textContent = 'Entrando...';
             } else {
-                spinner.classList.add('d-none'); // Esconde o spinner
+                spinner.classList.add('d-none');
                 buttonText.textContent = 'Login';
             }
         }
 
-        /**
-         * Tenta converter a string de resposta (que pode não ser JSON) em um objeto.
-         * A resposta esperada é algo como "Status: true, Nome: Teste, Tipo: Admin"
-         * @param {string} dataString - A string de texto recebida do webhook.
-         * @returns {object} - Um objeto com os dados (ex: { Status: 'true', Nome: 'Teste' })
-         */
-        function parseUserData(dataString) {
-            const userData = {};
-            
-            if (!dataString || typeof dataString !== 'string') {
-                return userData;
-            }
-            
-            dataString = dataString.trim();
-            
-            // Tenta separar por vírgula, desde que a vírgula seja seguida por "Chave: "
-            // Isso evita quebrar valores que contenham vírgula
-            const pairs = dataString.split(/,\s*(?=[A-Za-z_]+\s*:)/);
-            
-            pairs.forEach(pair => {
-                const delimiterIndex = pair.indexOf(':');
-                if (delimiterIndex > -1) {
-                    const key = pair.substring(0, delimiterIndex).trim();
-                    let value = pair.substring(delimiterIndex + 1).trim();
-                    
-                    // Remove aspas do início e fim, se existirem
-                    value = value.replace(/^["']|["']$/g, '');
-                    
-                    userData[key] = value;
-                }
-            });
-            
-            return userData;
-        }
-
-        /**
-         * Constrói a URL de redirecionamento final com parâmetros de sessão.
-         * @param {string} baseUrl - A URL base (vinda do n8n).
-         * @param {object} userData - O objeto de dados do usuário (Status, Nome, Tipo).
-         * @param {string} email - O email do usuário.
-         * @returns {string} - A URL completa para redirecionamento.
-         */
-        function buildRedirectUrl(baseUrl, userData, email) {
-            try {
-                const url = new URL(baseUrl);
-                
-                // Adiciona parâmetros de sessão na URL
-                url.searchParams.set('auth', 'true');
-                url.searchParams.set('email', email);
-                
-                if (userData.Nome) {
-                    url.searchParams.set('nome', userData.Nome);
-                }
-                if (userData.Tipo) {
-                    url.searchParams.set('tipo', userData.Tipo);
-                }
-                
-                // Token de sessão simples (base64 de email + timestamp + random)
-                // Apenas para dificultar acesso direto à URL
-                const sessionToken = btoa(email + ':' + Date.now() + ':' + Math.random());
-                url.searchParams.set('token', sessionToken);
-                
-                return url.toString();
-            } catch (e) {
-                console.error('Erro ao construir URL de redirecionamento:', e);
-                // Se falhar, retorna a URL base (sem parâmetros)
-                return baseUrl;
-            }
-        }
-
-        // ===========================================
-        // TRATAMENTO DO LOGIN (EVENT LISTENER)
-        // ===========================================
-
         loginForm.addEventListener('submit', async function(event) {
-            event.preventDefault(); // Impede o envio tradicional do formulário
+            event.preventDefault();
             
             const email = emailInput.value.trim();
             const password = passwordInput.value.trim();
 
-            // Validação simples de cliente
             if (!email || !password) {
-                showNotification('Por favor, preencha e-mail e senha.', 'warning');
+                showToast('Por favor, preencha e-mail e senha.', 'warning');
                 return;
             }
 
             if (!email.includes('@')) {
-                showNotification('Por favor, insira um e-mail válido.', 'warning');
+                showToast('Por favor, insira um e-mail válido.', 'warning');
                 return;
             }
 
-            setLoadingState(true); // Ativa o spinner
+            setLoadingState(true);
 
             try {
-                console.log('Enviando requisição de autenticação...');
+                console.log('🔐 Enviando requisição de autenticação...');
                 
-                // 1. CHAMA O WEBHOOK DE AUTENTICAÇÃO
                 const response = await fetch(WEBHOOK_AUTHENTICATE_URL, {
                     method: 'POST',
                     headers: { 
@@ -320,117 +252,109 @@
                 });
 
                 const responseText = await response.text();
-                console.log('Resposta recebida:', responseText);
-                console.log('Status HTTP:', response.status);
+                console.log('📥 Resposta recebida (status ' + response.status + ')');
 
-                // 2. VERIFICA SE A REQUISIÇÃO FALHOU (Erro 4xx, 5xx)
                 if (!response.ok) {
-                    // Tenta usar a resposta de texto como erro, ou uma msg padrão
                     throw new Error(responseText || 'Erro ao conectar com o servidor.');
                 }
 
-                // 3. VERIFICA SE A RESPOSTA VEIO VAZIA (O SEU PROBLEMA ATUAL)
-                // Se a resposta for OK (200) mas o corpo for vazio, disparamos um erro.
                 if (!responseText || responseText.trim() === '') {
-                    throw new Error('Resposta vazia do servidor. Verifique a configuração do webhook.');
+                    throw new Error('Resposta vazia do servidor.');
                 }
 
-                let parsedData = null;
+                let authData = null;
 
-                // 4. TENTA ANALISAR A RESPOSTA
-                // Tentativa 1: Analisar como JSON
                 try {
                     const jsonResult = JSON.parse(responseText);
-                    console.log('JSON parseado:', jsonResult);
+                    console.log('📋 JSON parseado:', jsonResult);
                     
-                    // Formato: Array com objeto contendo 'data' (comum em n8n)
                     if (Array.isArray(jsonResult) && jsonResult.length > 0) {
-                        if (jsonResult[0].data) {
-                            parsedData = parseUserData(jsonResult[0].data);
-                        } else if (jsonResult[0].Status) { // Formato: Array com objeto
-                            parsedData = jsonResult[0];
-                        }
-                    } 
-                    // Formato: Objeto direto com Status
-                    else if (jsonResult.Status) {
-                        parsedData = jsonResult;
-                    }
-                    // Formato: Objeto com propriedade data
-                    else if (jsonResult.data) {
-                        parsedData = parseUserData(jsonResult.data);
+                        authData = jsonResult[0];
+                    } else if (jsonResult.Status || jsonResult.status) {
+                        authData = jsonResult;
                     }
                 } catch (jsonError) {
-                    console.log('Não é JSON válido, tentando parse como texto');
-                }
-                
-                // Tentativa 2: Analisar como Texto simples (formato "Chave: Valor")
-                if (!parsedData && responseText.includes(':')) {
-                    console.log('Tentando parse como texto simples');
-                    parsedData = parseUserData(responseText);
-                }
-
-                console.log('Dados parseados:', parsedData);
-
-                // 5. VALIDAÇÃO FINAL DOS DADOS
-                if (!parsedData || !parsedData.Status) {
-                    console.error('Dados inválidos. Response:', responseText);
-                    throw new Error('Formato de resposta inválido. Status não encontrado.');
+                    console.warn('⚠️ Resposta não é JSON válido, tentando parse como texto');
+                    
+                    const pairs = responseText.split(/,\s*(?=[A-Za-z_]+\s*:)/);
+                    authData = {};
+                    pairs.forEach(pair => {
+                        const delimiterIndex = pair.indexOf(':');
+                        if (delimiterIndex > -1) {
+                            const key = pair.substring(0, delimiterIndex).trim();
+                            let value = pair.substring(delimiterIndex + 1).trim();
+                            value = value.replace(/^["']|["']$/g, '');
+                            authData[key] = value;
+                        }
+                    });
                 }
 
-                // 6. PROCESSA O STATUS DO LOGIN
-                const status = parsedData.Status.toString().toLowerCase();
+                console.log('✅ Dados de autenticação processados:', authData);
+
+                const status = (authData.Status || authData.status || '').toString().toLowerCase();
+                const sessionToken = authData.session_token || authData.token || authData.Token;
                 
                 if (status === 'true') {
-                    // SUCESSO
-                    showNotification('Login bem-sucedido! Redirecionando...', 'success');
+                    if (sessionToken) {
+                        SafeStorage.setItem('session_token', sessionToken);
+                        console.log('✅ Token de sessão armazenado com segurança');
+                    } else {
+                        console.warn('⚠️ Backend não retornou session_token. Criando token temporário.');
+                        const tempToken = btoa(email + ':' + Date.now() + ':' + Math.random());
+                        SafeStorage.setItem('session_token', tempToken);
+                        SafeStorage.setItem('userEmail', email);
+                        if (authData.Nome || authData.nome) {
+                            SafeStorage.setItem('userName', authData.Nome || authData.nome);
+                        }
+                        if (authData.Tipo || authData.tipo) {
+                            SafeStorage.setItem('userType', authData.Tipo || authData.tipo);
+                        }
+                    }
                     
-                    const redirectUrl = buildRedirectUrl(REDIRECT_URL_ON_SUCCESS, parsedData, email);
-                    console.log('Redirecionando para:', redirectUrl);
+                    showToast('Login bem-sucedido! Redirecionando...', 'success');
                     
                     setTimeout(() => { 
-                        window.location.href = redirectUrl;
-                    }, 1500); // Aguarda 1.5s para o usuário ler a msg
+                        window.location.href = DASHBOARD_URL;
+                    }, 1500);
 
                 } else if (status === 'inactive') {
-                    // USUÁRIO INATIVO
                     setLoadingState(false);
                     const activationModal = new bootstrap.Modal(document.getElementById('activationPendingModal'));
                     activationModal.show();
                     
                 } else if (status === 'false') {
-                    // E-MAIL OU SENHA INCORRETOS
                     setLoadingState(false);
-                    showNotification('E-mail ou senha incorretos.', 'danger');
-                    passwordInput.value = ''; // Limpa a senha
+                    showToast('E-mail ou senha incorretos.', 'danger');
+                    passwordInput.value = '';
                     passwordInput.focus();
                     
                 } else {
-                    // STATUS DESCONHECIDO
                     setLoadingState(false);
-                    showNotification('Status de autenticação desconhecido: ' + parsedData.Status, 'warning');
+                    showToast('Status de autenticação desconhecido: ' + status, 'warning');
                 }
                 
             } catch (error) {
-                // 7. CAPTURA QUALQUER ERRO (de rede, de parse, ou o erro de "resposta vazia")
-                console.error('Erro durante o login:', error);
+                console.error('❌ Erro durante o login:', error);
                 setLoadingState(false);
-                showNotification(
+                showToast(
                     error.message || 'Erro ao conectar com o servidor. Tente novamente.', 
                     'danger'
                 );
             }
         });
-
-        // ===========================================
-        // INICIALIZAÇÃO DA PÁGINA
-        // ===========================================
         
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Página de login carregada');
-            console.log('URL de autenticação:', WEBHOOK_AUTHENTICATE_URL);
-            console.log('URL de redirecionamento:', REDIRECT_URL_ON_SUCCESS);
+            console.log('📄 Página de login carregada');
+            console.log('🔗 URL de autenticação:', WEBHOOK_AUTHENTICATE_URL);
             
-            // Foco no campo de e-mail ao carregar
+            SafeStorage.removeItem('session_token');
+            SafeStorage.removeItem('userEmail');
+            SafeStorage.removeItem('userName');
+            SafeStorage.removeItem('userType');
+            SafeStorage.removeItem('authToken');
+            SafeStorage.removeItem('userSession');
+            console.log('🧹 Sessão anterior limpa');
+            
             emailInput.focus();
         });
     </script>
