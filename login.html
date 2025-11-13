@@ -42,27 +42,22 @@
             border-radius: 8px; 
             font-weight: 600; 
         }
-        .btn-login:hover {
-            background-color: #0b5ed7;
-        }
-        .btn-login:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
         .signup-link { 
             display: block; 
             margin-top: 20px; 
             color: #0d6efd; 
             text-decoration: none; 
         }
-        .signup-link:hover {
-            text-decoration: underline;
+        .notification-area { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            z-index: 1050; 
+            min-width: 300px; 
         }
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1080;
+        .alert { 
+            border-radius: 8px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
         }
         .spinner-border-sm { 
             margin-right: 5px; 
@@ -71,44 +66,38 @@
 </head>
 <body>
     <div class="login-container">
-        <img src="https://raw.githubusercontent.com/luishplleite/logo/2db2a6b0c2a492381751030e5198a1f1123e806e/LOGO-COLORIDO.png" alt="ResolvAI Logo" class="logo" onerror="this.onerror=null;this.src='https://placehold.co/180x40/0d6efd/ffffff?text=ResolvTask';">
+        <img src="https://www.resolv.ai/logo.png" alt="ResolvAI Logo" class="logo" onerror="this.onerror=null;this.src='https://placehold.co/180x40/ffffff/cccccc?text=Logo';">
         <br>
         <h1><i class="fas fa-users me-3"></i>Task</h1>
         <p class="text-muted mb-4">Faça login para continuar.</p>
-        
         <form id="loginForm">
             <div class="mb-3 text-start">
                 <label for="email" class="form-label">E-mail:</label>
-                <input type="email" class="form-control" id="email" required placeholder="seuemail@exemplo.com" autocomplete="email">
+                <input type="email" class="form-control" id="email" required placeholder="seuemail@exemplo.com">
             </div>
             <div class="mb-3 text-start">
                 <label for="password" class="form-label">Senha:</label>
-                <input type="password" class="form-control" id="password" required placeholder="Sua senha" autocomplete="current-password">
+                <input type="password" class="form-control" id="password" required placeholder="Sua senha">
             </div>
             <button type="submit" class="btn btn-login w-100 mt-3" id="loginButton">
                 <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                <span id="buttonText">Login</span>
+                Login
             </button>
         </form>
-        
-        <a href="cadastro.html" class="signup-link">Não tem uma conta? Cadastre-se</a>
+        <a href="{{ $json.dominio.cadastro }}" class="signup-link">Não tem uma conta? Cadastre-se</a>
     </div>
     
-    <div class="toast-container" id="toastContainer"></div>
+    <div class="notification-area" id="notificationArea"></div>
     
     <div class="modal fade" id="activationPendingModal" tabindex="-1" aria-labelledby="activationPendingModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="activationPendingModalLabel">
-                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
-                        Aviso de Ativação
-                    </h5>
+                    <h5 class="modal-title" id="activationPendingModalLabel">Aviso de Ativação</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Aguardando ativação do cadastro.</p>
-                    <p class="mb-0">Por favor, entre em contato com o administrador.</p>
+                    Aguardando ativação do cadastro. Por favor, entre em contato com o administrador.
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
@@ -118,105 +107,79 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
     <script>
-        const SafeStorage = (() => {
-            let memoryStorage = {};
-            let isLocalStorageAvailable = false;
-
-            try {
-                const test = '__storage_test__';
-                localStorage.setItem(test, test);
-                localStorage.removeItem(test);
-                isLocalStorageAvailable = true;
-            } catch (e) {
-                isLocalStorageAvailable = false;
-                console.warn('⚠️ localStorage não disponível, usando armazenamento em memória');
+        // --- VERIFICAÇÃO DE SESSÃO EXISTENTE ---
+        document.addEventListener('DOMContentLoaded', () => {
+            const authToken = localStorage.getItem('authToken');
+            const userSession = localStorage.getItem('userSession');
+            
+            if (authToken && userSession) {
+                // Se já está logado, redireciona para o dashboard
+                window.location.href = '{{ $json.dominio.resolv }}';
+                return;
             }
+        });
 
-            return {
-                getItem: (key) => {
-                    if (isLocalStorageAvailable) {
-                        return localStorage.getItem(key);
-                    }
-                    return memoryStorage[key] || null;
-                },
-                setItem: (key, value) => {
-                    if (isLocalStorageAvailable) {
-                        localStorage.setItem(key, value);
-                    } else {
-                        memoryStorage[key] = value;
-                    }
-                },
-                removeItem: (key) => {
-                    if (isLocalStorageAvailable) {
-                        localStorage.removeItem(key);
-                    } else {
-                        delete memoryStorage[key];
-                    }
-                },
-                clear: () => {
-                    if (isLocalStorageAvailable) {
-                        localStorage.clear();
-                    } else {
-                        memoryStorage = {};
-                    }
-                }
-            };
-        })();
-        
-        const WEBHOOK_AUTHENTICATE_URL = 'https://n8n.resolv.ai/webhook/autenticar';
-        const DASHBOARD_URL = 'index.html';
+        // --- AUTENTICAÇÃO ---
+        const WEBHOOK_AUTHENTICATE_URL = '{{ $json.dominio.autenticar }}';
+        const REDIRECT_URL_ON_SUCCESS = '{{ $json.dominio.resolv }}';
         
         const loginForm = document.getElementById('loginForm');
         const loginButton = document.getElementById('loginButton');
-        const buttonText = document.getElementById('buttonText');
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         const spinner = loginButton.querySelector('.spinner-border');
 
-        function showToast(message, type = 'success') {
-            const toastContainer = document.getElementById('toastContainer');
-            const toastId = 'toast-' + Date.now();
+        function showNotification(message, type = 'success') {
+            const notificationArea = document.getElementById('notificationArea');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>`;
+            notificationArea.appendChild(alertDiv);
             
-            const bgClass = type === 'success' ? 'bg-success' : 
-                           type === 'danger' ? 'bg-danger' : 
-                           type === 'warning' ? 'bg-warning' : 'bg-info';
-            
-            const icon = type === 'success' ? 'check-circle' : 
-                        type === 'danger' ? 'exclamation-circle' : 
-                        type === 'warning' ? 'exclamation-triangle' : 'info-circle';
-            
-            const toastHTML = `
-                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex">
-                        <div class="toast-body">
-                            <i class="fas fa-${icon} me-2"></i>${message}
-                        </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                    </div>
-                </div>
-            `;
-            
-            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
-            const toastElement = document.getElementById(toastId);
-            const toast = new bootstrap.Toast(toastElement, { delay: 5000 });
-            toast.show();
-            
-            toastElement.addEventListener('hidden.bs.toast', () => {
-                toastElement.remove();
-            });
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getOrCreateInstance(alertDiv);
+                if (alertInstance) { 
+                    alertInstance.close(); 
+                }
+            }, 5000);
         }
 
-        function setLoadingState(isLoading) {
-            loginButton.disabled = isLoading;
-            if (isLoading) {
-                spinner.classList.remove('d-none');
-                buttonText.textContent = 'Entrando...';
-            } else {
-                spinner.classList.add('d-none');
-                buttonText.textContent = 'Login';
-            }
+        function generateSessionToken() {
+            return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function parseUserData(dataString) {
+            const userData = {};
+            const pairs = dataString.split(/,\s*/);
+            pairs.forEach(pair => {
+                const delimiterIndex = pair.indexOf(':');
+                if (delimiterIndex > -1) {
+                    const key = pair.substring(0, delimiterIndex).trim();
+                    const value = pair.substring(delimiterIndex + 1).trim();
+                    userData[key] = value;
+                }
+            });
+            return userData;
+        }
+
+        function saveUserSession(email, userData) {
+            const sessionToken = generateSessionToken();
+            const sessionData = {
+                email: email,
+                nome: userData.Nome || email.split('@')[0],
+                tipo: userData.Tipo || 'colaborador',
+                loginTime: new Date().toISOString(),
+                token: sessionToken
+            };
+            
+            localStorage.clear();
+            localStorage.setItem('authToken', sessionToken);
+            localStorage.setItem('userSession', JSON.stringify(sessionData));
+            localStorage.setItem('loggedInUserEmail', email);
+            localStorage.setItem('loggedInUserName', sessionData.nome);
+            localStorage.setItem('loggedInUserTipo', sessionData.tipo);
         }
 
         loginForm.addEventListener('submit', async function(event) {
@@ -226,136 +189,76 @@
             const password = passwordInput.value.trim();
 
             if (!email || !password) {
-                showToast('Por favor, preencha e-mail e senha.', 'warning');
+                showNotification('Por favor, preencha e-mail e senha.', 'warning');
                 return;
             }
 
-            if (!email.includes('@')) {
-                showToast('Por favor, insira um e-mail válido.', 'warning');
-                return;
-            }
-
-            setLoadingState(true);
+            loginButton.disabled = true;
+            spinner.classList.remove('d-none');
 
             try {
-                console.log('🔐 Enviando requisição de autenticação...');
-                
                 const response = await fetch(WEBHOOK_AUTHENTICATE_URL, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ 
-                        email: email, 
-                        senha: password 
-                    })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email, senha: password })
                 });
 
                 const responseText = await response.text();
-                console.log('📥 Resposta recebida (status ' + response.status + ')');
 
                 if (!response.ok) {
-                    throw new Error(responseText || 'Erro ao conectar com o servidor.');
+                    throw new Error(responseText || 'Credenciais inválidas ou erro no servidor.');
                 }
 
-                if (!responseText || responseText.trim() === '') {
-                    throw new Error('Resposta vazia do servidor.');
-                }
+                let userDataString = null;
 
-                let authData = null;
-
+                // Tenta interpretar como JSON. Se for bem-sucedido e tiver a estrutura esperada, usa.
                 try {
-                    const jsonResult = JSON.parse(responseText);
-                    console.log('📋 JSON parseado:', jsonResult);
-                    
-                    if (Array.isArray(jsonResult) && jsonResult.length > 0) {
-                        authData = jsonResult[0];
-                    } else if (jsonResult.Status || jsonResult.status) {
-                        authData = jsonResult;
+                    const result = JSON.parse(responseText);
+                    if (Array.isArray(result) && result.length > 0 && result[0].data) {
+                        userDataString = result[0].data;
                     }
                 } catch (jsonError) {
-                    console.warn('⚠️ Resposta não é JSON válido, tentando parse como texto');
-                    
-                    const pairs = responseText.split(/,\s*(?=[A-Za-z_]+\s*:)/);
-                    authData = {};
-                    pairs.forEach(pair => {
-                        const delimiterIndex = pair.indexOf(':');
-                        if (delimiterIndex > -1) {
-                            const key = pair.substring(0, delimiterIndex).trim();
-                            let value = pair.substring(delimiterIndex + 1).trim();
-                            value = value.replace(/^["']|["']$/g, '');
-                            authData[key] = value;
-                        }
-                    });
+                    // Se não for JSON, o erro é ignorado aqui e a lógica abaixo trata como texto.
+                    console.log("A resposta não é JSON. Tratando como texto simples:", responseText);
+                }
+                
+                // Se não foi possível extrair do JSON, trata a resposta como texto simples.
+                if (userDataString === null && responseText.includes('Status:')) {
+                    userDataString = responseText;
                 }
 
-                console.log('✅ Dados de autenticação processados:', authData);
+                // Se uma string de dados foi encontrada (seja de JSON ou texto), processa-a.
+                if (userDataString) {
+                    const parsedData = parseUserData(userDataString);
 
-                const status = (authData.Status || authData.status || '').toString().toLowerCase();
-                const sessionToken = authData.session_token || authData.token || authData.Token;
-                
-                if (status === 'true') {
-                    if (sessionToken) {
-                        SafeStorage.setItem('session_token', sessionToken);
-                        console.log('✅ Token de sessão armazenado com segurança');
+                    if (parsedData.Status === 'True') {
+                        saveUserSession(email, parsedData);
+                        showNotification('Login bem-sucedido! Redirecionando...', 'success');
+                        
+                        setTimeout(() => { 
+                            window.location.href = REDIRECT_URL_ON_SUCCESS; 
+                        }, 1500);
+
+                    } else if (parsedData.Status === 'inactive') {
+                        const activationModal = new bootstrap.Modal(document.getElementById('activationPendingModal'));
+                        activationModal.show();
                     } else {
-                        console.warn('⚠️ Backend não retornou session_token. Criando token temporário.');
-                        const tempToken = btoa(email + ':' + Date.now() + ':' + Math.random());
-                        SafeStorage.setItem('session_token', tempToken);
-                        SafeStorage.setItem('userEmail', email);
-                        if (authData.Nome || authData.nome) {
-                            SafeStorage.setItem('userName', authData.Nome || authData.nome);
-                        }
-                        if (authData.Tipo || authData.tipo) {
-                            SafeStorage.setItem('userType', authData.Tipo || authData.tipo);
-                        }
+                        // Se o status existe mas não é 'True' ou 'inactive'
+                        showNotification('E-mail ou senha incorretos.', 'danger');
                     }
-                    
-                    showToast('Login bem-sucedido! Redirecionando...', 'success');
-                    
-                    setTimeout(() => { 
-                        window.location.href = DASHBOARD_URL;
-                    }, 1500);
-
-                } else if (status === 'inactive') {
-                    setLoadingState(false);
-                    const activationModal = new bootstrap.Modal(document.getElementById('activationPendingModal'));
-                    activationModal.show();
-                    
-                } else if (status === 'false') {
-                    setLoadingState(false);
-                    showToast('E-mail ou senha incorretos.', 'danger');
-                    passwordInput.value = '';
-                    passwordInput.focus();
-                    
                 } else {
-                    setLoadingState(false);
-                    showToast('Status de autenticação desconhecido: ' + status, 'warning');
+                    // Se, após todas as tentativas, nenhuma string de dados válida foi encontrada.
+                    console.error("Formato de resposta do servidor inválido:", responseText);
+                    throw new Error("Formato de resposta do servidor inválido.");
                 }
                 
             } catch (error) {
-                console.error('❌ Erro durante o login:', error);
-                setLoadingState(false);
-                showToast(
-                    error.message || 'Erro ao conectar com o servidor. Tente novamente.', 
-                    'danger'
-                );
+                console.error('Erro durante o login:', error);
+                showNotification(error.message || 'Ocorreu um erro ao tentar fazer login.', 'danger');
+            } finally {
+                loginButton.disabled = false;
+                spinner.classList.add('d-none');
             }
-        });
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('📄 Página de login carregada');
-            console.log('🔗 URL de autenticação:', WEBHOOK_AUTHENTICATE_URL);
-            
-            SafeStorage.removeItem('session_token');
-            SafeStorage.removeItem('userEmail');
-            SafeStorage.removeItem('userName');
-            SafeStorage.removeItem('userType');
-            SafeStorage.removeItem('authToken');
-            SafeStorage.removeItem('userSession');
-            console.log('🧹 Sessão anterior limpa');
-            
-            emailInput.focus();
         });
     </script>
 </body>
